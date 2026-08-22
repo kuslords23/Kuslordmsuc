@@ -1,0 +1,2 @@
+# Kuslordmsuc
+FindMyMom TypeScript starter
