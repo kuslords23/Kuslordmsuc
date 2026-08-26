@@ -1,0 +1,1045 @@
+PATH: index.html
+`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Kuslord Music</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+    <div id="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">🎧</span>
+                <span>Kuslord Music</span>
+            </div>
+
+            <ul class="nav">
+                <li class="active"><a href="#" data-page="home">🏠 Home</a></li>
+                <li><a href="#" data-page="search">🔍 Search</a></li>
+                <li><a href="#" data-page="library">📚 Library</a></li>
+            </ul>
+
+            <div class="playlists">
+                <h3>Playlists</h3>
+                <button class="new-playlist">+ New Playlist</button>
+                <ul>
+                    <li><span class="playlist-icon">❤️</span> My Favorites</li>
+                    <li><span class="playlist-icon">🌙</span> Chill Vibes</li>
+                    <li><span class="playlist-icon">🔥</span> Workout</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <header class="topbar">
+                <div class="nav-buttons">
+                    <button class="nav-btn" aria-label="Back">←</button>
+                    <button class="nav-btn" aria-label="Forward">→</button>
+                </div>
+                <div class="search">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="search-input" placeholder="Euphonious Search..." />
+                </div>
+                <div class="user">👤 Kuslord</div>
+            </header>
+
+            <!-- Home page -->
+            <section id="home" class="page active">
+                <div class="hero">
+                    <div class="hero-content">
+                        <h1>Your playlists, your world.</h1>
+                        <p>Every beat you love, wrapped in one beautiful app.</p>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <h2>Trending Songs</h2>
+                        <button class="see-all">See all</button>
+                    </div>
+                    <div id="trending" class="card-grid"></div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <h2>Albums</h2>
+                        <button class="see-all">See all</button>
+                    </div>
+                    <div id="albums" class="card-grid"></div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <h2>Featured Playlists</h2>
+                        <button class="see-all">See all</button>
+                    </div>
+                    <div id="playlists-section" class="card-grid"></div>
+                </div>
+            </section>
+
+            <!-- Search page -->
+            <section id="search" class="page">
+                <div class="section">
+                    <h2>Search Results</h2>
+                    <div id="search-results" class="card-grid"></div>
+                </div>
+            </section>
+
+            <!-- Library page -->
+            <section id="library" class="page">
+                <div class="section">
+                    <h2>Your Library</h2>
+                    <div id="library-list" class="card-grid"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Player Bar -->
+        <footer class="player">
+            <div class="song-info">
+                <div id="player-cover" class="player-cover" style="background: linear-gradient(135deg,#f093fb,#f5576c)"></div>
+                <div class="meta">
+                    <div id="player-title" class="player-title">Neon Horizon</div>
+                    <div id="player-artist" class="player-artist">Kuslord</div>
+                </div>
+                <button id="favorite-btn" class="fav-btn" aria-label="Favorite">🤍</button>
+            </div>
+
+            <div class="player-controls">
+                <div class="control-icons">
+                    <button id="shuffle-btn" class="ctrl-btn" aria-label="Shuffle">🔀</button>
+                    <button id="prev-btn" class="ctrl-btn" aria-label="Previous">⏮️</button>
+                    <button id="play-btn" class="play-btn" aria-label="Play">▶️</button>
+                    <button id="next-btn" class="ctrl-btn" aria-label="Next">⏭️</button>
+                    <button id="repeat-btn" class="ctrl-btn" aria-label="Repeat">🔁</button>
+                </div>
+                <div class="progress">
+                    <span id="current-time">0:00</span>
+                    <div class="bar" id="seek-bar">
+                        <div id="progress-fill" class="fill"></div>
+                    </div>
+                    <span id="duration">0:00</span>
+                </div>
+            </div>
+
+            <div class="volume">
+                <span>🔊</span>
+                <div class="bar" id="volume-bar">
+                    <div id="volume-fill" class="fill"></div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <audio id="audio"></audio>
+    <script src="src/app.js"></script>
+</body>
+</html>
+`
+
+PATH: src/styles.css
+`
+/* ============ Reset & Variables ============ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg: #0d0d12;
+    --sidebar: #1a1a22;
+    --card: #1e1e2a;
+    --card-hover: #262636;
+    --accent: #7c4dff;
+    --accent-2: #00d4ff;
+    --text: #ffffff;
+    --muted: #a8a8bc;
+    --player: #1a1a24;
+    --border: rgba(255,255,255,0.06);
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+#app {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 1fr 90px;
+    height: 100vh;
+}
+
+/* ============ Sidebar ============ */
+.sidebar {
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    grid-row: 1 / -1;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    font-size: 1.2rem;
+    letter-spacing: -0.5px;
+}
+.logo-icon {
+    font-size: 1.6rem;
+}
+
+.nav {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.nav li a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--muted);
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+}
+.nav li a:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--text);
+}
+.nav li.active a {
+    background: var(--accent);
+    color: #fff;
+}
+
+.playlists h3 {
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+}
+.new-playlist {
+    width: 100%;
+    padding: 10px;
+    border: 1px dashed rgba(255,255,255,0.2);
+    background: transparent;
+    color: var(--muted);
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: all 0.2s;
+}
+.new-playlist:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+.playlists ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.playlists li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--muted);
+    transition: background 0.2s;
+}
+.playlists li:hover {
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+}
+
+/* ============ Main ============ */
+.main {
+    overflow-y: auto;
+    padding: 20px 30px 40px;
+    background: linear-gradient(180deg, #191220 0%, var(--bg) 40%);
+    grid-row: 1;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+.main::-webkit-scrollbar {
+    width: 6px;
+}
+.main::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 28px;
+}
+.nav-buttons {
+    display: flex;
+    gap: 8px;
+}
+.nav-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.nav-btn:hover {
+    background: rgba(255,255,255,0.2);
+}
+.search {
+    flex: 1;
+    max-width: 600px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 40px;
+    padding: 0 16px;
+    height: 44px;
+}
+.search-icon {
+    opacity: 0.6;
+}
+.search input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+.search input::placeholder {
+    color: var(--muted);
+}
+.user {
+    font-size: 1.1rem;
+    background: var(--accent);
+    padding: 8px 12px;
+    border-radius: 30px;
+    border: 2px solid rgba(255,255,255,0.15);
+}
+
+.page {
+    display: none;
+}
+.page.active {
+    display: block;
+}
+
+/* ============ Hero ============ */
+.hero {
+    background: linear-gradient(135deg, #6d28d9, #00a6d6);
+    border-radius: 20px;
+    padding: 40px 34px;
+    margin-bottom: 40px;
+    position: relative;
+    overflow: hidden;
+}
+.hero::after {
+    content: "";
+    position: absolute;
+    right: -60px;
+    top: -60px;
+    width: 240px;
+    height: 240px;
+    background: radial-gradient(circle, rgba(255,255,255,0.25), transparent);
+    border-radius: 50%;
+}
+.hero-content {
+    position: relative;
+    z-index: 1;
+}
+.hero h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    letter-spacing: -1px;
+}
+.hero p {
+    font-size: 1.05rem;
+    opacity: 0.9;
+}
+
+/* ============ Sections ============ */
+.section {
+    margin-bottom: 44px;
+}
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+.section-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+.see-all {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+.see-all:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 18px;
+}
+
+/* ============ Cards ============ */
+.card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: background 0.25s, transform 0.2s, box-shadow 0.25s;
+}
+.card:hover {
+    background: var(--card-hover);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+.card .cover {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s;
+}
+.card:hover .cover {
+    transform: scale(1.02);
+}
+.card .cover .play-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1.2rem;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+}
+.card:hover .play-btn {
+    opacity: 1;
+    transform: translateY(0);
+}
+.card .cover .badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(0,0,0,0.5);
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+.card-info h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.card-info p {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+/* ============ Player Bar ============ */
+.player {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    background: var(--player);
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 220px 1fr 220px;
+    align-items: center;
+    padding: 10px 16px;
+    gap: 12px;
+}
+
+.song-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+.player-cover {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    background-size: cover;
+    flex-shrink: 0;
+}
+.meta {
+    min-width: 0;
+}
+.player-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.player-artist {
+    color: var(--muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+.fav-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--muted);
+    transition: color 0.2s, transform 0.2s;
+}
+.fav-btn.active {
+    color: #ff2d75;
+    transform: scale(1.1);
+}
+
+.player-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.control-icons {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+.ctrl-btn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s, transform 0.15s;
+    padding: 4px;
+    border-radius: 50%;
+}
+.ctrl-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+.ctrl-btn.active {
+    color: var(--accent-2);
+    opacity: 1;
+}
+.play-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: #fff;
+    color: #000;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.play-btn:hover {
+    transform: scale(1.08);
+}
+
+.progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 600px;
+}
+.progress span {
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+.bar {
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+    cursor: pointer;
+    flex: 1;
+    position: relative;
+}
+.fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 20px;
+}
+
+.volume {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+}
+.volume span {
+    font-size: 1rem;
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 900px) {
+    #app {
+        grid-template-columns: 1fr;
+    }
+    .sidebar {
+        display: none;
+    }
+    .player {
+        grid-template-columns: 1fr 2fr 1fr;
+    }
+}
+`
+PATH: src/app.js
+`
+/**
+ * Kuslord Music
+ * A beautiful Spotify/Apple Music-style player using vanilla JS.
+ */
+
+// ============================================================
+// DATA
+// ============================================================
+const songs = [
+    { title: "Neon Horizon", artist: "Kuslord", album: "Night Drive", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", gradient: "linear-gradient(135deg,#f093fb,#f5576c)" },
+    { title: "Midnight Runner", artist: "Synthwave", album: "Retro City", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", gradient: "linear-gradient(135deg,#4facfe,#00f2fe)" },
+    { title: "Solar Waves", artist: "Sundown", album: "Electric", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", gradient: "linear-gradient(135deg,#fa709a,#fee140)" },
+    { title: "City Lights", artist: "Neon Dreams", album: "Metropolis", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", gradient: "linear-gradient(135deg,#30cfd0,#330867)" },
+    { title: "Aurora", artist: "Northern", album: "Arctic", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3", gradient: "linear-gradient(135deg,#a8edea,#fed6e3)" },
+    { title: "Starlight", artist: "Luna", album: "Night Sky", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3", gradient: "linear-gradient(135deg,#ff9a9e,#fad0c4)" },
+    { title: "Tropicana", artist: "Ricky", album: "Summer Mix", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3", gradient: "linear-gradient(135deg,#fbc2eb,#a6c1ee)" },
+    { title: "Golden Circuit", artist: "Neo", album: "Dark Future", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3", gradient: "linear-gradient(135deg,#a18cd1,#fbc2eb)" },
+    { title: "Serenity", artist: "Mira", album: "Calm", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3", gradient: "linear-gradient(135deg,#84fab0,#8fd3f4)" },
+    { title: "Pulse", artist: "Dance", album: "Vibe", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3", gradient: "linear-gradient(135deg,#b224ef,#7579ff)" }
+];
+
+const albums = [
+    { title: "Night Drive", artist: "Kuslord", gradient: "linear-gradient(135deg,#f093fb,#f5576c)" },
+    { title: "Retro City", artist: "Synthwave", gradient: "linear-gradient(135deg,#4facfe,#00f2fe)" },
+    { title: "Metropolis", artist: "Neon Dreams", gradient: "linear-gradient(135deg,#30cfd0,#330867)" },
+    { title: "Arctic", artist: "Northern", gradient: "linear-gradient(135deg,#a8edea,#fed6e3)" }
+];
+
+const playlists = [
+    { title: "Chill Vibes", gradient: "linear-gradient(135deg,#a8edea,#fed6e3)" },
+    { title: "Focus Flow", gradient: "linear-gradient(135deg,#84fab0,#8fd3f4)" },
+    { title: "Party Hype", gradient: "linear-gradient(135deg,#ff9a9e,#fec0c0)" }
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let currentIndex = 0;
+let isPlaying = false;
+let isShuffle = false;
+let isRepeat = false;
+let favorites = new Set();
+
+// ============================================================
+// ELEMENTS
+// ============================================================
+const audio = document.getElementById('audio');
+
+const playBtn = document.getElementById('play-btn');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const shuffleBtn = document.getElementById('shuffle-btn');
+const repeatBtn = document.getElementById('repeat-btn');
+const favoriteBtn = document.getElementById('favorite-btn');
+
+const seekBar = document.getElementById('seek-bar');
+const progressFill = document.getElementById('progress-fill');
+const currentTimeEl = document.getElementById('current-time');
+const durationEl = document.getElementById('duration');
+
+const volumeBar = document.getElementById('volume-bar');
+const volumeFill = document.getElementById('volume-fill');
+
+const searchInput = document.getElementById('search-input');
+const navLinks = document.querySelectorAll('.nav a');
+
+// ============================================================
+// RENDER TRENDING
+// ============================================================
+function renderTrending() {
+    const container = document.getElementById('trending');
+    container.innerHTML = '';
+    songs.forEach((song, i) => {
+        container.appendChild(createSongCard(song, i));
+    });
+}
+
+// ============================================================
+// RENDER ALBUMS
+// ============================================================
+function renderAlbums() {
+    const container = document.getElementById('albums');
+    container.innerHTML = '';
+    albums.forEach((album, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <div class="cover" style="background: ${album.gradient}">
+                <span class="badge">Album</span>
+            </div>
+            <div class="card-info">
+                <h4>${album.title}</h4>
+                <p>${album.artist}</p>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// ============================================================
+// RENDER PLAYLISTS
+// ============================================================
+function renderPlaylists() {
+    const container = document.getElementById('playlists-section');
+    container.innerHTML = '';
+    playlists.forEach((pl, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <div class="cover" style="background: ${pl.gradient}">
+                <span class="badge">Playlist</span>
+            </div>
+            <div class="card-info">
+                <h4>${pl.title}</h4>
+                <p>${songs.length} songs</p>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// ============================================================
+// SONG CARD
+// ============================================================
+function createSongCard(song, index) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+        <div class="cover" style="background: ${song.gradient}">
+            <span class="badge">Trending</span>
+            <button class="play-btn" aria-label="Play ${song.title}">▶️</button>
+        </div>
+        <div class="card-info">
+            <h4>${song.title}</h4>
+            <p>${song.artist}</p>
+        </div>
+    `;
+    card.querySelector('.play-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        playSongAt(index);
+    });
+    return card;
+}
+
+// ============================================================
+// PLAYER LOGIC
+// ============================================================
+function playSongAt(index) {
+    currentIndex = index;
+    const song = songs[currentIndex];
+    audio.src = song.src;
+    audio.volume = 0.7;
+    // Update CSS cover
+    document.getElementById('player-cover').style.background = song.gradient;
+    document.getElementById('player-title').textContent = song.title;
+    document.getElementById('player-artist').textContent = song.artist;
+    updateFavoriteBtn();
+    audio.play();
+    updatePlayBtn();
+}
+
+function togglePlay() {
+    if (audio.paused) {
+        if (!audio.src) loadCurrentSong();
+        audio.play();
+    } else {
+        audio.pause();
+    }
+}
+
+function loadCurrentSong() {
+    const song = songs[currentIndex];
+    audio.src = song.src;
+    document.getElementById('player-cover').style.background = song.gradient;
+    document.getElementById('player-title').textContent = song.title;
+    document.getElementById('player-artist').textContent = song.artist;
+}
+
+function nextSong() {
+    let index;
+    if (isShuffle) {
+        index = Math.floor(Math.random() * songs.length);
+        if (index === currentIndex) index = (index + 1) % songs.length;
+    } else {
+        index = (currentIndex + 1) % songs.length;
+    }
+    playSongAt(index);
+}
+
+function prevSong() {
+    const index = (currentIndex - 1 + songs.length) % songs.length;
+    playSongAt(index);
+}
+
+function updatePlayButton() {
+    isPlaying = !audio.paused;
+    playBtn.textContent = isPlaying ? '⏸️' : '▶️';
+}
+
+function updateProgress() {
+    if (audio.duration) {
+        const percent = (audio.currentTime / audio.duration) * 100;
+        progressFill.style.width = percent + '%';
+        currentTimeEl.textContent = formatTime(audio.currentTime);
+        durationEl.textContent = formatTime(audio.duration);
+    }
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function toggleFavorite() {
+    const song = songs[currentIndex];
+    if (favorites.has(song.title)) {
+        favorites.delete(song.title);
+        favoriteBtn.classList.remove('active');
+    } else {
+        favorites.add(song.title);
+        favoriteBtn.classList.add('active');
+    }
+}
+
+function updateFavoriteBtn() {
+    favoriteBtn.classList.toggle('active', favorites.has(songs[currentIndex]?.title));
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+playBtn.addEventListener('click', togglePlay);
+nextBtn.addEventListener('click', nextSong);
+prevBtn.addEventListener('click', prevSong);
+
+shuffleBtn.addEventListener('click', () => {
+    isShuffle = !isShuffle;
+    shuffleBtn.classList.toggle('active', isShuffle);
+});
+
+repeatBtn.addEventListener('click', () => {
+    isRepeat = !isRepeat;
+    repeatBtn.classList.toggle('active', isRepeat);
+});
+
+favoriteBtn.addEventListener('click', toggleFavorite);
+
+audio.addEventListener('play', updatePlayButton);
+audio.addEventListener('pause', updatePlayButton);
+audio.addEventListener('timeupdate', updateProgress);
+audio.addEventListener('ended', () => {
+    if (isRepeat) {
+        audio.currentTime = 0;
+        audio.play();
+    } else {
+        nextSong();
+    }
+});
+
+// Seek
+seekBar.addEventListener('click', (e) => {
+    const rect = seekBar.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    if (audio.duration) {
+        audio.currentTime = ratio * audio.duration;
+    }
+});
+
+// Volume
+volumeBar.addEventListener('click', (e) => {
+    const rect = volumeBar.getBoundingClientRect();
+    const val = (e.clientX - rect.left) / rect.width;
+    audio.volume = Math.min(1, Math.max(0, val));
+    volumeFill.style.width = (audio.volume * 100) + '%';
+});
+
+// ============================================================
+// SEARCH
+// ============================================================
+searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) {
+        document.getElementById('search-results').innerHTML = '';
+        return;
+    }
+    const results = songs.filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        s.artist.toLowerCase().includes(q)
+    );
+    const container = document.getElementById('search-results');
+    container.innerHTML = '';
+    results.forEach((song, i) => {
+        container.appendChild(createSearchCard(song));
+    });
+});
+
+function createSearchCard(song) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+        <div class="cover" style="background: ${song.gradient}">
+            <span class="badge">Song</span>
+            <button class="play-btn" aria-label="Play">▶️</button>
+        </div>
+        <div class="card-info">
+            <h4>${song.title}</h4>
+            <p>${song.artist}</p>
+        </div>
+    `;
+    card.querySelector('.play-btn').addEventListener('click', () => {
+        const index = songs.indexOf(song);
+        playSongAt(index);
+        showPage('home');
+    });
+    return card;
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+    navLinks.forEach(l => l.parentElement.classList.remove('active'));
+    const current = document.querySelector(`.nav a[data-page="${pageId}"]`);
+    current?.parentElement.classList.add('active');
+    // render library
+    if (pageId === 'library') renderLibrary();
+    if (pageId === 'search' && searchInput.value.trim() === '') {
+        document.getElementById('search-results').innerHTML = '';
+    }
+}
+
+navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        showPage(link.dataset.page);
+    });
+});
+
+function renderLibrary() {
+    const container = document.getElementById('library-list');
+    container.innerHTML = '';
+    songs.forEach((song, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <div class="cover" style="background: ${song.gradient}">
+                <span class="badge">Library</span>
+                <button class="play-btn" aria-label="Play">▶️</button>
+            </div>
+            <div class="card-info">
+                <h4>${song.title}</h4>
+                <p>${song.artist} · ${song.album}</p>
+            </div>
+        `;
+        card.querySelector('.play-btn').addEventListener('click', () => playSongAt(i));
+        container.appendChild(card);
+    });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderTrending();
+renderAlbums();
+renderPlaylists();
+loadCurrentSong();
+updatePlayButton();
+volumeFill.style.width = '70%';
+audio.volume = 0.7;
+`
+
+PATH: README.md
+`
+# 🎧 Kuslord Music
+
+A beautiful, Spotify-inspired music player built with pure HTML, CSS, and JavaScript.
+
+## Features
+
+- 🎨 Modern dark UI with purple/blue gradients and smooth hover animations
+- 📚 Sidebar navigation (`Home`, `Search`, `Library`)
+- 🎵 Working audio player with progress bar, seek bar, volume control, shuffle, repeat, and favorites
+- 🖼️ Trendy album and playlist cards that react on hover
+- 🔎 Live search filtering through the song catalog
+- 📱 Responsive layout (sidebar hides on smaller screens)
+
+## How to run
+
+Open the `index.html` file directly in any modern browser, or serve the folder with a simple static server:
