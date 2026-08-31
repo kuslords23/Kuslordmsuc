@@ -19,7 +19,7 @@ export interface Album {
 
 const gradient = (colors: string) => `linear-gradient(135deg, ${colors})`
 
-const tracks = [
+const tracks: Track[] = [
   {
     id: 't1',
     title: 'Midnight Drive',
@@ -36,7 +36,7 @@ const tracks = [
     album: 'Coastal Lights',
     duration: 412,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    cover: gradient('#f5afd, #ff6b6b'),
+    cover: gradient('#f5af19, #ff6b6b'),
   },
   {
     id: 't3',
@@ -162,7 +162,7 @@ const tracks = [
     album: 'Golden Hour',
     duration: 347,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3',
-    cover: gradient('#f5afd, #ff5f6d'),
+    cover: gradient('#f5af19, #ff5f6d'),
   },
 ]
 
@@ -228,7 +228,7 @@ export const albums: Album[] = [
     title: 'Golden Hour',
     artist: 'Sunset Arcade',
     description: 'Warm tracks for late-day listening.',
-    cover: gradient('#f5afd, #ff5f6d'),
+    cover: gradient('#f5af19, #ff5f6d'),
     tracks: [tracks[15], tracks[1], tracks[8], tracks[7]],
   },
 ]

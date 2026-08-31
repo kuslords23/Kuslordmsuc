@@ -6,13 +6,11 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "moduleDetection": "esnext",
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true
   },
-  "include": ["src"]
+  "include": ["src", "vite.config.ts"]
 }

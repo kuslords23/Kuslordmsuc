@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { albums, allTracks, Album, Track } from './data/music'
+import { albums, allTracks, Track } from './data/music'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
 import PlaylistView from './components/PlaylistView'
@@ -108,6 +108,8 @@ export default function App() {
     if (!audio || !currentTrack) {
       if (selectedAlbum) {
         playTrack(selectedAlbum.tracks[0], selectedAlbum.tracks)
+      } else if (albums.length > 0 && albums[0].tracks.length > 0) {
+        playTrack(albums[0].tracks[0], albums[0].tracks)
       }
       return
     }
@@ -134,6 +136,13 @@ export default function App() {
 
   const selectAlbum = (id: string) => setSelectedAlbumId(id)
 
+  const handleHeroPlay = () => {
+    const targetAlbum = selectedAlbum || albums[0]
+    if (targetAlbum && targetAlbum.tracks.length > 0) {
+      playTrack(targetAlbum.tracks[0], targetAlbum.tracks)
+    }
+  }
+
   const renderHome = () => (
     <div className="main-scroll">
       <div className="hero">
@@ -142,7 +151,7 @@ export default function App() {
           <h1>Discover the feeling <br />of infinite sound.</h1>
           <p>Your favorite albums, playlists, and handcrafted moods — one tap away.</p>
         </div>
-        <button className="hero-play" onClick={() => selectedAlbum ? playTrack(selectedAlbum.tracks[0], selectedAlbum.tracks) : null}>Listen Now</button>
+        <button className="hero-play" onClick={handleHeroPlay}>Listen Now</button>
       </div>
 
       <section>
@@ -193,7 +202,7 @@ export default function App() {
           {allTracks
             .filter((t) => t.title.toLowerCase().includes(search.toLowerCase()))
             .map((track, index) => (
-              <div key={track.id} className="track-row" onClick={() => playTrack(track, allTracks.slice(0, 16))}>
+              <div key={track.id} className="track-row" onClick={() => playTrack(track, allTracks)}>
                 <span className="col-idx">{index + 1}</span>
                 <span className="col-title"><span className="mini-cover" style={{ background: track.cover }} />{track.title}</span>
                 <span className="col-artist">{track.artist}</span>
@@ -212,8 +221,8 @@ export default function App() {
         setSearch={setSearch}
         onNavigateHome={() => {
           setSelectedAlbumId(null)
-          setSearch('')}
-        }
+          setSearch('')
+        }}
         onSelectAlbum={selectAlbum}
         activeAlbumId={selectedAlbumId}
       />

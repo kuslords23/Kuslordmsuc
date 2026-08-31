@@ -15,6 +15,16 @@ const formatTime = (seconds: number) => {
 }
 
 export default function PlaylistView({ album, currentTrackId, isPlaying, onPlayTrack, onTogglePlay }: PlaylistViewProps) {
+  const isAlbumPlaying = isPlaying && album.tracks.some((t) => t.id === currentTrackId)
+
+  const handlePlayButtonClick = () => {
+    if (isAlbumPlaying) {
+      onTogglePlay()
+    } else if (album.tracks.length > 0) {
+      onPlayTrack(album.tracks[0], album.tracks)
+    }
+  }
+
   return (
     <div className="playlist-view">
       <div className="playlist-hero" style={{ background: album.cover }}>
@@ -23,8 +33,8 @@ export default function PlaylistView({ album, currentTrackId, isPlaying, onPlayT
           <span className="album-type">Album</span>
           <h1>{album.title}</h1>
           <p>{album.description}</p>
-          <button className="play-all" onClick={() => onPlayTrack(album.tracks[0], album.tracks)}>
-            {currentTrackId && isPlaying ? <span onClick={onTogglePlay}>⏸ Pause</span> : <span>▶ Play</span>}
+          <button className="play-all" onClick={handlePlayButtonClick}>
+            {isAlbumPlaying ? '⏸ Pause' : '▶ Play'}
           </button>
         </div>
       </div>

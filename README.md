@@ -1,5 +1,7 @@
 
-Or connect your GitHub repo at [vercel.com/new](https://vercel.com/new).
+## Deployment on Vercel
+
+Connect your GitHub repository at [vercel.com/new](https://vercel.com/new). The repository includes a ready-to-use `vercel.json` configuration.
 
 ## Project Structure
 
