@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { albums as defaultAlbums, type Album, type Track } from './data/music'
 import { supabase, fetchRemoteTracks } from './lib/supabase'
@@ -24,6 +24,7 @@ export default function App() {
 
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackRef = useRef<Track | null>(null)
@@ -39,12 +40,10 @@ export default function App() {
 
   // 1. Initial track & session loading
   useEffect(() => {
-    // Load tracks from Supabase or Fallback
     fetchRemoteTracks().then((data) => {
       setTracks(data)
     })
 
-    // Supabase auth subscription
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null)
     })
@@ -93,6 +92,7 @@ export default function App() {
     )
   }, [search, albums])
 
+  // Audio element setup — runs once on mount
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio()
@@ -102,26 +102,16 @@ export default function App() {
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
     const handleLoadedMetadata = () => setDuration(audio.duration || 0)
-    const handleEnded = () => {
-      const track = currentTrackRef.current
-      const q = queueRef.current
-      if (!track || q.length === 0) return
-      const index = q.findIndex((t) => t.id === track.id)
-      const next = q[(index + 1) % q.length]
-      playTrack(next, q)
-    }
 
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-    audio.addEventListener('ended', handleEnded)
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-      audio.removeEventListener('ended', handleEnded)
     }
-  }, [])
+  }, [volume])
 
-  function playTrack(track: Track, trackList: Track[]) {
+  const playTrack = useCallback((track: Track, trackList: Track[]) => {
     if (audioRef.current) {
       audioRef.current.src = track.audioUrl
       audioRef.current.currentTime = 0
@@ -133,27 +123,45 @@ export default function App() {
     setCurrentTrack(track)
     setQueue(trackList)
     setIsPlaying(true)
-  }
+  }, [])
 
-  const nextTrack = () => {
+  // Wire up ended event whenever playTrack / queue changes
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const handleEnded = () => {
+      const track = currentTrackRef.current
+      const q = queueRef.current
+      if (!track || q.length === 0) return
+      const index = q.findIndex((t) => t.id === track.id)
+      const next = q[(index + 1) % q.length]
+      playTrack(next, q)
+    }
+
+    audio.addEventListener('ended', handleEnded)
+    return () => audio.removeEventListener('ended', handleEnded)
+  }, [playTrack])
+
+  const nextTrack = useCallback(() => {
     const track = currentTrackRef.current
     const q = queueRef.current
     if (!track || q.length === 0) return
     const index = q.findIndex((t) => t.id === track.id)
     const next = q[(index + 1) % q.length]
     playTrack(next, q)
-  }
+  }, [playTrack])
 
-  const prevTrack = () => {
+  const prevTrack = useCallback(() => {
     const track = currentTrackRef.current
     const q = queueRef.current
     if (!track || q.length === 0) return
     const index = q.findIndex((t) => t.id === track.id)
     const prev = q[(index - 1 + q.length) % q.length]
     playTrack(prev, q)
-  }
+  }, [playTrack])
 
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     const audio = audioRef.current
     if (!audio || !currentTrack) {
       if (selectedAlbum && selectedAlbum.tracks.length > 0) {
@@ -170,7 +178,7 @@ export default function App() {
       audio.pause()
       setIsPlaying(false)
     }
-  }
+  }, [currentTrack, selectedAlbum, albums, playTrack])
 
   const handleSeek = (time: number) => {
     if (audioRef.current) {
@@ -189,17 +197,23 @@ export default function App() {
     setUser(null)
   }
 
-  const handleTrackUploaded = (newTrack: Track) => {
-    setTracks((prev) => [newTrack, ...prev])
-    playTrack(newTrack, [newTrack, ...tracks])
-  }
+  const handleTrackUploaded = useCallback(
+    (newTrack: Track) => {
+      setTracks((prev) => [newTrack, ...prev])
+      playTrack(newTrack, [newTrack])
+    },
+    [playTrack],
+  )
 
   const renderHome = () => (
     <div className="main-scroll">
       <div className="hero">
         <div className="hero-text">
           <span>KUS-LORDS ROYAL SOUND</span>
-          <h1>Discover the feeling <br />of infinite sound.</h1>
+          <h1>
+            Discover the feeling <br />
+            of infinite sound.
+          </h1>
           <p>Stream high-fidelity tracks, access your Supabase bucket vault, and curate playlists.</p>
         </div>
         <div className="hero-actions">
@@ -283,16 +297,26 @@ export default function App() {
             ))}
           </div>
         ) : (
-          <div className="empty">No albums match “{search}”.</div>
+          <div className="empty">No albums match "{search}".</div>
         )}
       </section>
       <section>
-        <div className="section-title"><h2>All Tracks</h2></div>
+        <div className="section-title">
+          <h2>All Tracks</h2>
+        </div>
         <div className="track-table">
           {tracks
-            .filter((t) => t.title.toLowerCase().includes(search.toLowerCase()) || t.artist.toLowerCase().includes(search.toLowerCase()))
+            .filter(
+              (t) =>
+                t.title.toLowerCase().includes(search.toLowerCase()) ||
+                t.artist.toLowerCase().includes(search.toLowerCase()),
+            )
             .map((track, index) => (
-              <div key={track.id} className="track-row" onClick={() => playTrack(track, tracks)}>
+              <div
+                key={track.id}
+                className="track-row"
+                onClick={() => playTrack(track, tracks)}
+              >
                 <span className="col-idx">{index + 1}</span>
                 <span className="col-title">
                   <span className="mini-cover" style={{ background: track.cover }} />
@@ -308,7 +332,7 @@ export default function App() {
   )
 
   return (
-    <div className="app">
+    <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <Sidebar
         search={search}
         setSearch={setSearch}
@@ -323,6 +347,8 @@ export default function App() {
         onOpenAuth={() => setAuthModalOpen(true)}
         onOpenUpload={() => setUploadModalOpen(true)}
         onSignOut={handleSignOut}
+        collapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed((c) => !c)}
       />
 
       <main className="main-area">
@@ -330,7 +356,9 @@ export default function App() {
           renderSearchResults()
         ) : selectedAlbum ? (
           <div className="main-scroll">
-            <button className="back-button" onClick={() => setSelectedAlbumId(null)}>← Back to Home</button>
+            <button className="back-button" onClick={() => setSelectedAlbumId(null)}>
+              ← Back to Home
+            </button>
             <PlaylistView
               album={selectedAlbum}
               currentTrackId={currentTrack?.id}

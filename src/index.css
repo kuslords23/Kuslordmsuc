@@ -37,17 +37,67 @@ button {
   display: flex;
   height: 100vh;
   background: var(--bg);
+  --sidebar-width: 270px;
+}
+
+.app.sidebar-collapsed {
+  --sidebar-width: 64px;
 }
 
 /* Sidebar */
 .sidebar {
-  width: 270px;
+  width: var(--sidebar-width);
   background: var(--bg2);
   display: flex;
   flex-direction: column;
   padding: 20px 16px;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   overflow-y: auto;
+  position: relative;
+  transition: width 0.3s ease;
+}
+
+.sidebar-toggle {
+  position: absolute;
+  top: 16px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: var(--muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  z-index: 2;
+}
+
+.sidebar-toggle:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.sidebar.collapsed {
+  padding: 20px 8px;
+}
+
+.sidebar.collapsed .logo {
+  justify-content: center;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .search-wrap,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .album-title-text,
+.sidebar.collapsed .user-info,
+.sidebar.collapsed .library-heading,
+.sidebar.collapsed .count-pill {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item,
+.sidebar.collapsed .album-item {
+  justify-content: center;
 }
 
 .logo {
@@ -513,7 +563,7 @@ button {
 
 .track-row {
   display: grid;
-  grid-template-columns: 40px 1fr 1fr 60px;
+  grid-template-columns: 40px 1fr 1fr 60px 60px;
   align-items: center;
   padding: 12px 16px;
   font-size: 14px;
@@ -561,6 +611,12 @@ button {
   color: var(--muted);
 }
 
+.col-likes {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
 .col-time {
   color: var(--muted);
   text-align: right;
@@ -577,7 +633,7 @@ button {
 .player-bar {
   position: fixed;
   bottom: 0;
-  left: 270px;
+  left: var(--sidebar-width);
   right: 0;
   height: 88px;
   background: rgba(18, 18, 26, 0.95);
@@ -588,6 +644,7 @@ button {
   padding: 0 24px;
   gap: 24px;
   z-index: 100;
+  transition: left 0.3s ease;
 }
 
 .player-left {

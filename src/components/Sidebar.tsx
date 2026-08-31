@@ -12,15 +12,18 @@ interface SidebarProps {
   onOpenAuth: () => void
   onOpenUpload: () => void
   onSignOut: () => void
+  collapsed: boolean
+  onToggleSidebar: () => void
 }
 
 const NavButton = ({ label, active, onClick, icon }: { label: string; active?: boolean; onClick: () => void; icon?: string }) => (
   <button
     className={`nav-item ${active ? 'active' : ''}`}
     onClick={onClick}
+    title={label}
   >
     <span className={`nav-dot ${active ? 'active' : ''}`}>{icon || ''}</span>
-    {label}
+    <span className="nav-label">{label}</span>
   </button>
 )
 
@@ -35,12 +38,22 @@ export default function Sidebar({
   onOpenAuth,
   onOpenUpload,
   onSignOut,
+  collapsed,
+  onToggleSidebar,
 }: SidebarProps) {
   const displayName = user?.user_metadata?.username || user?.email?.split('@')[0] || 'Guest'
   const initial = (displayName[0] || 'K').toUpperCase()
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+      <button
+        className="sidebar-toggle"
+        onClick={onToggleSidebar}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {collapsed ? '»' : '«'}
+      </button>
+
       <div className="logo" onClick={onNavigateHome} style={{ cursor: 'pointer' }}>
         <div className="logo-mark">𝄞</div>
         <div className="logo-text">
@@ -49,15 +62,17 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="search-wrap">
-        <span className="search-icon">⌕</span>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search songs, artists..."
-          aria-label="Search"
-        />
-      </div>
+      {!collapsed && (
+        <div className="search-wrap">
+          <span className="search-icon">⌕</span>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search songs, artists..."
+            aria-label="Search"
+          />
+        </div>
+      )}
 
       <nav className="nav-list">
         <NavButton label="Home" active={!activeAlbumId && !search} onClick={onNavigateHome} />
@@ -65,10 +80,12 @@ export default function Sidebar({
         <NavButton label="Upload to Bucket" onClick={onOpenUpload} />
       </nav>
 
-      <div className="library-heading">
-        <span>Albums & Playlists</span>
-        <span className="count-pill">{albums.length}</span>
-      </div>
+      {!collapsed && (
+        <div className="library-heading">
+          <span>Albums & Playlists</span>
+          <span className="count-pill">{albums.length}</span>
+        </div>
+      )}
 
       <nav className="nav-list compact">
         {albums.map((album) => (
@@ -76,6 +93,7 @@ export default function Sidebar({
             key={album.id}
             className={`album-item ${activeAlbumId === album.id ? 'active' : ''}`}
             onClick={() => onSelectAlbum(album.id)}
+            title={album.title}
           >
             <span className="album-chip" style={{ background: album.cover }} />
             <span className="album-title-text">{album.title}</span>
@@ -85,17 +103,19 @@ export default function Sidebar({
 
       <div className="sidebar-footer">
         <div className="user-avatar">{initial}</div>
-        <div className="user-info">
-          <strong>{displayName}</strong>
-          <span>{user ? 'Supabase Auth' : 'Guest Mode'}</span>
-        </div>
+        {!collapsed && (
+          <div className="user-info">
+            <strong>{displayName}</strong>
+            <span>{user ? 'Supabase Auth' : 'Guest Mode'}</span>
+          </div>
+        )}
         {user ? (
           <button className="auth-btn-ghost" title="Sign Out" onClick={onSignOut}>
             ↪
           </button>
         ) : (
           <button className="auth-btn-gold" onClick={onOpenAuth}>
-            Sign In
+            {collapsed ? 'Sign In' : 'Sign In'}
           </button>
         )}
       </div>
