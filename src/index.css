@@ -17,7 +17,7 @@
   --gold-glow: rgba(212, 175, 55, 0.2);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
 }
-D
+
 body {
   background: var(--bg);
   color: var(--text);

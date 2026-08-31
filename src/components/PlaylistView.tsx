@@ -6,7 +6,7 @@ interface PlaylistViewProps {
   isPlaying: boolean
   onPlayTrack: (track: Track, allTracks: Track[]) => void
   onTogglePlay: () => void
-  onLikeTrack: (id: string) => void
+  onLikeTrack?: (id: string) => void
 }
 
 const formatTime = (seconds: number) => {
@@ -93,7 +93,7 @@ export default function PlaylistView({
                 className="col-likes"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onLikeTrack(track.id)
+                  onLikeTrack?.(track.id)
                 }}
               >
                 ❤️ {track.likes || 0}

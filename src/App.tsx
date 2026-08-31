@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { User } from '@supabase/supabase-js'
-import { albums as defaultAlbums, Track } from './data/music'
+import { albums as defaultAlbums, type Album, type Track } from './data/music'
 import { supabase, fetchRemoteTracks } from './lib/supabase'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
@@ -64,12 +64,13 @@ export default function App() {
 
     const userUploadedTracks = tracks.filter((t) => t.id.startsWith('local-') || t.id.length > 20)
     if (userUploadedTracks.length > 0) {
-      const cloudAlbum = {
+      const cloudAlbum: Album = {
         id: 'cloud-vault',
         title: 'Kus-lords Cloud Vault',
         artist: user?.user_metadata?.username || 'Community',
         description: 'Uploaded directly to Kus-lords Supabase Bucket storage.',
         cover: 'linear-gradient(135deg, #ffd700, #ff8c00)',
+        category: 'royals',
         tracks: userUploadedTracks,
       }
       return [cloudAlbum, ...defaultAlbums]
@@ -120,7 +121,7 @@ export default function App() {
     }
   }, [])
 
-  const playTrack = (track: Track, trackList: Track[]) => {
+  function playTrack(track: Track, trackList: Track[]) {
     if (audioRef.current) {
       audioRef.current.src = track.audioUrl
       audioRef.current.currentTime = 0
@@ -233,6 +234,7 @@ export default function App() {
                 setSelectedAlbumId(a.id)
                 if (a.tracks.length > 0) playTrack(a.tracks[0], a.tracks)
               }}
+              onSelect={(a) => setSelectedAlbumId(a.id)}
             />
           ))}
         </div>
@@ -252,6 +254,7 @@ export default function App() {
                 setSelectedAlbumId(a.id)
                 if (a.tracks.length > 0) playTrack(a.tracks[0], a.tracks)
               }}
+              onSelect={(a) => setSelectedAlbumId(a.id)}
             />
           ))}
         </div>
@@ -275,6 +278,7 @@ export default function App() {
                   setSelectedAlbumId(a.id)
                   if (a.tracks.length > 0) playTrack(a.tracks[0], a.tracks)
                 }}
+                onSelect={(a) => setSelectedAlbumId(a.id)}
               />
             ))}
           </div>

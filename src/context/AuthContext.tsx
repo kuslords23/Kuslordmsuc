@@ -33,7 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       // Demo guest state for preview
       const localGuest = localStorage.getItem('kus_demo_user')
       if (localGuest) {
@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  const syncProfile = (authUser: User) => {
+  function syncProfile(authUser: User) {
     const p: UserProfile = {
       id: authUser.id,
       email: authUser.email || '',
@@ -87,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signInWithEmail = async (email: string, password: string) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       const demoProfile: UserProfile = {
         id: 'demo-user-1',
         email,
@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       const demoProfile: UserProfile = {
         id: 'demo-user-1',
         email,
@@ -128,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signInWithMagicLink = async (email: string) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       return { error: new Error('Supabase URL/Key not configured yet. Using local demo mode.') }
     }
     const { error } = await supabase.auth.signInWithOtp({
@@ -141,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signInWithGoogle = async () => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       return { error: new Error('Google OAuth requires Supabase configuration.') }
     }
     const { error } = await supabase.auth.signInWithOAuth({
@@ -155,7 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     localStorage.removeItem('kus_demo_user')
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured()) {
       await supabase.auth.signOut()
     }
     setUser(null)
@@ -168,7 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     coverFile: File | null,
     meta: { title: string; artist: string; album: string }
   ) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       // Local fallback blob storage for immediate testing
       const audioUrl = URL.createObjectURL(file)
       let coverUrl = 'linear-gradient(135deg, #d4af37, #1a1a24)'
@@ -257,7 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profile,
         session,
         isLoading,
-        isConfigured: isSupabaseConfigured,
+        isConfigured: isSupabaseConfigured(),
         signInWithEmail,
         signUpWithEmail,
         signInWithMagicLink,
