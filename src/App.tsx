@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { albums, allTracks, Track } from './data/music'
+import { User } from '@supabase/supabase-js'
+import { albums as defaultAlbums, Track } from './data/music'
+import { supabase, fetchRemoteTracks } from './lib/supabase'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
 import PlaylistView from './components/PlaylistView'
 import PlayerBar from './components/PlayerBar'
+import AuthModal from './components/AuthModal'
+import UploadModal from './components/UploadModal'
 import './index.css'
 
 export default function App() {
+  const [tracks, setTracks] = useState<Track[]>([])
+  const [user, setUser] = useState<User | null>(null)
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
@@ -15,6 +21,9 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(0.8)
+
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackRef = useRef<Track | null>(null)
@@ -28,9 +37,49 @@ export default function App() {
     queueRef.current = queue
   }, [queue])
 
+  // 1. Initial track & session loading
+  useEffect(() => {
+    // Load tracks from Supabase or Fallback
+    fetchRemoteTracks().then((data) => {
+      setTracks(data)
+    })
+
+    // Supabase auth subscription
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null)
+    })
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => {
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
+
+  // Dynamic albums list
+  const albums = useMemo(() => {
+    if (tracks.length === 0) return defaultAlbums
+
+    const userUploadedTracks = tracks.filter((t) => t.id.startsWith('local-') || t.id.length > 20)
+    if (userUploadedTracks.length > 0) {
+      const cloudAlbum = {
+        id: 'cloud-vault',
+        title: 'Kus-lords Cloud Vault',
+        artist: user?.user_metadata?.username || 'Community',
+        description: 'Uploaded directly to Kus-lords Supabase Bucket storage.',
+        cover: 'linear-gradient(135deg, #ffd700, #ff8c00)',
+        tracks: userUploadedTracks,
+      }
+      return [cloudAlbum, ...defaultAlbums]
+    }
+    return defaultAlbums
+  }, [tracks, user])
+
   const selectedAlbum = useMemo(
     () => albums.find((album) => album.id === selectedAlbumId) ?? null,
-    [selectedAlbumId],
+    [selectedAlbumId, albums],
   )
 
   const filteredAlbums = useMemo(() => {
@@ -41,7 +90,7 @@ export default function App() {
         .toLowerCase()
         .includes(q),
     )
-  }, [search])
+  }, [search, albums])
 
   useEffect(() => {
     if (!audioRef.current) {
@@ -71,7 +120,7 @@ export default function App() {
     }
   }, [])
 
-  const playTrack = (track: Track, tracks: Track[]) => {
+  const playTrack = (track: Track, trackList: Track[]) => {
     if (audioRef.current) {
       audioRef.current.src = track.audioUrl
       audioRef.current.currentTime = 0
@@ -81,7 +130,7 @@ export default function App() {
         .catch(() => setIsPlaying(false))
     }
     setCurrentTrack(track)
-    setQueue(tracks)
+    setQueue(trackList)
     setIsPlaying(true)
   }
 
@@ -106,7 +155,7 @@ export default function App() {
   const togglePlay = () => {
     const audio = audioRef.current
     if (!audio || !currentTrack) {
-      if (selectedAlbum) {
+      if (selectedAlbum && selectedAlbum.tracks.length > 0) {
         playTrack(selectedAlbum.tracks[0], selectedAlbum.tracks)
       } else if (albums.length > 0 && albums[0].tracks.length > 0) {
         playTrack(albums[0].tracks[0], albums[0].tracks)
@@ -134,34 +183,57 @@ export default function App() {
     if (audioRef.current) audioRef.current.volume = value
   }
 
-  const selectAlbum = (id: string) => setSelectedAlbumId(id)
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
 
-  const handleHeroPlay = () => {
-    const targetAlbum = selectedAlbum || albums[0]
-    if (targetAlbum && targetAlbum.tracks.length > 0) {
-      playTrack(targetAlbum.tracks[0], targetAlbum.tracks)
-    }
+  const handleTrackUploaded = (newTrack: Track) => {
+    setTracks((prev) => [newTrack, ...prev])
+    playTrack(newTrack, [newTrack, ...tracks])
   }
 
   const renderHome = () => (
     <div className="main-scroll">
       <div className="hero">
         <div className="hero-text">
-          <span>LISTEN WITHOUT BOUNDARIES</span>
+          <span>KUS-LORDS ROYAL SOUND</span>
           <h1>Discover the feeling <br />of infinite sound.</h1>
-          <p>Your favorite albums, playlists, and handcrafted moods — one tap away.</p>
+          <p>Stream high-fidelity tracks, access your Supabase bucket vault, and curate playlists.</p>
         </div>
-        <button className="hero-play" onClick={handleHeroPlay}>Listen Now</button>
+        <div className="hero-actions">
+          <button
+            className="hero-play"
+            onClick={() => {
+              const targetAlbum = albums[0]
+              if (targetAlbum && targetAlbum.tracks.length > 0) {
+                playTrack(targetAlbum.tracks[0], targetAlbum.tracks)
+              }
+            }}
+          >
+            ▶ Listen Now
+          </button>
+          <button className="hero-upload" onClick={() => setUploadModalOpen(true)}>
+            ☁ Upload Track
+          </button>
+        </div>
       </div>
 
       <section>
         <div className="section-title">
-          <h2>Recently Played</h2>
+          <h2>Featured Royal Albums</h2>
           <button onClick={() => setSelectedAlbumId(null)}>See All</button>
         </div>
         <div className="album-grid">
           {albums.slice(0, 4).map((album) => (
-            <AlbumCard key={album.id} album={album} onPlay={(a) => playTrack(a.tracks[0], a.tracks)} />
+            <AlbumCard
+              key={album.id}
+              album={album}
+              onPlay={(a) => {
+                setSelectedAlbumId(a.id)
+                if (a.tracks.length > 0) playTrack(a.tracks[0], a.tracks)
+              }}
+            />
           ))}
         </div>
       </section>
@@ -173,7 +245,14 @@ export default function App() {
         </div>
         <div className="album-grid">
           {albums.slice(4).map((album) => (
-            <AlbumCard key={album.id} album={album} onPlay={(a) => playTrack(a.tracks[0], a.tracks)} />
+            <AlbumCard
+              key={album.id}
+              album={album}
+              onPlay={(a) => {
+                setSelectedAlbumId(a.id)
+                if (a.tracks.length > 0) playTrack(a.tracks[0], a.tracks)
+              }}
+            />
           ))}
         </div>
       </section>
@@ -189,7 +268,14 @@ export default function App() {
         {filteredAlbums.length ? (
           <div className="album-grid">
             {filteredAlbums.map((album) => (
-              <AlbumCard key={album.id} album={album} onPlay={(a) => playTrack(a.tracks[0], a.tracks)} />
+              <AlbumCard
+                key={album.id}
+                album={album}
+                onPlay={(a) => {
+                  setSelectedAlbumId(a.id)
+                  if (a.tracks.length > 0) playTrack(a.tracks[0], a.tracks)
+                }}
+              />
             ))}
           </div>
         ) : (
@@ -199,12 +285,15 @@ export default function App() {
       <section>
         <div className="section-title"><h2>All Tracks</h2></div>
         <div className="track-table">
-          {allTracks
-            .filter((t) => t.title.toLowerCase().includes(search.toLowerCase()))
+          {tracks
+            .filter((t) => t.title.toLowerCase().includes(search.toLowerCase()) || t.artist.toLowerCase().includes(search.toLowerCase()))
             .map((track, index) => (
-              <div key={track.id} className="track-row" onClick={() => playTrack(track, allTracks)}>
+              <div key={track.id} className="track-row" onClick={() => playTrack(track, tracks)}>
                 <span className="col-idx">{index + 1}</span>
-                <span className="col-title"><span className="mini-cover" style={{ background: track.cover }} />{track.title}</span>
+                <span className="col-title">
+                  <span className="mini-cover" style={{ background: track.cover }} />
+                  {track.title}
+                </span>
                 <span className="col-artist">{track.artist}</span>
                 <span className="col-time">—</span>
               </div>
@@ -223,28 +312,34 @@ export default function App() {
           setSelectedAlbumId(null)
           setSearch('')
         }}
-        onSelectAlbum={selectAlbum}
+        onSelectAlbum={(id) => setSelectedAlbumId(id)}
         activeAlbumId={selectedAlbumId}
+        albums={albums}
+        user={user}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenUpload={() => setUploadModalOpen(true)}
+        onSignOut={handleSignOut}
       />
+
       <main className="main-area">
-        {search.trim()
-          ? renderSearchResults()
-          : selectedAlbum
-            ? (
-              <div className="main-scroll">
-                <button className="back-button" onClick={() => setSelectedAlbumId(null)}>← Back to Home</button>
-                <PlaylistView
-                  album={selectedAlbum}
-                  currentTrackId={currentTrack?.id}
-                  isPlaying={isPlaying}
-                  onPlayTrack={playTrack}
-                  onTogglePlay={togglePlay}
-                />
-              </div>
-            )
-            : renderHome()
-        }
+        {search.trim() ? (
+          renderSearchResults()
+        ) : selectedAlbum ? (
+          <div className="main-scroll">
+            <button className="back-button" onClick={() => setSelectedAlbumId(null)}>← Back to Home</button>
+            <PlaylistView
+              album={selectedAlbum}
+              currentTrackId={currentTrack?.id}
+              isPlaying={isPlaying}
+              onPlayTrack={playTrack}
+              onTogglePlay={togglePlay}
+            />
+          </div>
+        ) : (
+          renderHome()
+        )}
       </main>
+
       <PlayerBar
         title={currentTrack?.title}
         artist={currentTrack?.artist}
@@ -258,6 +353,19 @@ export default function App() {
         onPrev={prevTrack}
         onSeek={handleSeek}
         onVolume={handleVolume}
+      />
+
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+
+      <UploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        user={user}
+        onTrackUploaded={handleTrackUploaded}
+        onOpenAuth={() => {
+          setUploadModalOpen(false)
+          setAuthModalOpen(true)
+        }}
       />
     </div>
   )

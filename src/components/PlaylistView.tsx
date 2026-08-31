@@ -6,6 +6,7 @@ interface PlaylistViewProps {
   isPlaying: boolean
   onPlayTrack: (track: Track, allTracks: Track[]) => void
   onTogglePlay: () => void
+  onLikeTrack: (id: string) => void
 }
 
 const formatTime = (seconds: number) => {
@@ -14,7 +15,14 @@ const formatTime = (seconds: number) => {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-export default function PlaylistView({ album, currentTrackId, isPlaying, onPlayTrack, onTogglePlay }: PlaylistViewProps) {
+export default function PlaylistView({
+  album,
+  currentTrackId,
+  isPlaying,
+  onPlayTrack,
+  onTogglePlay,
+  onLikeTrack,
+}: PlaylistViewProps) {
   const isAlbumPlaying = isPlaying && album.tracks.some((t) => t.id === currentTrackId)
 
   const handlePlayButtonClick = () => {
@@ -30,12 +38,17 @@ export default function PlaylistView({ album, currentTrackId, isPlaying, onPlayT
       <div className="playlist-hero" style={{ background: album.cover }}>
         <div className="playlist-art-blur" />
         <div className="playlist-info">
-          <span className="album-type">Album</span>
+          <span className="album-type">
+            👑 ROYAL {album.category.toUpperCase()} SOUNDTRACK
+          </span>
           <h1>{album.title}</h1>
           <p>{album.description}</p>
-          <button className="play-all" onClick={handlePlayButtonClick}>
-            {isAlbumPlaying ? '⏸ Pause' : '▶ Play'}
-          </button>
+          <div className="playlist-hero-actions">
+            <button className="play-all" onClick={handlePlayButtonClick}>
+              {isAlbumPlaying ? '⏸ Pause Playlist' : '▶ Play Full Album'}
+            </button>
+            <span className="total-tracks">{album.tracks.length} Tracks</span>
+          </div>
         </div>
       </div>
 
@@ -43,7 +56,8 @@ export default function PlaylistView({ album, currentTrackId, isPlaying, onPlayT
         <div className="track-row track-header">
           <span className="col-idx">#</span>
           <span className="col-title">Title</span>
-          <span className="col-artist">Artist</span>
+          <span className="col-artist">Artist & Vibe</span>
+          <span className="col-likes">Likes</span>
           <span className="col-time">Time</span>
         </div>
         {album.tracks.map((track, index) => {
@@ -54,12 +68,36 @@ export default function PlaylistView({ album, currentTrackId, isPlaying, onPlayT
               className={`track-row ${isCurrent ? 'current' : ''}`}
               onClick={() => onPlayTrack(track, album.tracks)}
             >
-              <span className="col-idx">{isCurrent ? (isPlaying ? '♪' : '❚❚') : index + 1}</span>
-              <span className="col-title">
-                <div className="mini-cover" style={{ background: album.cover }} />
-                {track.title}
+              <span className="col-idx">
+                {isCurrent ? (isPlaying ? '♪' : '❚❚') : index + 1}
               </span>
-              <span className="col-artist">{track.artist}</span>
+              <span className="col-title">
+                <div
+                  className="mini-cover"
+                  style={{
+                    background: track.cover.startsWith('http')
+                      ? `url(${track.cover}) center/cover`
+                      : track.cover,
+                  }}
+                />
+                <div className="track-title-block">
+                  <strong>{track.title}</strong>
+                  {track.isSportsAnthem && <span className="sports-chip">STADIUM</span>}
+                </div>
+              </span>
+              <span className="col-artist">
+                {track.artist}
+                {track.matchVibe && <small> • {track.matchVibe}</small>}
+              </span>
+              <span
+                className="col-likes"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onLikeTrack(track.id)
+                }}
+              >
+                ❤️ {track.likes || 0}
+              </span>
               <span className="col-time">{formatTime(track.duration)}</span>
             </div>
           )

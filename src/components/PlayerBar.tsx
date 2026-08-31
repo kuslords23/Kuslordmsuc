@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 interface PlayerBarProps {
   title?: string
   artist?: string
@@ -14,7 +16,7 @@ interface PlayerBarProps {
 }
 
 const formatTime = (seconds: number) => {
-  if (!Number.isFinite(seconds)) seconds = 0
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
@@ -34,23 +36,37 @@ export default function PlayerBar({
   onSeek,
   onVolume,
 }: PlayerBarProps) {
+  const [liked, setLiked] = useState(false)
+
   return (
     <footer className="player-bar">
       <div className="player-left">
-        <div className="now-playing-cover" style={{ background: cover || 'linear-gradient(135deg, #666, #333)' }}>
+        <div
+          className="now-playing-cover"
+          style={{ background: cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }}
+        >
           <span>{isPlaying ? '♪' : ''}</span>
         </div>
         <div className="now-playing-meta">
-          <strong>{title || 'Nothing Playing'}</strong>
-          <span>{artist || 'Harmony'}</span>
+          <strong>{title || 'Select a Track'}</strong>
+          <span>{artist || 'Harmony Kus-lords'}</span>
         </div>
+        <button
+          className={`like-btn ${liked ? 'liked' : ''}`}
+          onClick={() => setLiked(!liked)}
+          title={liked ? 'Unlike' : 'Like'}
+        >
+          {liked ? '♥' : '♡'}
+        </button>
       </div>
 
       <div className="player-center">
         <div className="player-buttons">
-          <button className="control" onClick={onPrev}>⏮</button>
-          <button className="play-btn" onClick={onTogglePlay}>{isPlaying ? '❚❚' : '▶'}</button>
-          <button className="control" onClick={onNext}>⏭</button>
+          <button className="control" onClick={onPrev} title="Previous">⏮</button>
+          <button className="play-btn" onClick={onTogglePlay} title={isPlaying ? 'Pause' : 'Play'}>
+            {isPlaying ? '❚❚' : '▶'}
+          </button>
+          <button className="control" onClick={onNext} title="Next">⏭</button>
         </div>
         <div className="progress-row">
           <span>{formatTime(currentTime)}</span>
