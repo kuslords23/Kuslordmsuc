@@ -8,13 +8,14 @@ import PlaylistView from './components/PlaylistView'
 import PlayerBar from './components/PlayerBar'
 import AuthModal from './components/AuthModal'
 import UploadModal from './components/UploadModal'
+import { useAuth } from './context/AuthContext'
 import './index.css'
 
 type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search'
 
 export default function App() {
+  const { user, isLoading } = useAuth()
   const [tracks, setTracks] = useState<Track[]>([])
-  const [user, setUser] = useState<User | null>(null)
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
@@ -39,11 +40,6 @@ export default function App() {
   // 1. Initial track & session loading
   useEffect(() => {
     fetchRemoteTracks().then((data) => setTracks(data))
-    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null))
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-    return () => { authListener.subscription.unsubscribe() }
   }, [])
 
   // Dynamic albums list
@@ -138,14 +134,6 @@ export default function App() {
     const q = queueRef.current
     if (!track || q.length === 0) return
     const index = q.findIndex((t) => t.id === track.id)
-    playTrack(next || q[0], q)
-  }, [playTrack])
-
-  const nextTrack = useCallback(() => {
-    const track = currentTrackRef.current
-    const q = queueRef.current
-    if (!track || q.length === 0) return
-    const index = q.findIndex((t) => t.id === track.id)
     const next = q[(index + 1) % q.length]
     playTrack(next, q)
   }, [playTrack])
@@ -183,8 +171,10 @@ export default function App() {
   }
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
+    // Sign out is handled by the auth context
+    // We just need to close any open modals
+    setAuthModalOpen(false)
+    setUploadModalOpen(false)
   }
 
   const handleTrackUploaded = useCallback((newTrack: Track) => {
@@ -215,7 +205,7 @@ export default function App() {
             onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
             onSelect={() => setSelectedAlbumId(a.id)} />
         ))}</div>
-      </section>
+      </div>
       <section>
         <div className="section-title"><h2>Made For You</h2></div>
         <div className="album-grid">{albums.slice(4).map((a) => (
@@ -223,7 +213,7 @@ export default function App() {
             onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
             onSelect={() => setSelectedAlbumId(a.id)} />
         ))}</div>
-      </section>
+      </div>
     </div>
   )
 
@@ -242,7 +232,7 @@ export default function App() {
             onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
             onSelect={() => setSelectedAlbumId(a.id)} />
         ))}</div>
-      </section>
+      </div>
     </div>
   )
 
@@ -282,7 +272,7 @@ export default function App() {
             </div>
           ))}
         </div>
-      </section>
+      </div>
     </div>
   )
 
@@ -301,7 +291,7 @@ export default function App() {
             onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
             onSelect={() => setSelectedAlbumId(a.id)} />
         ))}</div>
-      </section>
+      </div>
       <section>
         <div className="section-title"><h2>Top Tracks</h2></div>
         <div className="track-list-compact">
@@ -313,7 +303,7 @@ export default function App() {
             </div>
           ))}
         </div>
-      </section>
+      </div>
     </div>
   )
 
@@ -458,11 +448,20 @@ export default function App() {
             </div>
           ) : (
             <>
-              {activeTab === 'home' && renderHome()}
-              {activeTab === 'browse' && renderBrowse()}
-              {activeTab === 'radio' && renderRadio()}
-              {activeTab === 'library' && renderLibrary()}
-              {activeTab === 'search' && renderSearch()}
+              {isLoading ? (
+                <div className="tab-scroll">
+                  <div className="loading-spinner"></div>
+                  <p>Loading...</p>
+                </div>
+              ) : (
+                <>
+                  {activeTab === 'home' && renderHome()}
+                  {activeTab === 'browse' && renderBrowse()}
+                  {activeTab === 'radio' && renderRadio()}
+                  {activeTab === 'library' && renderLibrary()}
+                  {activeTab === 'search' && renderSearch()}
+                </>
+              )}
             </>
           )}
         </div>
