@@ -21,7 +21,6 @@ interface AuthContextType {
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>
   signInWithGoogle: () => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
-  uploadTrackToSupabase: (file: File, coverFile: File | null, meta: { title: string; artist: string; album: string }) => Promise<{ success: boolean; error?: string }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -34,16 +33,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
-      // Demo guest state for preview
-      const localGuest = localStorage.getItem('kus_demo_user')
-      if (localGuest) {
-        try {
-          const parsed = JSON.parse(localGuest)
-          setProfile(parsed)
-        } catch {
-          // ignore
-        }
-      }
       setIsLoading(false)
       return
     }
@@ -88,15 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithEmail = async (email: string, password: string) => {
     if (!isSupabaseConfigured()) {
-      const demoProfile: UserProfile = {
-        id: 'demo-user-1',
-        email,
-        fullName: email.split('@')[0] || 'Royal User',
-        role: 'vip',
-      }
-      setProfile(demoProfile)
-      localStorage.setItem('kus_demo_user', JSON.stringify(demoProfile))
-      return { error: null }
+      return { error: new Error('Supabase is not configured') }
     }
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error }
@@ -104,15 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
     if (!isSupabaseConfigured()) {
-      const demoProfile: UserProfile = {
-        id: 'demo-user-1',
-        email,
-        fullName: fullName || email.split('@')[0],
-        role: 'vip',
-      }
-      setProfile(demoProfile)
-      localStorage.setItem('kus_demo_user', JSON.stringify(demoProfile))
-      return { error: null }
+      return { error: new Error('Supabase is not configured') }
     }
     const { error } = await supabase.auth.signUp({
       email,
@@ -129,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithMagicLink = async (email: string) => {
     if (!isSupabaseConfigured()) {
-      return { error: new Error('Supabase URL/Key not configured yet. Using local demo mode.') }
+      return { error: new Error('Supabase URL/Key not configured yet.') }
     }
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -154,100 +127,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signOut = async () => {
-    localStorage.removeItem('kus_demo_user')
     if (isSupabaseConfigured()) {
       await supabase.auth.signOut()
     }
     setUser(null)
     setProfile(null)
     setSession(null)
-  }
-
-  const uploadTrackToSupabase = async (
-    file: File,
-    coverFile: File | null,
-    meta: { title: string; artist: string; album: string }
-  ) => {
-    if (!isSupabaseConfigured()) {
-      // Local fallback blob storage for immediate testing
-      const audioUrl = URL.createObjectURL(file)
-      let coverUrl = 'linear-gradient(135deg, #d4af37, #1a1a24)'
-      if (coverFile) {
-        coverUrl = URL.createObjectURL(coverFile)
-      }
-
-      const customTrack = {
-        id: `uploaded-${Date.now()}`,
-        title: meta.title || file.name.replace(/\.[^/.]+$/, ''),
-        artist: meta.artist || profile?.fullName || 'Kus-lord Artist',
-        album: meta.album || 'Personal Releases',
-        duration: 210,
-        audioUrl,
-        cover: coverUrl,
-      }
-
-      const stored = localStorage.getItem('kus_custom_tracks')
-      const tracks = stored ? JSON.parse(stored) : []
-      tracks.unshift(customTrack)
-      localStorage.setItem('kus_custom_tracks', JSON.stringify(tracks))
-      window.dispatchEvent(new Event('kus_tracks_updated'))
-      return { success: true }
-    }
-
-    try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `tracks/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('music-audio')
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data: { publicUrl: audioPublicUrl } } = supabase.storage
-        .from('music-audio')
-        .getPublicUrl(filePath)
-
-      let coverPublicUrl = 'linear-gradient(135deg, #d4af37, #1a1a24)'
-      if (coverFile) {
-        const coverExt = coverFile.name.split('.').pop()
-        const coverName = `${Date.now()}-cover.${coverExt}`
-        const coverPath = `covers/${coverName}`
-        const { error: coverErr } = await supabase.storage
-          .from('music-covers')
-          .upload(coverPath, coverFile)
-
-        if (!coverErr) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('music-covers')
-            .getPublicUrl(coverPath)
-          coverPublicUrl = publicUrl
-        }
-      }
-
-      // Save row in music_tracks table
-      const { error: dbError } = await supabase.from('music_tracks').insert([
-        {
-          title: meta.title || file.name,
-          artist: meta.artist || profile?.fullName || 'Kus-lord Artist',
-          album: meta.album || 'Royal Exclusives',
-          audio_url: audioPublicUrl,
-          cover_url: coverPublicUrl,
-          duration: 240,
-          user_id: user?.id,
-        },
-      ])
-
-      if (dbError) {
-        console.warn('DB insert notice (table might not exist yet):', dbError.message)
-      }
-
-      window.dispatchEvent(new Event('kus_tracks_updated'))
-      return { success: true }
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Upload failed' }
-    }
   }
 
   return (
@@ -263,7 +148,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithMagicLink,
         signInWithGoogle,
         signOut,
-        uploadTrackToSupabase,
       }}
     >
       {children}
