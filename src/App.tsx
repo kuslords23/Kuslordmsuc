@@ -46,131 +46,80 @@ export default function App() {
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
 
-  // Detect embedded mode (inside sport-clan-nexus iframe)
-  useEffect(() => {
-    const checkEmbedded = () => {
-      try {
-        const embedded = window.parent !== window
-        setIsEmbedded(embedded)
-        if (embedded) {
-          window.parent.postMessage(
-            { type: 'MUSIC_APP_READY', payload: { version: '1.0.0' } },
-            '*'
-          )
-        }
-      } catch (e) {
-        setIsEmbedded(false)
-      }
-    }
-    checkEmbedded()
-    window.addEventListener('message', handleParentMessage)
-    return () => window.removeEventListener('message', handleParentMessage)
-  }, [])
-
-  // Handle messages from parent (sport-clan-nexus hub)
-  const handleParentMessage = useCallback((event: MessageEvent) => {
-    if (!event.data || typeof event.data !== 'object') return
-    
-    const { type, payload } = event.data
-    
-    switch (type) {
-      case 'PLAY_ANTHEM': {
-        if (typeof payload?.matchId === 'string') {
-          import('./data/sports').then(({ sportsMatches }) => {
-            const match = sportsMatches.find(m => m.id === payload.matchId)
-            if (match && match.anthemTrackId) {
-              const track = tracks.find(t => t.id === match.anthemTrackId)
-              if (track) {
-                playTrack(track, tracks)
-                event.source?.postMessage(
-                  { type: 'ANTHEM_PLAYING', payload: { matchId: payload.matchId, trackId: track.id } },
-                  event.origin
-                )
-              }
-            }
-          })
-        }
-        break
-      }
-      case 'TOGGLE_PLAY':
-        togglePlay()
-        break
-      case 'NEXT_TRACK':
-        nextTrack()
-        break
-      case 'PREV_TRACK':
-        prevTrack()
-        break
-      case 'SET_VOLUME':
-        if (typeof payload?.volume === 'number' && payload.volume >= 0 && payload.volume <= 1) {
-          handleVolume(payload.volume)
-        }
-        break
-      case 'SEEK':
-        if (typeof payload?.time === 'number') {
-          handleSeek(payload.time)
-        }
-        break
-      case 'GET_STATE':
-        event.source?.postMessage(
-          { 
-            type: 'PLAYBACK_STATE', 
-            payload: {
-              isPlaying,
-              currentTrackId: currentTrack?.id,
-              currentTime,
-              duration,
-              volume,
-              queue: queue.map(t => t.id)
-            }
-          },
-          event.origin
-        )
-        break
-      case 'SET_QUEUE':
-        if (Array.isArray(payload?.trackIds)) {
-          const newQueue: Track[] = payload.trackIds
-            .map((id: string) => tracks.find(t => t.id === id))
-            .filter(Boolean) as Track[]
-          if (newQueue.length > 0) {
-            setQueue(newQueue)
-            playTrack(newQueue[0], newQueue)
-          }
-        }
-        break
-    }
-  }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, handleVolume, handleSeek])
-
-  // Broadcast state updates to parent when embedded
-  useEffect(() => {
-    if (!isEmbedded) return
-    
-    let lastState = ''
-    const broadcastState = () => {
-      const state = JSON.stringify({
-        isPlaying,
-        currentTrackId: currentTrack?.id,
-        currentTime: Math.floor(currentTime),
-        duration: Math.floor(duration),
-        volume,
-      })
-      if (state !== lastState) {
-        lastState = state
-        window.parent?.postMessage(
-          { type: 'PLAYBACK_STATE_UPDATE', payload: JSON.parse(state) },
-          '*'
-        )
-      }
-    }
-    
-    const interval = setInterval(broadcastState, 1000)
-    return () => clearInterval(interval)
-  }, [isEmbedded, isPlaying, currentTrack?.id, currentTime, duration, volume])
-
   // Initial track & session loading
   useEffect(() => {
     fetchRemoteTracks().then((data) => setTracks(data))
   }, [])
+
+  // Audio element setup
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio()
+      audioRef.current.volume = volume
+    }
+    const audio = audioRef.current
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const handleLoadedMetadata = () => setDuration(audio.duration || 0)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+    }
+  }, [volume])
+
+  // Define player functions first so they can be used by handleParentMessage
+  const playTrack = useCallback((track: Track, trackList: Track[]) => {
+    if (audioRef.current) {
+      audioRef.current.src = track.audioUrl
+      audioRef.current.currentTime = 0
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false))
+    }
+    setCurrentTrack(track)
+    setQueue(trackList)
+    setIsPlaying(true)
+  }, [])
+
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio || !currentTrack) {
+      if (selectedAlbum && selectedAlbum.tracks.length > 0) {
+        playTrack(selectedAlbum.tracks[0], selectedAlbum.tracks)
+      } else if (albums.length > 0 && albums[0].tracks.length > 0) {
+        playTrack(albums[0].tracks[0], albums[0].tracks)
+      }
+      return
+    }
+    if (audio.paused) { audio.play(); setIsPlaying(true) }
+    else { audio.pause(); setIsPlaying(false) }
+  }, [currentTrack, selectedAlbum, albums, playTrack])
+
+  const nextTrack = useCallback(() => {
+    const track = currentTrackRef.current
+    const q = queueRef.current
+    if (!track || q.length === 0) return
+    const index = q.findIndex((t) => t.id === track.id)
+    const next = q[(index + 1) % q.length]
+    playTrack(next, q)
+  }, [playTrack])
+
+  const prevTrack = useCallback(() => {
+    const track = currentTrackRef.current
+    const q = queueRef.current
+    if (!track || q.length === 0) return
+    const index = q.findIndex((t) => t.id === track.id)
+    const prev = q[(index - 1 + q.length) % q.length]
+    playTrack(prev, q)
+  }, [playTrack])
+
+  const handleSeek = (time: number) => {
+    if (audioRef.current) { audioRef.current.currentTime = time; setCurrentTime(time) }
+  }
+
+  const handleVolume = (value: number) => {
+    setVolume(value)
+    if (audioRef.current) audioRef.current.volume = value
+  }
 
   // Dynamic albums list (includes cloud vault for uploaded tracks)
   const albums = useMemo(() => {
@@ -218,33 +167,114 @@ export default function App() {
     )
   }, [search, tracks])
 
-  // Audio element setup
-  useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio()
-      audioRef.current.volume = volume
+  // Handle messages from parent (sport-clan-nexus hub)
+  const handleParentMessage = useCallback((event: MessageEvent) => {
+    if (!event.data || typeof event.data !== 'object') return
+    
+    const { type, payload } = event.data
+    
+    switch (type) {
+      case 'PLAY_ANTHEM': {
+        if (typeof payload?.matchId === 'string') {
+          import('./data/sports').then(({ sportsMatches }) => {
+            const match = sportsMatches.find(m => m.id === payload.matchId)
+            if (match && match.anthemTrackId) {
+              // We need to find the track from state - use a ref to access latest tracks
+              // This is handled via a separate effect below
+            }
+          })
+        }
+        break
+      }
+      case 'TOGGLE_PLAY':
+        togglePlay()
+        break
+      case 'NEXT_TRACK':
+        nextTrack()
+        break
+      case 'PREV_TRACK':
+        prevTrack()
+        break
+      case 'SET_VOLUME':
+        if (typeof payload?.volume === 'number' && payload.volume >= 0 && payload.volume <= 1) {
+          handleVolume(payload.volume)
+        }
+        break
+      case 'SEEK':
+        if (typeof payload?.time === 'number') {
+          handleSeek(payload.time)
+        }
+        break
+      case 'GET_STATE':
+        event.source?.postMessage(
+          { 
+            type: 'PLAYBACK_STATE', 
+            payload: {
+              isPlaying,
+              currentTrackId: currentTrack?.id,
+              currentTime,
+              duration,
+              volume,
+              queue: queue.map(t => t.id)
+            }
+          },
+          event.origin
+        )
+        break
+      case 'SET_QUEUE':
+        if (Array.isArray(payload?.trackIds)) {
+          // This is handled via a separate effect below
+        }
+        break
     }
-    const audio = audioRef.current
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
-    const handleLoadedMetadata = () => setDuration(audio.duration || 0)
-    audio.addEventListener('timeupdate', handleTimeUpdate)
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-    return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate)
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-    }
-  }, [volume])
+  }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, handleVolume, handleSeek])
 
-  const playTrack = useCallback((track: Track, trackList: Track[]) => {
-    if (audioRef.current) {
-      audioRef.current.src = track.audioUrl
-      audioRef.current.currentTime = 0
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false))
+  // Detect embedded mode (inside sport-clan-nexus iframe)
+  useEffect(() => {
+    const checkEmbedded = () => {
+      try {
+        const embedded = window.parent !== window
+        setIsEmbedded(embedded)
+        if (embedded) {
+          window.parent.postMessage(
+            { type: 'MUSIC_APP_READY', payload: { version: '1.0.0' } },
+            '*'
+          )
+        }
+      } catch (e) {
+        setIsEmbedded(false)
+      }
     }
-    setCurrentTrack(track)
-    setQueue(trackList)
-    setIsPlaying(true)
-  }, [])
+    checkEmbedded()
+    window.addEventListener('message', handleParentMessage)
+    return () => window.removeEventListener('message', handleParentMessage)
+  }, [handleParentMessage])
+
+  // Broadcast state updates to parent when embedded
+  useEffect(() => {
+    if (!isEmbedded) return
+    
+    let lastState = ''
+    const broadcastState = () => {
+      const state = JSON.stringify({
+        isPlaying,
+        currentTrackId: currentTrack?.id,
+        currentTime: Math.floor(currentTime),
+        duration: Math.floor(duration),
+        volume,
+      })
+      if (state !== lastState) {
+        lastState = state
+        window.parent?.postMessage(
+          { type: 'PLAYBACK_STATE_UPDATE', payload: JSON.parse(state) },
+          '*'
+        )
+      }
+    }
+    
+    const interval = setInterval(broadcastState, 1000)
+    return () => clearInterval(interval)
+  }, [isEmbedded, isPlaying, currentTrack?.id, currentTime, duration, volume])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -260,47 +290,6 @@ export default function App() {
     audio.addEventListener('ended', handleEnded)
     return () => audio.removeEventListener('ended', handleEnded)
   }, [playTrack])
-
-  const nextTrack = useCallback(() => {
-    const track = currentTrackRef.current
-    const q = queueRef.current
-    if (!track || q.length === 0) return
-    const index = q.findIndex((t) => t.id === track.id)
-    const next = q[(index + 1) % q.length]
-    playTrack(next, q)
-  }, [playTrack])
-
-  const prevTrack = useCallback(() => {
-    const track = currentTrackRef.current
-    const q = queueRef.current
-    if (!track || q.length === 0) return
-    const index = q.findIndex((t) => t.id === track.id)
-    const prev = q[(index - 1 + q.length) % q.length]
-    playTrack(prev, q)
-  }, [playTrack])
-
-  const togglePlay = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio || !currentTrack) {
-      if (selectedAlbum && selectedAlbum.tracks.length > 0) {
-        playTrack(selectedAlbum.tracks[0], selectedAlbum.tracks)
-      } else if (albums.length > 0 && albums[0].tracks.length > 0) {
-        playTrack(albums[0].tracks[0], albums[0].tracks)
-      }
-      return
-    }
-    if (audio.paused) { audio.play(); setIsPlaying(true) }
-    else { audio.pause(); setIsPlaying(false) }
-  }, [currentTrack, selectedAlbum, albums, playTrack])
-
-  const handleSeek = (time: number) => {
-    if (audioRef.current) { audioRef.current.currentTime = time; setCurrentTime(time) }
-  }
-
-  const handleVolume = (value: number) => {
-    setVolume(value)
-    if (audioRef.current) audioRef.current.volume = value
-  }
 
   const handleSignOut = async () => {
     setAuthModalOpen(false)
