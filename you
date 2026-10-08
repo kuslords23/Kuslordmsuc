@@ -1,0 +1,3 @@
+   // Hide bottom nav, sidebar, auth — only show player + anthem list
+   const isEmbedded = window.parent !== window
+   
