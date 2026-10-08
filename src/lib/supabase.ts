@@ -21,7 +21,7 @@ export const supabase = isSupabaseConfigured()
     })
   : null
 
-// Fallback tracks (matching sport-clan-nexus data exactly)
+// Helper to create CSS gradient strings
 const gradient = (colors: string) => `linear-gradient(135deg, ${colors})`
 
 const fallbackTracks: Track[] = [
@@ -182,7 +182,7 @@ interface DbTrack {
 
 export async function fetchRemoteTracks(): Promise<Track[]> {
   if (!isSupabaseConfigured() || !supabase) {
-    return Promise.resolve(fallbackTracks)
+    return fallbackTracks
   }
 
   try {
@@ -192,7 +192,7 @@ export async function fetchRemoteTracks(): Promise<Track[]> {
       .order('created_at', { ascending: false })
 
     if (error || !data || data.length === 0) {
-      return Promise.resolve(fallbackTracks)
+      return fallbackTracks
     }
 
     const fetched: Track[] = data.map((d: DbTrack) => ({
@@ -205,9 +205,9 @@ export async function fetchRemoteTracks(): Promise<Track[]> {
       cover: d.cover_url || gradient('#fa2d6c, #fc6f60'),
     }))
 
-    return Promise.resolve([...fetched, ...fallbackTracks])
+    return [...fetched, ...fallbackTracks]
   } catch {
-    return Promise.resolve(fallbackTracks)
+    return fallbackTracks
   }
 }
 

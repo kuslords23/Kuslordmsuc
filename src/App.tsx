@@ -52,8 +52,6 @@ export default function App() {
       try {
         const embedded = window.parent !== window
         setIsEmbedded(embedded)
-        
-        // Notify parent we're ready
         if (embedded) {
           window.parent.postMessage(
             { type: 'MUSIC_APP_READY', payload: { version: '1.0.0' } },
@@ -64,14 +62,13 @@ export default function App() {
         setIsEmbedded(false)
       }
     }
-    
     checkEmbedded()
     window.addEventListener('message', handleParentMessage)
     return () => window.removeEventListener('message', handleParentMessage)
   }, [])
 
   // Handle messages from parent (sport-clan-nexus hub)
-  const handleParentMessage = useCallback((event: MessageEvent) => {    
+  const handleParentMessage = useCallback((event: MessageEvent) => {
     if (!event.data || typeof event.data !== 'object') return
     
     const { type, payload } = event.data
@@ -79,20 +76,16 @@ export default function App() {
     switch (type) {
       case 'PLAY_ANTHEM': {
         if (typeof payload?.matchId === 'string') {
-          // Find match in sports data
           import('./data/sports').then(({ sportsMatches }) => {
             const match = sportsMatches.find(m => m.id === payload.matchId)
             if (match && match.anthemTrackId) {
               const track = tracks.find(t => t.id === match.anthemTrackId)
               if (track) {
                 playTrack(track, tracks)
-                // Confirm to parent
-                if (event.source) {
-                  (event.source as Window).postMessage(
-                    { type: 'ANTHEM_PLAYING', payload: { matchId: payload.matchId, trackId: track.id } },
-                    event.origin
-                  )
-                }
+                event.source?.postMessage(
+                  { type: 'ANTHEM_PLAYING', payload: { matchId: payload.matchId, trackId: track.id } },
+                  event.origin
+                )
               }
             }
           })
@@ -119,26 +112,26 @@ export default function App() {
         }
         break
       case 'GET_STATE':
-        if (event.source) {
-          (event.source as Window).postMessage(
-            { 
-              type: 'PLAYBACK_STATE', 
-              payload: {
-                isPlaying,
-                currentTrackId: currentTrack?.id,
-                currentTime,
-                duration,
-                volume,
-                queue: queue.map(t => t.id)
-              }
-            },
-            event.origin
-          )
-        }
+        event.source?.postMessage(
+          { 
+            type: 'PLAYBACK_STATE', 
+            payload: {
+              isPlaying,
+              currentTrackId: currentTrack?.id,
+              currentTime,
+              duration,
+              volume,
+              queue: queue.map(t => t.id)
+            }
+          },
+          event.origin
+        )
         break
       case 'SET_QUEUE':
         if (Array.isArray(payload?.trackIds)) {
-          const newQueue = payload.trackIds.map((id: string) => tracks.find(t => t.id === id)).filter(Boolean) as Track[]
+          const newQueue: Track[] = payload.trackIds
+            .map((id: string) => tracks.find(t => t.id === id))
+            .filter(Boolean) as Track[]
           if (newQueue.length > 0) {
             setQueue(newQueue)
             playTrack(newQueue[0], newQueue)
@@ -146,7 +139,7 @@ export default function App() {
         }
         break
     }
-  }, [tracks])
+  }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, handleVolume, handleSeek])
 
   // Broadcast state updates to parent when embedded
   useEffect(() => {
@@ -342,10 +335,7 @@ export default function App() {
             <AlbumCard
               key={a.id}
               album={a}
-              onPlay={() => {
-                if (a.tracks.length) playTrack(a.tracks[0], a.tracks)
-                setSelectedAlbumId(a.id)
-              }}
+              onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
               onSelect={() => setSelectedAlbumId(a.id)}
             />
           ))}
@@ -358,10 +348,7 @@ export default function App() {
             <AlbumCard
               key={a.id}
               album={a}
-              onPlay={() => {
-                if (a.tracks.length) playTrack(a.tracks[0], a.tracks)
-                setSelectedAlbumId(a.id)
-              }}
+              onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
               onSelect={() => setSelectedAlbumId(a.id)}
             />
           ))}
@@ -385,10 +372,7 @@ export default function App() {
             <AlbumCard
               key={a.id}
               album={a}
-              onPlay={() => {
-                if (a.tracks.length) playTrack(a.tracks[0], a.tracks)
-                setSelectedAlbumId(a.id)
-              }}
+              onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
               onSelect={() => setSelectedAlbumId(a.id)}
             />
           ))}
@@ -408,22 +392,19 @@ export default function App() {
           { name: 'Reggae Vibe', genre: 'Island Rhythms', color: '#11998e, #38ef7d', icon: '🌴' },
           { name: 'Metal Mayhem', genre: 'Heavy Rock', color: '#e6c656, #3b2800', icon: '⚡' },
           { name: 'Afro Grooves', genre: 'Afrobeats', color: '#ff6b6b, #c5a059', icon: '🌍' },
-        ].map((s) => {
-          const color = `linear-gradient(135deg, ${s.color})`
-          return (
-            <div key={s.name} className="radio-card" onClick={() => {
-              const t = tracks.find(t => t.genre?.toLowerCase().includes(s.genre.split(' ')[0].toLowerCase())) || tracks[0]
-              if (t) playTrack(t, tracks)
-            }}>
-              <div className="radio-art" style={{ background: color }}>
-                <span className="radio-icon">{s.icon}</span>
-                <span className="live-dot">●</span>
-              </div>
-              <strong>{s.name}</strong>
-              <span>{s.genre}</span>
+        ].map((s) => (
+          <div key={s.name} className="radio-card" onClick={() => {
+            const t = tracks.find(t => t.genre?.toLowerCase().includes(s.genre.split(' ')[0].toLowerCase())) || tracks[0]
+            playTrack(t, tracks)
+          }}>
+            <div className="radio-art" style={{ background: `linear-gradient(135deg, ${s.color})` }}>
+              <span className="radio-icon">{s.icon}</span>
+              <span className="live-dot">●</span>
             </div>
-          )
-        })}
+            <strong>{s.name}</strong>
+            <span>{s.genre}</span>
+          </div>
+        ))}
       </div>
       <section>
         <div className="section-title"><h2>Stadium Anthems</h2></div>
@@ -455,10 +436,7 @@ export default function App() {
             <AlbumCard
               key={a.id}
               album={a}
-              onPlay={() => {
-                if (a.tracks.length) playTrack(a.tracks[0], a.tracks)
-                setSelectedAlbumId(a.id)
-              }}
+              onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
               onSelect={() => setSelectedAlbumId(a.id)}
             />
           ))}
@@ -500,10 +478,7 @@ export default function App() {
               <AlbumCard
                 key={a.id}
                 album={a}
-                onPlay={() => {
-                  if (a.tracks.length) playTrack(a.tracks[0], a.tracks)
-                  setSelectedAlbumId(a.id)
-                }}
+                onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
                 onSelect={() => setSelectedAlbumId(a.id)}
               />
             ))}
@@ -514,7 +489,7 @@ export default function App() {
               <div key={t.id} className="track-row-compact" onClick={() => playTrack(t, tracks)}>
                 <div className="mini-cover" style={{ background: t.cover }} />
                 <div className="track-meta"><strong>{t.title}</strong><span>{t.artist}</span></div>
-                <span className="like-count">❤️ {t.likes}</span>
+                <span className="like-count">❤️ {t.likes || 0}</span>
               </div>
             ))}
           </div>
@@ -533,7 +508,7 @@ export default function App() {
     return (
       <div className="full-player-overlay">
         <div className="full-player">
-          <div className="full-player-bg" style={{ background: currentTrack?.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }} />
+          <div className="full-player-bg" style={{ background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }} />
           <div className="full-player-content">
             <div className="full-player-top">
               <button className="collapse-btn" onClick={() => setMiniPlayerOpen(false)}>▼</button>
@@ -542,14 +517,14 @@ export default function App() {
             </div>
             <div
               className="full-artwork"
-              style={{ background: currentTrack?.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }}
+              style={{ background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }}
             >
               <div className="vinyl-shine" />
             </div>
             <div className="full-track-info">
-              <h2>{currentTrack?.title || 'No Track Selected'}</h2>
-              <p>{currentTrack?.artist || 'Harmony Kus-lords'}</p>
-              {currentTrack?.isSportsAnthem && <span className="stadium-badge">⚡ STADIUM ANTHEM</span>}
+              <h2>{currentTrack.title || 'No Track Selected'}</h2>
+              <p>{currentTrack.artist || 'Harmony Kus-lords'}</p>
+              {currentTrack.isSportsAnthem && <span className="stadium-badge">⚡ STADIUM ANTHEM</span>}
             </div>
             <div className="full-progress">
               <input
