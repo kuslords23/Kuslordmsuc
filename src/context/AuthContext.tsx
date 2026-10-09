@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !supabase) {
       setIsLoading(false)
       return
     }
@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signInWithEmail = async (email: string, password: string) => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !supabase) {
       return { error: new Error('Supabase is not configured') }
     }
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -84,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !supabase) {
       return { error: new Error('Supabase is not configured') }
     }
     const { error } = await supabase.auth.signUp({
@@ -101,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signInWithMagicLink = async (email: string) => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !supabase) {
       return { error: new Error('Supabase URL/Key not configured yet.') }
     }
     const { error } = await supabase.auth.signInWithOtp({
@@ -114,7 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signInWithGoogle = async () => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !supabase) {
       return { error: new Error('Google OAuth requires Supabase configuration.') }
     }
     const { error } = await supabase.auth.signInWithOAuth({
@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signOut = async () => {
-    if (isSupabaseConfigured()) {
+    if (supabase) {
       await supabase.auth.signOut()
     }
     setUser(null)

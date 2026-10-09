@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { User } from '@supabase/supabase-js'
 import { albums as defaultAlbums, type Album, type Track } from './data/music'
-import { supabase, fetchRemoteTracks } from './lib/supabase'
+import { fetchRemoteTracks } from './lib/supabase'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
 import PlaylistView from './components/PlaylistView'
 import PlayerBar from './components/PlayerBar'
 import AuthModal from './components/AuthModal'
 import UploadModal from './components/UploadModal'
-import SportsSection from './components/SportsSection'
 import { useAuth } from './context/AuthContext'
 import './index.css'
 
@@ -22,7 +20,7 @@ const formatTime = (seconds: number): string => {
 }
 
 export default function App() {
-  const { user, profile, isLoading } = useAuth()
+  const { user } = useAuth()
   const [tracks, setTracks] = useState<Track[]>([])
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
