@@ -29,42 +29,98 @@ export interface RemoteLibraryResult {
   message?: string
 }
 
-interface DbTrack {
+/**
+ * The Supabase project (dsbkwqywuettzlzbtqef) uses feed_posts for audio
+ * content and kus-music / kus-images for storage. The expected
+ * music_tracks table and music-audio / music-covers buckets do not
+ * exist. This adapter maps the existing schema to the frontend Track
+ * type.
+ */
+
+interface DbFeedPost {
   id: string
-  title: string | null
-  artist?: string | null
-  album?: string | null
-  duration?: number | null
-  audio_url?: string | null
-  cover_url?: string | null
-  cover?: string | null
-  genre?: string | null
-  is_sports_anthem?: boolean | null
-  match_vibe?: string | null
-  likes?: number | null
+  media_url?: string | null
+  storage_path?: string | null
+  cover_storage_path?: string | null
+  content?: string | null
+  caption?: string | null
+  title?: string | null
+  user_id?: string | null
   created_at?: string
 }
 
 /**
- * Maps a Supabase `music_tracks` row to the frontend Track shape.
- * This keeps database field names (`audio_url`, `cover_url`) isolated
- * from the UI model (`audioUrl`, `cover`).
+ * Constructs a public URL for a storage object without
+ * assuming the object exists. Returns empty string if
+ * the path is missing or invalid.
  */
-function rowToTrack(d: DbTrack): Track | null {
-  if (!d?.id || !d?.audio_url) return null
+function bucketPublicUrl(bucket: string, path: string | null | undefined): string {
+  if (!path || !supabase) return ''
+  try {
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+    return data?.publicUrl || ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Derives a display title from a feed post.
+ * Uses content/caption, then the filename part of storage_path,
+ * then a default.
+ */
+function deriveTitle(post: DbFeedPost): string {
+  // Try common text fields first
+  if (post.content && post.content.trim()) return post.content.trim()
+  if (post.caption && post.caption.trim()) return post.caption.trim()
+  if (post.title && post.title.trim()) return post.title.trim()
+
+  // Fall back to the filename in storage_path
+  if (post.storage_path) {
+    const parts = post.storage_path.split('/')
+    const file = parts.pop() || ''
+    const name = file.replace(/\.[^/.]+$/, '') // strip extension
+    if (name) return name.replace(/[-_]/g, ' ')
+  }
+
+  return 'Untitled Track'
+}
+
+/**
+ * Maps a feed_posts row to a Track.
+ * feed_posts has: id, media_url, storage_path, cover_storage_path,
+ * user_id, created_at, and optionally content/caption/title.
+ * The kus-music bucket holds audio objects, kus-images holds covers.
+ */
+function rowToTrack(d: DbFeedPost): Track | null {
+  if (!d?.id) return null
+
+  // media_url is already a public URL; if missing, construct from storage_path
+  let audioUrl = d.media_url || ''
+  if (!audioUrl && d.storage_path && supabase) {
+    audioUrl = bucketPublicUrl('kus-music', d.storage_path)
+  }
+  if (!audioUrl) return null
+
+  // Cover image
+  let cover = ''
+  if (d.cover_storage_path) {
+    cover = bucketPublicUrl('kus-images', d.cover_storage_path)
+  }
+  if (!cover) {
+    cover = gradient('#fa2d6c, #fc6f60') // default gradient
+  }
+
+  const title = deriveTitle(d)
 
   return {
     id: d.id,
-    title: d.title || 'Untitled',
-    artist: d.artist || 'Unknown Artist',
-    album: d.album || 'Single',
-    duration: d.duration || 210,
-    audioUrl: d.audio_url,
-    cover: d.cover_url || d.cover || gradient('#fa2d6c, #fc6f60'),
-    genre: d.genre || undefined,
-    isSportsAnthem: d.is_sports_anthem ? true : undefined,
-    matchVibe: d.match_vibe || undefined,
-    likes: d.likes ?? 0,
+    title,
+    artist: 'Kus-lords Artist', // stored in user_media; default when unavailable
+    album: 'Cloud Vault',
+    duration: 0, // not stored in feed_posts; could be read from user_media
+    audioUrl,
+    cover,
   }
 }
 
@@ -214,13 +270,15 @@ const fallbackTracks: Track[] = [
 ]
 
 /**
- * Fetches the shared SCN `music_tracks` table.
+ * Fetches audio tracks from the existing feed_posts table.
  *
- * Important behavior:
- * - A successful remote fetch returns ONLY remote tracks.
- * - A valid empty table returns `status: 'empty'` and no tracks.
- * - A failed request returns demo tracks with `status: 'error'` so the UI
- *   can show a truthful banner instead of pretending cloud sync succeeded.
+ * Returns:
+ * - remote  : tracks from feed_posts (media_url or storage_path present)
+ * - empty   : feed_posts has no audio records
+ * - error   : the query failed (network, RLS, or missing table)
+ * - fallback: Supabase is not configured at all
+ *
+ * Demo tracks are ONLY returned on error or fallback — never on success.
  */
 export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
   if (!isSupabaseConfigured() || !supabase) {
@@ -232,13 +290,18 @@ export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
   }
 
   try {
+    // Query feed_posts which is the authoritative audio table.
+    // The table has public read access (RLS allows SELECT for everyone).
     const { data, error } = await supabase
-      .from('music_tracks')
+      .from('feed_posts')
       .select('*')
+      .not('media_url', 'is', null)          // only rows with audio
+      .not('storage_path', 'is', null)
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Failed to load remote tracks:', error.message)
+      // This covers missing table, column errors, RLS, etc.
+      console.error('feed_posts query failed:', error.message)
       return {
         tracks: fallbackTracks,
         status: 'error',
@@ -251,12 +314,17 @@ export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
     }
 
     const fetched: Track[] = data
-      .map((d) => rowToTrack(d as DbTrack))
+      .map((d) => rowToTrack(d as DbFeedPost))
       .filter((t): t is Track => t !== null)
+
+    if (fetched.length === 0) {
+      // All rows were missing usable URLs — treat as empty
+      return { tracks: [], status: 'empty', message: 'No playable audio found in feed_posts.' }
+    }
 
     return { tracks: fetched, status: 'remote' }
   } catch (err: any) {
-    console.error('Failed to load remote tracks:', err?.message || err)
+    console.error('fetchRemoteTracks failed:', err?.message || err)
     return {
       tracks: fallbackTracks,
       status: 'error',
@@ -266,8 +334,8 @@ export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
 }
 
 /**
- * Deletes a storage object created during a failed upload.
- * This only ever targets objects created by the current operation.
+ * Removes a storage object that was created by a failed upload.
+ * Never deletes objects outside the current operation.
  */
 async function removeUploadedFile(bucket: string, path: string) {
   if (!supabase || !path) return
@@ -278,16 +346,16 @@ async function removeUploadedFile(bucket: string, path: string) {
 }
 
 /**
- * Uploads a track to the shared SCN storage buckets and creates its
- * database record in `music_tracks`.
+ * Uploads a track to the existing kus-music / kus-images buckets and
+ * inserts the record into feed_posts.
  *
- * Success is only reported after:
- * 1. Audio exists in `music-audio`.
- * 2. Optional cover exists in `music-covers`.
- * 3. The `music_tracks` row is inserted AND returned with its real DB ID.
+ * Uses the existing SCN storage infrastructure:
+ *   - Audio → kus-music bucket
+ *   - Cover → kus-images bucket (optional)
+ *   - Metadata → feed_posts table
  *
- * If the database insert fails, the newly uploaded audio (and cover) are
- * cleaned up so the shared buckets do not accumulate orphan files.
+ * On database failure, cleans up newly created storage objects.
+ * Does not create new tables or buckets.
  */
 export async function uploadTrackToBucket(params: {
   title: string
@@ -298,89 +366,101 @@ export async function uploadTrackToBucket(params: {
   user: { id: string }
 }): Promise<Track> {
   if (!isSupabaseConfigured() || !supabase) {
-    throw new Error('Supabase is not configured. Uploads require the shared SCN Supabase project.')
+    throw new Error(
+      'Supabase is not configured. Uploads require the existing project at ' +
+      SUPABASE_URL,
+    )
   }
 
   const fileExt = params.audioFile.name.split('.').pop()
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(7)}.${fileExt}`
-  const audioPath = `tracks/${fileName}`
+  const safeName = params.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+$/, '')
+  const fileName = `${Date.now()}-${safeName || 'track'}.${fileExt}`
+  const audioPath = fileName
 
   let coverPath: string | null = null
   let coverPublicUrl: string | null = null
 
+  // 1. Upload audio to kus-music
   const { error: uploadError } = await supabase.storage
-    .from('music-audio')
+    .from('kus-music')
     .upload(audioPath, params.audioFile)
 
   if (uploadError) {
-    throw new Error(`Audio upload failed: ${uploadError.message}`)
+    throw new Error(`Audio upload to kus-music failed: ${uploadError.message}`)
   }
 
   try {
-    const { data: audioUrlData } = supabase.storage
-      .from('music-audio')
-      .getPublicUrl(audioPath)
-    const audioPublicUrl = audioUrlData.publicUrl
+    const audioPublicUrl = bucketPublicUrl('kus-music', audioPath)
+    if (!audioPublicUrl) {
+      throw new Error('Audio uploaded but public URL could not be constructed.')
+    }
 
-    // Optional cover upload. If it fails, continue without it but surface a warning.
+    // 2. Upload cover to kus-images (optional, non-fatal if it fails)
     if (params.coverFile) {
       const coverExt = params.coverFile.name.split('.').pop()
-      coverPath = `covers/${Date.now()}-cover.${coverExt}`
+      coverPath = `cover-${Date.now()}.${coverExt}`
 
       const { error: coverErr } = await supabase.storage
-        .from('music-covers')
+        .from('kus-images')
         .upload(coverPath, params.coverFile)
 
       if (coverErr) {
-        console.warn('Cover upload failed; continuing without a cover image.', coverErr.message)
+        console.warn(
+          'Cover upload to kus-images failed; continuing without cover.',
+          coverErr.message,
+        )
         coverPath = null
       } else {
-        const { data: coverUrlData } = supabase.storage
-          .from('music-covers')
-          .getPublicUrl(coverPath)
-        coverPublicUrl = coverUrlData.publicUrl
+        coverPublicUrl = bucketPublicUrl('kus-images', coverPath)
       }
     }
 
+    // 3. Insert metadata into feed_posts
+    //    feed_posts has RLS — the authenticated user must own the row.
+    //    We store the display title in content, and the storage paths
+    //    so the file can be served through kus-music / kus-images.
+    const content = `${params.title} — ${params.artist} (${params.album})`
+
     const { data: inserted, error: dbError } = await supabase
-      .from('music_tracks')
+      .from('feed_posts')
       .insert({
-        title: params.title,
-        artist: params.artist,
-        album: params.album,
-        audio_url: audioPublicUrl,
-        cover_url: coverPublicUrl || '',
-        duration: 240,
+        content,
+        media_url: audioPublicUrl,
+        storage_path: audioPath,
+        cover_storage_path: coverPath || null,
         user_id: params.user.id,
       })
       .select('*')
       .single()
 
     if (dbError) {
-      throw new Error(`Database insert failed: ${dbError.message}`)
+      throw new Error(`Database insert into feed_posts failed: ${dbError.message}`)
     }
 
-    const track = rowToTrack(inserted as DbTrack)
+    const track = rowToTrack(inserted as DbFeedPost)
     if (!track) {
-      throw new Error('Track was saved but the database returned an invalid record.')
+      throw new Error('Track saved to feed_posts but could not be mapped to Track type.')
     }
 
     return track
   } catch (err) {
-    // Only remove files created by this failed operation.
-    await removeUploadedFile('music-audio', audioPath)
+    // Cleanup: remove objects created by this operation
+    await removeUploadedFile('kus-music', audioPath)
     if (coverPath) {
-      await removeUploadedFile('music-covers', coverPath)
+      await removeUploadedFile('kus-images', coverPath)
     }
     throw err
   }
 }
 
 /**
- * Subscribes to realtime changes on the shared `music_tracks` table.
- * Requires Realtime to be enabled on that table in Supabase:
+ * Subscribes to realtime changes on the existing feed_posts table.
  *
- *   alter publication supabase_realtime add table music_tracks;
+ * Requires Realtime to be enabled on feed_posts in Supabase:
+ *   alter publication supabase_realtime add table feed_posts;
  */
 export function subscribeToTrackChanges(
   onInsert: (track: Track) => void,
@@ -391,30 +471,30 @@ export function subscribeToTrackChanges(
     return () => {}
   }
 
-  const channel = supabase.channel('music-tracks-realtime')
+  const channel = supabase.channel('feed-posts-realtime')
 
   channel
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'music_tracks' },
+      { event: 'INSERT', schema: 'public', table: 'feed_posts' },
       (payload) => {
-        const track = rowToTrack((payload.new || {}) as DbTrack)
+        const track = rowToTrack((payload.new || {}) as DbFeedPost)
         if (track) onInsert(track)
       },
     )
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'music_tracks' },
+      { event: 'UPDATE', schema: 'public', table: 'feed_posts' },
       (payload) => {
-        const track = rowToTrack((payload.new || {}) as DbTrack)
+        const track = rowToTrack((payload.new || {}) as DbFeedPost)
         if (track) onUpdate(track)
       },
     )
     .on(
       'postgres_changes',
-      { event: 'DELETE', schema: 'public', table: 'music_tracks' },
+      { event: 'DELETE', schema: 'public', table: 'feed_posts' },
       (payload) => {
-        const oldRow = (payload.old || {}) as DbTrack
+        const oldRow = (payload.old || {}) as DbFeedPost
         if (oldRow?.id) onDelete(oldRow.id)
       },
     )

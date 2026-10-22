@@ -40,8 +40,6 @@ export default function App() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [isEmbedded, setIsEmbedded] = useState(false)
 
-  // Lightweight matchday simulation for UI motion.
-  // Real shared library updates come from subscribeToTrackChanges below.
   const [liveMatches, setLiveMatches] = useState<SportsMatch[]>(sportsMatches)
   const [goalAlert, setGoalAlert] = useState<{ message: string; sub: string } | null>(null)
 
@@ -52,7 +50,7 @@ export default function App() {
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
 
-  // --- Real-time Sports & Music simulation ---
+  // Real-time Sports & Music simulation (UI motion only)
   useEffect(() => {
     const interval = setInterval(() => {
       setLiveMatches((prevMatches) => {
@@ -104,25 +102,11 @@ export default function App() {
           }
         })
       })
-
-      setTracks((prevTracks) => {
-        if (prevTracks.length === 0) return prevTracks
-        return prevTracks.map((track) => {
-          if (Math.random() < 0.15) {
-            return {
-              ...track,
-              likes: (track.likes || 0) + Math.floor(Math.random() * 3) + 1,
-            }
-          }
-          return track
-        })
-      })
     }, 4500)
 
     return () => clearInterval(interval)
   }, [])
 
-  // Auto-clear goal alert banner
   useEffect(() => {
     if (goalAlert) {
       const t = setTimeout(() => setGoalAlert(null), 3500)
@@ -130,7 +114,7 @@ export default function App() {
     }
   }, [goalAlert])
 
-  // --- Initial track & session loading ---
+  // --- Initial track loading from feed_posts ---
   useEffect(() => {
     let cancelled = false
 
@@ -145,7 +129,7 @@ export default function App() {
     }
   }, [])
 
-  // --- Supabase Realtime subscription for shared `music_tracks` table ---
+  // --- Supabase Realtime subscription for feed_posts ---
   useEffect(() => {
     if (!isSupabaseConfigured()) return
 
@@ -184,9 +168,8 @@ export default function App() {
     }
   }, [volume])
 
-  // --- Dynamic albums list (includes cloud vault for uploaded tracks) ---
+  // Dynamic albums list
   const albums = useMemo(() => {
-    // A valid empty cloud library should not be masked by demo albums.
     if (tracks.length === 0 && libraryStatus === 'empty') return []
 
     if (tracks.length === 0) return defaultAlbums
@@ -203,7 +186,7 @@ export default function App() {
         id: 'cloud-vault',
         title: 'Kus-lords Cloud Vault',
         artist: user?.user_metadata?.username || 'Community',
-        description: 'Uploaded directly to Kus-lords Supabase Bucket storage.',
+        description: 'Tracks from the shared Kus-lords cloud library.',
         cover: 'linear-gradient(135deg, #ffd700, #ff8c00)',
         category: 'royals',
         tracks: userUploadedTracks,
@@ -239,8 +222,7 @@ export default function App() {
     )
   }, [search, tracks])
 
-  // --- Player functions ---
-
+  // Player functions
   const playTrack = useCallback((track: Track, trackList: Track[]) => {
     if (audioRef.current) {
       audioRef.current.src = track.audioUrl
@@ -293,7 +275,7 @@ export default function App() {
     if (audioRef.current) audioRef.current.volume = value
   }
 
-  // --- Handle messages from parent (sport-clan-nexus hub) ---
+  // Handle messages from parent (sport-clan-nexus hub)
   const handleParentMessage = useCallback((event: MessageEvent) => {
     if (!event.data || typeof event.data !== 'object') return
 
@@ -373,7 +355,7 @@ export default function App() {
     }
   }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, handleVolume, handleSeek, currentTrack, currentTime, duration, volume, queue])
 
-  // Detect embedded mode (inside sport-clan-nexus iframe)
+  // Detect embedded mode
   useEffect(() => {
     const checkEmbedded = () => {
       try {
@@ -435,7 +417,7 @@ export default function App() {
     return () => audio.removeEventListener('ended', handleEnded)
   }, [playTrack])
 
-  // --- Actual Supabase sign-out ---
+  // Actual Supabase sign-out
   const handleSignOut = async () => {
     try {
       await signOut()
@@ -454,8 +436,7 @@ export default function App() {
     playTrack(newTrack, [newTrack])
   }, [playTrack])
 
-  // --- Tab Content Renderers ---
-
+  // Tab Content Renderers
   const renderHome = () => (
     <div className="tab-scroll">
       {libraryStatus === 'fallback' && (
