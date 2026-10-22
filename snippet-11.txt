@@ -1,0 +1,12 @@
+
+Now also add `'studio'` to the nav array: `(['home', 'browse', 'radio', 'studio', 'library', 'search'] as Tab[]).map(...)`
+
+---
+
+## Next steps
+
+1. **Create `src/components/Studio.tsx`** with the code above (fix typos).
+2. **Edit `src/App.tsx`** to import Studio, add the tab, and render it.
+3. **Add studio styles to `src/index.css`** (from the overlay).
+
+Once done, the Studio tab will appear in the bottom navigation and be functional.

@@ -1,0 +1,2 @@
+
+Change the `Tab` type to include `'studio'`:

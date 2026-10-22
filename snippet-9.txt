@@ -1,0 +1,2 @@
+
+Add the rendering inside the main content area (after `activeTab === 'radio'`):

@@ -1,0 +1,2 @@
+
+Add the studio button in the bottom nav:
