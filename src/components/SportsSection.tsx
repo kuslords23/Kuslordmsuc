@@ -1,4 +1,4 @@
-import { sportsMatches } from '../data/sports'
+import { SportsMatch } from '../data/sports'
 import { Track } from '../data/music'
 
 interface SportsSectionProps {
@@ -6,9 +6,16 @@ interface SportsSectionProps {
   onPlayTrack: (track: Track) => void
   currentTrackId?: string | null
   isPlaying: boolean
+  matches: SportsMatch[]
 }
 
-export default function SportsSection({ tracks, onPlayTrack, currentTrackId, isPlaying }: SportsSectionProps) {
+export default function SportsSection({
+  tracks,
+  onPlayTrack,
+  currentTrackId,
+  isPlaying,
+  matches,
+}: SportsSectionProps) {
   const sportsCompanionUrl = import.meta.env.VITE_SPORTS_COMPANION_URL || 'https://sport-clan-nexus.vercel.app'
 
   const handlePlayMatchAnthem = (match: { id: string; anthemTrackId: string }) => {
@@ -23,7 +30,7 @@ export default function SportsSection({ tracks, onPlayTrack, currentTrackId, isP
           <span className="sports-tag">⚡ ROYAL SPORTS & MUSIC COMPANION</span>
           <h2>Live Matchday Soundtracks & Sports Central</h2>
           <p>
-            Experience the roar of the stadium synced with official match anthems, live scores, and crowd beats.
+            Experience the roar of the stadium synced with official match anthems, live scores, and crowd beats in real-time.
           </p>
           <div className="sports-actions">
             <a
@@ -34,7 +41,7 @@ export default function SportsSection({ tracks, onPlayTrack, currentTrackId, isP
             >
               Open Sports Companion Portal ↗
             </a>
-            <span className="live-pill">● 4 MATCHES IN PLAY</span>
+            <span className="live-pill">● {matches.filter(m => m.status === 'LIVE').length} MATCHES IN PLAY</span>
           </div>
         </div>
       </div>
@@ -45,7 +52,7 @@ export default function SportsSection({ tracks, onPlayTrack, currentTrackId, isP
       </div>
 
       <div className="sports-matches-grid">
-        {sportsMatches.map((m) => {
+        {matches.map((m) => {
           const isCurrentMatchSong = tracks.find((t) => t.id === m.anthemTrackId && t.id === currentTrackId) !== undefined
           return (
             <div key={m.id} className={`match-card ${m.status === 'LIVE' ? 'live' : ''}`}>

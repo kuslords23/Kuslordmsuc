@@ -14,6 +14,8 @@ interface SidebarProps {
   onSignOut: () => void
   collapsed: boolean
   onToggleSidebar: () => void
+  activeTab: string
+  onNavigateTab: (tab: any) => void
 }
 
 const NavButton = ({ label, active, onClick, icon }: { label: string; active?: boolean; onClick: () => void; icon?: string }) => (
@@ -22,7 +24,9 @@ const NavButton = ({ label, active, onClick, icon }: { label: string; active?: b
     onClick={onClick}
     title={label}
   >
-    <span className={`nav-dot ${active ? 'active' : ''}`}>{icon || ''}</span>
+    <span className="nav-dot-wrap">
+      {icon ? <span className="nav-icon-sm">{icon}</span> : <span className={`nav-dot ${active ? 'active' : ''}`} />}
+    </span>
     <span className="nav-label">{label}</span>
   </button>
 )
@@ -40,6 +44,8 @@ export default function Sidebar({
   onSignOut,
   collapsed,
   onToggleSidebar,
+  activeTab,
+  onNavigateTab,
 }: SidebarProps) {
   const displayName = user?.user_metadata?.username || user?.email?.split('@')[0] || 'Guest'
   const initial = (displayName[0] || 'K').toUpperCase()
@@ -75,9 +81,38 @@ export default function Sidebar({
       )}
 
       <nav className="nav-list">
-        <NavButton label="Home" active={!activeAlbumId && !search} onClick={onNavigateHome} />
-        <NavButton label="Cloud Audio" onClick={onNavigateHome} />
-        <NavButton label="Upload to Bucket" onClick={onOpenUpload} />
+        <NavButton
+          label="Home"
+          active={activeTab === 'home' && !activeAlbumId}
+          onClick={() => {
+            onNavigateHome()
+            onNavigateTab('home')
+          }}
+          icon="🏠"
+        />
+        <NavButton
+          label="Live Matchday"
+          active={activeTab === 'sports' && !activeAlbumId}
+          onClick={() => {
+            onSelectAlbum('')
+            onNavigateTab('sports')
+          }}
+          icon="⚽"
+        />
+        <NavButton
+          label="Radio"
+          active={activeTab === 'radio' && !activeAlbumId}
+          onClick={() => {
+            onSelectAlbum('')
+            onNavigateTab('radio')
+          }}
+          icon="📻"
+        />
+        <NavButton
+          label="Upload to Bucket"
+          onClick={onOpenUpload}
+          icon="☁"
+        />
       </nav>
 
       {!collapsed && (
