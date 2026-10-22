@@ -91,15 +91,6 @@ export default function Sidebar({
           icon="🏠"
         />
         <NavButton
-          label="Live Matchday"
-          active={activeTab === 'sports' && !activeAlbumId}
-          onClick={() => {
-            onSelectAlbum('')
-            onNavigateTab('sports')
-          }}
-          icon="⚽"
-        />
-        <NavButton
           label="Radio"
           active={activeTab === 'radio' && !activeAlbumId}
           onClick={() => {

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { albums as defaultAlbums, type Album, type Track } from './data/music'
-import { sportsMatches, type SportsMatch } from './data/sports'
 import { fetchRemoteTracks, subscribeToTrackChanges, isSupabaseConfigured } from './lib/supabase'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
@@ -8,11 +7,10 @@ import PlaylistView from './components/PlaylistView'
 import PlayerBar from './components/PlayerBar'
 import AuthModal from './components/AuthModal'
 import UploadModal from './components/UploadModal'
-import SportsSection from './components/SportsSection'
 import { useAuth } from './context/AuthContext'
 import './index.css'
 
-type Tab = 'home' | 'browse' | 'radio' | 'sports' | 'library' | 'search'
+type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search'
 
 const formatTime = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
@@ -40,79 +38,12 @@ export default function App() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [isEmbedded, setIsEmbedded] = useState(false)
 
-  const [liveMatches, setLiveMatches] = useState<SportsMatch[]>(sportsMatches)
-  const [goalAlert, setGoalAlert] = useState<{ message: string; sub: string } | null>(null)
-
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
 
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
-
-  // Real-time Sports & Music simulation (UI motion only)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveMatches((prevMatches) => {
-        return prevMatches.map((match) => {
-          if (match.status !== 'LIVE') return match
-
-          let nextMinute = match.minute || "1'"
-          const minNum = parseInt(nextMinute)
-          if (!isNaN(minNum)) {
-            if (minNum >= 90) {
-              if (nextMinute.includes('+')) {
-                const parts = nextMinute.split('+')
-                const stopMin = parseInt(parts[1])
-                nextMinute = `90+${stopMin + 1}'`
-              } else {
-                nextMinute = "90+1'"
-              }
-            } else {
-              nextMinute = `${minNum + 1}'`
-            }
-          }
-
-          const hasGoal = Math.random() < 0.08
-          if (hasGoal) {
-            const isHomeScorer = Math.random() < 0.5
-            const homeScoreInc = isHomeScorer ? 1 : 0
-            const awayScoreInc = isHomeScorer ? 0 : 1
-            const scoringTeam = isHomeScorer ? match.homeTeam : match.awayTeam
-
-            const nextHomeScore = match.homeScore + homeScoreInc
-            const nextAwayScore = match.awayScore + awayScoreInc
-
-            setGoalAlert({
-              message: `⚽ GOAL FOR ${scoringTeam.toUpperCase()}!`,
-              sub: `${match.homeTeam} ${nextHomeScore} - ${nextAwayScore} ${match.awayTeam} (${nextMinute})`
-            })
-
-            return {
-              ...match,
-              minute: nextMinute,
-              homeScore: nextHomeScore,
-              awayScore: nextAwayScore,
-            }
-          }
-
-          return {
-            ...match,
-            minute: nextMinute,
-          }
-        })
-      })
-    }, 4500)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    if (goalAlert) {
-      const t = setTimeout(() => setGoalAlert(null), 3500)
-      return () => clearTimeout(t)
-    }
-  }, [goalAlert])
 
   // --- Initial track loading from feed_posts ---
   useEffect(() => {
@@ -174,14 +105,10 @@ export default function App() {
 
     if (tracks.length === 0) return defaultAlbums
 
-    const userUploadedTracks = tracks.filter((t) =>
-      libraryStatus === 'remote' ||
-      t.id.startsWith('uploaded-') ||
-      t.id.startsWith('local-') ||
-      t.id.length > 20,
-    )
+    // Include all remote tracks in a cloud vault album
+    const remoteTracks = tracks.filter((t) => libraryStatus === 'remote')
 
-    if (userUploadedTracks.length > 0) {
+    if (remoteTracks.length > 0) {
       const cloudAlbum: Album = {
         id: 'cloud-vault',
         title: 'Kus-lords Cloud Vault',
@@ -189,7 +116,7 @@ export default function App() {
         description: 'Tracks from the shared Kus-lords cloud library.',
         cover: 'linear-gradient(135deg, #ffd700, #ff8c00)',
         category: 'royals',
-        tracks: userUploadedTracks,
+        tracks: remoteTracks,
       }
       return [cloudAlbum, ...defaultAlbums]
     }
@@ -290,14 +217,10 @@ export default function App() {
     switch (type) {
       case 'PLAY_ANTHEM': {
         if (typeof payload?.matchId === 'string') {
-          const match = sportsMatches.find(m => m.id === payload.matchId)
-          if (match && match.anthemTrackId) {
-            const track = currentTrackRef.current?.id === match.anthemTrackId
-              ? currentTrackRef.current
-              : tracks.find(t => t.id === match.anthemTrackId) || tracks[0]
-            if (track) {
-              playTrack(track, tracks)
-            }
+          // Keep this handler for future use even without sports tab
+          const match = tracks[0]
+          if (match) {
+            playTrack(match, tracks)
           }
         }
         break
@@ -703,18 +626,6 @@ export default function App() {
 
   return (
     <div className="app-mobile">
-      {goalAlert && (
-        <div className="realtime-goal-banner">
-          <div className="goal-banner-content">
-            <span className="goal-badge">🔥 LIVE GOAL</span>
-            <div className="goal-text-wrap">
-              <strong>{goalAlert.message}</strong>
-              <span>{goalAlert.sub}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="desktop-sidebar">
         <Sidebar
           search={search}
@@ -758,17 +669,6 @@ export default function App() {
               {activeTab === 'home' && renderHome()}
               {activeTab === 'browse' && renderBrowse()}
               {activeTab === 'radio' && renderRadio()}
-              {activeTab === 'sports' && (
-                <div className="tab-scroll">
-                  <SportsSection
-                    tracks={tracks}
-                    onPlayTrack={(t) => playTrack(t, tracks)}
-                    currentTrackId={currentTrack?.id}
-                    isPlaying={isPlaying}
-                    matches={liveMatches}
-                  />
-                </div>
-              )}
               {activeTab === 'library' && renderLibrary()}
               {activeTab === 'search' && renderSearch()}
             </>
@@ -795,14 +695,14 @@ export default function App() {
       {miniPlayerOpen && renderFullPlayer()}
 
       <nav className="bottom-nav">
-        {(['home', 'browse', 'radio', 'sports', 'library', 'search'] as Tab[]).map((tab) => (
+        {(['home', 'browse', 'radio', 'library', 'search'] as Tab[]).map((tab) => (
           <button
             key={tab}
             className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
             onClick={() => { setActiveTab(tab); setSelectedAlbumId(null); }}
           >
             <span className="nav-icon">
-              {tab === 'home' ? '🏠' : tab === 'browse' ? '🆕' : tab === 'radio' ? '📻' : tab === 'sports' ? '⚽' : tab === 'library' ? '📚' : '⌕'}
+              {tab === 'home' ? '🏠' : tab === 'browse' ? '🆕' : tab === 'radio' ? '📻' : tab === 'library' ? '📚' : '⌕'}
             </span>
             <span className="nav-label">{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
           </button>
