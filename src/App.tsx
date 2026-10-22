@@ -21,7 +21,7 @@ const formatTime = (seconds: number): string => {
 }
 
 export default function App() {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const [tracks, setTracks] = useState<Track[]>([])
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -41,32 +41,11 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
-  const sportsMatchesList = sportsMatches // rename to avoid conflict with import
 
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
 
-  // Initial track & session loading
-  useEffect(() => {
-    fetchRemoteTracks().then((data) => setTracks(data))
-  }, [])
-
-  // Audio element setup
-  useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = document.createElement('audio')
-      audioRef.current.volume = volume
-    }
-    const audio = audioRef.current
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
-    const handleLoadedMetadata = () => setDuration(audio.duration || 0)
-    audio.addEventListener('timeupdate', handleTimeUpdate)
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-    return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate)
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-    }
-  }, [volume])
+  // --- Dynamic lists and computed states ---
 
   // Dynamic albums list (includes cloud vault for uploaded tracks)
   const albums = useMemo(() => {
@@ -94,13 +73,28 @@ export default function App() {
     [selectedAlbumId, albums],
   )
 
-  // Helper to find index of a track in a list by id
-  const findTrackIndex = (id: string, list: Track[]): number => {
-    const ids = list.map((t: Track) => t.id)
-    return ids.indexOf(id)
-  }
+  const filteredAlbums = useMemo(() => {
+    const q = search.toLowerCase()
+    if (!q) return albums
+    return albums.filter((album) =>
+      `${album.title} ${album.artist} ${album.tracks.map((t) => t.title).join(' ')}`
+        .toLowerCase()
+        .includes(q),
+    )
+  }, [search, albums])
 
-  // Player functions (defined after albums/selectedAlbum so they are visible)
+  const filteredTracks = useMemo(() => {
+    const q = search.toLowerCase()
+    if (!q) return []
+    return tracks.filter(
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        t.artist.toLowerCase().includes(q),
+    )
+  }, [search, tracks])
+
+  // --- Player functions ---
+
   const playTrack = useCallback((track: Track, trackList: Track[]) => {
     if (audioRef.current) {
       audioRef.current.src = track.audioUrl
@@ -130,7 +124,7 @@ export default function App() {
     const track = currentTrackRef.current
     const q = queueRef.current
     if (!track || q.length === 0) return
-    const index = findTrackIndex(track.id, q)
+    const index = q.findIndex((t) => t.id === track.id)
     const nextSong = q[(index + 1) % q.length]
     playTrack(nextSong, q)
   }, [playTrack])
@@ -139,7 +133,7 @@ export default function App() {
     const track = currentTrackRef.current
     const q = queueRef.current
     if (!track || q.length === 0) return
-    const index = findTrackIndex(track.id, q)
+    const index = q.findIndex((t) => t.id === track.id)
     const prevSong = q[(index - 1 + q.length) % q.length]
     playTrack(prevSong, q)
   }, [playTrack])
@@ -153,25 +147,29 @@ export default function App() {
     if (audioRef.current) audioRef.current.volume = value
   }
 
-  const filteredAlbums = useMemo(() => {
-    const q = search.toLowerCase()
-    if (!q) return albums
-    return albums.filter((album) =>
-      `${album.title} ${album.artist} ${album.tracks.map((t) => t.title).join(' ')}`
-        .toLowerCase()
-        .includes(q),
-    )
-  }, [search, albums])
+  // --- Initial loading & listeners ---
 
-  const filteredTracks = useMemo(() => {
-    const q = search.toLowerCase()
-    if (!q) return []
-    return tracks.filter(
-      (t) =>
-        t.title.toLowerCase().includes(q) ||
-        t.artist.toLowerCase().includes(q),
-    )
-  }, [search, tracks])
+  // Initial track & session loading
+  useEffect(() => {
+    fetchRemoteTracks().then((data) => setTracks(data))
+  }, [])
+
+  // Audio element setup
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio()
+      audioRef.current.volume = volume
+    }
+    const audio = audioRef.current
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const handleLoadedMetadata = () => setDuration(audio.duration || 0)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+    }
+  }, [volume])
 
   // Handle messages from parent (sport-clan-nexus hub)
   const handleParentMessage = useCallback((event: MessageEvent) => {
@@ -179,6 +177,7 @@ export default function App() {
     
     const { type, payload } = event.data
     
+    // Only respond to messages from the same origin or trusted parent
     const allowedOrigins = [
       window.location.origin,
       'https://sport-clan-nexus.vercel.app',
@@ -188,7 +187,7 @@ export default function App() {
     switch (type) {
       case 'PLAY_ANTHEM': {
         if (typeof payload?.matchId === 'string') {
-          const match = sportsMatchesList.find(m => m.id === payload.matchId)
+          const match = sportsMatches.find(m => m.id === payload.matchId)
           if (match && match.anthemTrackId) {
             const track = currentTrackRef.current?.id === match.anthemTrackId
               ? currentTrackRef.current
@@ -307,8 +306,7 @@ export default function App() {
       const track = currentTrackRef.current
       const q = queueRef.current
       if (!track || q.length === 0) return
-      const ids = q.map((t: Track) => t.id)
-      const index = ids.indexOf(track.id)
+      const index = q.findIndex((t) => t.id === track.id)
       const nextSong = q[(index + 1) % q.length]
       playTrack(nextSong, q)
     }
@@ -319,11 +317,6 @@ export default function App() {
   const handleSignOut = async () => {
     setAuthModalOpen(false)
     setUploadModalOpen(false)
-    try {
-      await signOut()
-    } catch (error) {
-      console.error('Sign-out failed:', error)
-    }
   }
 
   const handleTrackUploaded = useCallback((newTrack: Track) => {
