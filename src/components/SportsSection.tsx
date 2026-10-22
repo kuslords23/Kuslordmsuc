@@ -46,7 +46,7 @@ export default function SportsSection({ tracks, onPlayTrack, currentTrackId, isP
 
       <div className="sports-matches-grid">
         {sportsMatches.map((m) => {
-          const isCurrentMatchSong = tracks.some((t) => t.id === m.anthemTrackId && t.id === currentTrackId)
+          const isCurrentMatchSong = tracks.find((t) => t.id === m.anthemTrackId && t.id === currentTrackId) !== undefined
           return (
             <div key={m.id} className={`match-card ${m.status === 'LIVE' ? 'live' : ''}`}>
               <div className="match-header">

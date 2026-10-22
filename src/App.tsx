@@ -21,7 +21,7 @@ const formatTime = (seconds: number): string => {
 }
 
 export default function App() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [tracks, setTracks] = useState<Track[]>([])
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -41,6 +41,7 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
+  const sportsMatchesList = sportsMatches // rename to avoid conflict with import
 
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
@@ -99,7 +100,7 @@ export default function App() {
     return ids.indexOf(id)
   }
 
-  // Player functions
+  // Player functions (defined after albums/selectedAlbum so they are visible)
   const playTrack = useCallback((track: Track, trackList: Track[]) => {
     if (audioRef.current) {
       audioRef.current.src = track.audioUrl
@@ -187,7 +188,7 @@ export default function App() {
     switch (type) {
       case 'PLAY_ANTHEM': {
         if (typeof payload?.matchId === 'string') {
-          const match = sportsMatches.find(m => m.id === payload.matchId)
+          const match = sportsMatchesList.find(m => m.id === payload.matchId)
           if (match && match.anthemTrackId) {
             const track = currentTrackRef.current?.id === match.anthemTrackId
               ? currentTrackRef.current
@@ -318,6 +319,11 @@ export default function App() {
   const handleSignOut = async () => {
     setAuthModalOpen(false)
     setUploadModalOpen(false)
+    try {
+      await signOut()
+    } catch (error) {
+      console.error('Sign-out failed:', error)
+    }
   }
 
   const handleTrackUploaded = useCallback((newTrack: Track) => {

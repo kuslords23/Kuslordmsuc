@@ -25,7 +25,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       if (!isSupabaseConfigured() || !supabase) {
-        // Demo sign in for sandbox
         setSuccessMsg('Signed in as demo user.')
         setTimeout(() => onClose(), 800)
         return

@@ -1,11 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Track } from '../data/music'
 
-// Shared Supabase config - MUST match sport-clan-nexus hub
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
-// Auth storage key shared across the constellation
 export const AUTH_STORAGE_KEY = 'kus-lords-auth'
 
 export const isSupabaseConfigured = () => Boolean(SUPABASE_URL && SUPABASE_ANON_KEY)
@@ -21,7 +19,6 @@ export const supabase = isSupabaseConfigured()
     })
   : null
 
-// Helper to create CSS gradient strings
 const gradient = (colors: string) => `linear-gradient(135deg, ${colors})`
 
 const fallbackTracks: Track[] = [
@@ -211,7 +208,6 @@ export async function fetchRemoteTracks(): Promise<Track[]> {
   }
 }
 
-// Upload to shared buckets (music-audio, music-covers)
 export async function uploadTrackToBucket(params: {
   title: string
   artist: string
@@ -221,7 +217,6 @@ export async function uploadTrackToBucket(params: {
   user: { id: string }
 }): Promise<Track | null> {
   if (!isSupabaseConfigured() || !supabase) {
-    // Local fallback
     const audioUrl = URL.createObjectURL(params.audioFile)
     let coverUrl = gradient('#d4af37, #1a1a24')
     if (params.coverFile) coverUrl = URL.createObjectURL(params.coverFile)
@@ -239,7 +234,7 @@ export async function uploadTrackToBucket(params: {
 
   try {
     const fileExt = params.audioFile.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(7)}.${fileExt}`
     const filePath = `tracks/${fileName}`
 
     const { error: uploadError } = await supabase.storage
@@ -269,7 +264,6 @@ export async function uploadTrackToBucket(params: {
       }
     }
 
-    // Save to shared music_tracks table
     const { error: dbError } = await supabase.from('music_tracks').insert([
       {
         title: params.title,
@@ -283,7 +277,7 @@ export async function uploadTrackToBucket(params: {
     ])
 
     if (dbError) {
-      console.warn('DB insert notice:', dbError.message)
+      console.error('DB insert notice:', dbError.message)
     }
 
     return {

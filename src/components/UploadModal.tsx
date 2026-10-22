@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { uploadTrackToBucket } from '../lib/supabase'
 import { Track } from '../data/music'
@@ -25,8 +25,6 @@ export default function UploadModal({
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
-  const audioInputRef = useRef<HTMLInputElement | null>(null)
-  const coverInputRef = useRef<HTMLInputElement | null>(null)
 
   if (!isOpen) return null
 
@@ -139,7 +137,6 @@ export default function UploadModal({
                 <input
                   type="file"
                   accept="audio/*"
-                  ref={audioInputRef}
                   required
                   onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
                 />
@@ -150,7 +147,6 @@ export default function UploadModal({
                 <input
                   type="file"
                   accept="image/*"
-                  ref={coverInputRef}
                   onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
                 />
               </div>

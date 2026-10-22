@@ -23,7 +23,7 @@ export default function PlaylistView({
   onTogglePlay,
   onLikeTrack,
 }: PlaylistViewProps) {
-  const isAlbumPlaying = isPlaying && album.tracks.some((t) => t.id === currentTrackId)
+  const isAlbumPlaying = isPlaying && album.tracks.find((t) => t.id === currentTrackId) !== undefined
 
   const handlePlayButtonClick = () => {
     if (isAlbumPlaying) {
