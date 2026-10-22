@@ -91,6 +91,15 @@ export default function Sidebar({
           icon="🏠"
         />
         <NavButton
+          label="Studio"
+          active={activeTab === 'studio' && !activeAlbumId}
+          onClick={() => {
+            onSelectAlbum('')
+            onNavigateTab('studio')
+          }}
+          icon="🎛"
+        />
+        <NavButton
           label="Radio"
           active={activeTab === 'radio' && !activeAlbumId}
           onClick={() => {

@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { albums as defaultAlbums, type Album, type Track } from './data/music'
-import { fetchRemoteTracks, subscribeToTrackChanges, isSupabaseConfigured } from './lib/supabase'
+import { sportsMatches } from './data/sports'
+import { fetchRemoteTracks } from './lib/supabase'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
 import PlaylistView from './components/PlaylistView'
 import PlayerBar from './components/PlayerBar'
 import AuthModal from './components/AuthModal'
 import UploadModal from './components/UploadModal'
+import Studio from './components/Studio'
 import { useAuth } from './context/AuthContext'
 import './index.css'
 
-type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search'
+type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search' | 'studio'
 
 const formatTime = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
@@ -22,7 +24,6 @@ const formatTime = (seconds: number): string => {
 export default function App() {
   const { user, signOut } = useAuth()
   const [tracks, setTracks] = useState<Track[]>([])
-  const [libraryStatus, setLibraryStatus] = useState<'loading' | 'remote' | 'empty' | 'fallback' | 'error'>('loading')
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
@@ -45,41 +46,9 @@ export default function App() {
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
 
-  // --- Initial track loading from feed_posts ---
+  // Initial track & session loading
   useEffect(() => {
-    let cancelled = false
-
-    fetchRemoteTracks().then((result) => {
-      if (cancelled) return
-      setTracks(result.tracks)
-      setLibraryStatus(result.status)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  // --- Supabase Realtime subscription for feed_posts ---
-  useEffect(() => {
-    if (!isSupabaseConfigured()) return
-
-    const unsubscribe = subscribeToTrackChanges(
-      (newTrack) => {
-        setTracks((prev) => {
-          if (prev.some((t) => t.id === newTrack.id)) return prev
-          return [newTrack, ...prev]
-        })
-      },
-      (updatedTrack) => {
-        setTracks((prev) => prev.map((t) => (t.id === updatedTrack.id ? updatedTrack : t)))
-      },
-      (deletedId) => {
-        setTracks((prev) => prev.filter((t) => t.id !== deletedId))
-      },
-    )
-
-    return unsubscribe
+    fetchRemoteTracks().then((data) => setTracks(data))
   }, [])
 
   // Audio element setup
@@ -99,30 +68,26 @@ export default function App() {
     }
   }, [volume])
 
-  // Dynamic albums list
+  // Dynamic albums list (includes cloud vault for uploaded tracks)
   const albums = useMemo(() => {
-    if (tracks.length === 0 && libraryStatus === 'empty') return []
-
     if (tracks.length === 0) return defaultAlbums
-
-    // Include all remote tracks in a cloud vault album
-    const remoteTracks = tracks.filter((t) => libraryStatus === 'remote')
-
-    if (remoteTracks.length > 0) {
+    const userUploadedTracks = tracks.filter((t) => 
+      t.id.startsWith('uploaded-') || t.id.startsWith('local-') || t.id.length > 20
+    )
+    if (userUploadedTracks.length > 0) {
       const cloudAlbum: Album = {
         id: 'cloud-vault',
         title: 'Kus-lords Cloud Vault',
         artist: user?.user_metadata?.username || 'Community',
-        description: 'Tracks from the shared Kus-lords cloud library.',
+        description: 'Uploaded directly to Kus-lords Supabase Bucket storage.',
         cover: 'linear-gradient(135deg, #ffd700, #ff8c00)',
         category: 'royals',
-        tracks: remoteTracks,
+        tracks: userUploadedTracks,
       }
       return [cloudAlbum, ...defaultAlbums]
     }
-
     return defaultAlbums
-  }, [tracks, user, libraryStatus])
+  }, [tracks, user])
 
   const selectedAlbum = useMemo(
     () => albums.find((album) => album.id === selectedAlbumId) ?? null,
@@ -148,6 +113,11 @@ export default function App() {
         t.artist.toLowerCase().includes(q),
     )
   }, [search, tracks])
+
+  const studioTracks = useMemo(
+    () => tracks.length > 0 ? tracks : defaultAlbums.flatMap((album) => album.tracks),
+    [tracks],
+  )
 
   // Player functions
   const playTrack = useCallback((track: Track, trackList: Track[]) => {
@@ -205,9 +175,9 @@ export default function App() {
   // Handle messages from parent (sport-clan-nexus hub)
   const handleParentMessage = useCallback((event: MessageEvent) => {
     if (!event.data || typeof event.data !== 'object') return
-
+    
     const { type, payload } = event.data
-
+    
     const allowedOrigins = [
       window.location.origin,
       'https://sport-clan-nexus.vercel.app',
@@ -217,10 +187,14 @@ export default function App() {
     switch (type) {
       case 'PLAY_ANTHEM': {
         if (typeof payload?.matchId === 'string') {
-          // Keep this handler for future use even without sports tab
-          const match = tracks[0]
-          if (match) {
-            playTrack(match, tracks)
+          const match = sportsMatches.find(m => m.id === payload.matchId)
+          if (match && match.anthemTrackId) {
+            const track = currentTrackRef.current?.id === match.anthemTrackId
+              ? currentTrackRef.current
+              : tracks.find(t => t.id === match.anthemTrackId) || tracks[0]
+            if (track) {
+              playTrack(track, tracks)
+            }
           }
         }
         break
@@ -248,8 +222,8 @@ export default function App() {
         const source = event.source as Window
         if (source && typeof source.postMessage === 'function') {
           source.postMessage(
-            {
-              type: 'PLAYBACK_STATE',
+            { 
+              type: 'PLAYBACK_STATE', 
               payload: {
                 isPlaying,
                 currentTrackId: currentTrack?.id,
@@ -278,7 +252,7 @@ export default function App() {
     }
   }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, handleVolume, handleSeek, currentTrack, currentTime, duration, volume, queue])
 
-  // Detect embedded mode
+  // Detect embedded mode (inside sport-clan-nexus iframe)
   useEffect(() => {
     const checkEmbedded = () => {
       try {
@@ -302,7 +276,7 @@ export default function App() {
   // Broadcast state updates to parent when embedded
   useEffect(() => {
     if (!isEmbedded) return
-
+    
     let lastState = ''
     const broadcastState = () => {
       const state = JSON.stringify({
@@ -320,7 +294,7 @@ export default function App() {
         )
       }
     }
-
+    
     const interval = setInterval(broadcastState, 1000)
     return () => clearInterval(interval)
   }, [isEmbedded, isPlaying, currentTrack?.id, currentTime, duration, volume])
@@ -340,38 +314,26 @@ export default function App() {
     return () => audio.removeEventListener('ended', handleEnded)
   }, [playTrack])
 
-  // Actual Supabase sign-out
   const handleSignOut = async () => {
     try {
       await signOut()
-      setAuthModalOpen(false)
-      setUploadModalOpen(false)
     } catch (err) {
       console.error('Sign-out failed:', err)
+    } finally {
+      setAuthModalOpen(false)
+      setUploadModalOpen(false)
     }
   }
 
   const handleTrackUploaded = useCallback((newTrack: Track) => {
-    setTracks((prev) => {
-      if (prev.some((t) => t.id === newTrack.id)) return prev
-      return [newTrack, ...prev]
-    })
+    setTracks((prev) => [newTrack, ...prev])
     playTrack(newTrack, [newTrack])
   }, [playTrack])
 
-  // Tab Content Renderers
+  // --- Tab Content Renderers ---
+
   const renderHome = () => (
     <div className="tab-scroll">
-      {libraryStatus === 'fallback' && (
-        <div className="library-notice">⚠️ Running in demo mode — Supabase is not configured.</div>
-      )}
-      {libraryStatus === 'error' && (
-        <div className="library-notice error">⚠️ Cloud sync failed — showing demo tracks.</div>
-      )}
-      {libraryStatus === 'empty' && (
-        <div className="library-notice">☁️ Cloud library is empty. Upload your first track.</div>
-      )}
-
       <div className="mobile-hero">
         <span className="hero-tag">👑 KUS-LORDS ROYAL SOUND</span>
         <h1>Discover the feeling of infinite sound.</h1>
@@ -626,6 +588,7 @@ export default function App() {
 
   return (
     <div className="app-mobile">
+      {/* Desktop Sidebar */}
       <div className="desktop-sidebar">
         <Sidebar
           search={search}
@@ -649,6 +612,7 @@ export default function App() {
         />
       </div>
 
+      {/* Mobile Search Corner */}
       <button
         className={`search-corner ${activeTab === 'search' ? 'active' : ''}`}
         onClick={() => { setActiveTab('search'); setSelectedAlbumId(null); }}
@@ -657,6 +621,7 @@ export default function App() {
         ⌕
       </button>
 
+      {/* Main Content Area */}
       <div className="main-mobile">
         <div className="mobile-content">
           {selectedAlbum ? (
@@ -679,11 +644,18 @@ export default function App() {
               {activeTab === 'radio' && renderRadio()}
               {activeTab === 'library' && renderLibrary()}
               {activeTab === 'search' && renderSearch()}
+              {activeTab === 'studio' && (
+                <Studio
+                  tracks={studioTracks}
+                  onPlayTrack={(track) => playTrack(track, studioTracks)}
+                />
+              )}
             </>
           )}
         </div>
       </div>
 
+      {/* Mini Player (Mobile) */}
       {currentTrack && (
         <div className="mini-player" onClick={() => setMiniPlayerOpen(true)}>
           <div className="mini-cover" style={{ background: currentTrack.cover }} />
@@ -700,8 +672,10 @@ export default function App() {
         </div>
       )}
 
+      {/* Full Screen Player */}
       {miniPlayerOpen && renderFullPlayer()}
 
+      {/* Bottom Navigation (Mobile) */}
       <nav className="bottom-nav">
         <div className="nav-group">
           {(['home', 'browse'] as Tab[]).map((tab) => (
@@ -710,15 +684,17 @@ export default function App() {
               className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
               onClick={() => { setActiveTab(tab); setSelectedAlbumId(null); }}
             >
-              <span className="nav-icon">{tab === 'home' ? '🏠' : '🆕'}</span>
+              <span className="nav-icon">
+                {tab === 'home' ? '🏠' : '🆕'}
+              </span>
               <span className="nav-label">{tab === 'home' ? 'Home' : 'Browse'}</span>
             </button>
           ))}
         </div>
 
         <button
-          className="nav-tab studio-tab"
-          onClick={() => setUploadModalOpen(true)}
+          className={`nav-tab studio-tab ${activeTab === 'studio' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('studio'); setSelectedAlbumId(null); }}
           aria-label="Open Studio"
         >
           <span className="nav-icon">🎛</span>
@@ -732,13 +708,16 @@ export default function App() {
               className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
               onClick={() => { setActiveTab(tab); setSelectedAlbumId(null); }}
             >
-              <span className="nav-icon">{tab === 'radio' ? '📻' : '📚'}</span>
+              <span className="nav-icon">
+                {tab === 'radio' ? '📻' : '📚'}
+              </span>
               <span className="nav-label">{tab === 'radio' ? 'Radio' : 'Library'}</span>
             </button>
           ))}
         </div>
       </nav>
 
+      {/* Desktop Player */}
       <div className="desktop-player">
         <PlayerBar
           title={currentTrack?.title}
@@ -756,6 +735,7 @@ export default function App() {
         />
       </div>
 
+      {/* Modals */}
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <UploadModal
         isOpen={uploadModalOpen}

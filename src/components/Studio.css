@@ -1,0 +1,120 @@
+.studio-pads {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.studio-pad {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  border: none;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+  transition: transform 0.15s;
+  text-align: left;
+}
+
+.studio-pad:hover {
+  transform: translateY(-3px);
+}
+
+.pad-num {
+  font-size: 11px;
+  opacity: 0.8;
+  font-weight: 700;
+  background: rgba(0,0,0,0.35);
+  padding: 3px 7px;
+  border-radius: 8px;
+}
+
+.pad-title {
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(0,0,0,0.45);
+  padding: 4px 8px;
+  border-radius: 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.studio-panel {
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.studio-panel h3 {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.studio-chat-form,
+.studio-tts-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.studio-chat-form input,
+.studio-tts-form textarea,
+.studio-tts-form select {
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+}
+
+.studio-chat-form input:focus,
+.studio-tts-form textarea:focus,
+.studio-tts-form select:focus {
+  border-color: var(--accent);
+}
+
+.studio-chat-form button,
+.studio-tts-form button {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+
+.studio-chat-form button:disabled,
+.studio-tts-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.studio-reply {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
