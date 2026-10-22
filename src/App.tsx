@@ -649,6 +649,14 @@ export default function App() {
         />
       </div>
 
+      <button
+        className={`search-corner ${activeTab === 'search' ? 'active' : ''}`}
+        onClick={() => { setActiveTab('search'); setSelectedAlbumId(null); }}
+        aria-label="Search"
+      >
+        ⌕
+      </button>
+
       <div className="main-mobile">
         <div className="mobile-content">
           {selectedAlbum ? (
@@ -695,18 +703,40 @@ export default function App() {
       {miniPlayerOpen && renderFullPlayer()}
 
       <nav className="bottom-nav">
-        {(['home', 'browse', 'radio', 'library', 'search'] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => { setActiveTab(tab); setSelectedAlbumId(null); }}
-          >
-            <span className="nav-icon">
-              {tab === 'home' ? '🏠' : tab === 'browse' ? '🆕' : tab === 'radio' ? '📻' : tab === 'library' ? '📚' : '⌕'}
-            </span>
-            <span className="nav-label">{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
-          </button>
-        ))}
+        <div className="nav-group">
+          {(['home', 'browse'] as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
+              onClick={() => { setActiveTab(tab); setSelectedAlbumId(null); }}
+            >
+              <span className="nav-icon">{tab === 'home' ? '🏠' : '🆕'}</span>
+              <span className="nav-label">{tab === 'home' ? 'Home' : 'Browse'}</span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          className="nav-tab studio-tab"
+          onClick={() => setUploadModalOpen(true)}
+          aria-label="Open Studio"
+        >
+          <span className="nav-icon">🎛</span>
+          <span className="nav-label">Studio</span>
+        </button>
+
+        <div className="nav-group">
+          {(['radio', 'library'] as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
+              onClick={() => { setActiveTab(tab); setSelectedAlbumId(null); }}
+            >
+              <span className="nav-icon">{tab === 'radio' ? '📻' : '📚'}</span>
+              <span className="nav-label">{tab === 'radio' ? 'Radio' : 'Library'}</span>
+            </button>
+          ))}
+        </div>
       </nav>
 
       <div className="desktop-player">

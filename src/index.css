@@ -486,6 +486,35 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .search-empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
 .empty { padding: 30px; text-align: center; color: var(--muted); font-size: 14px; }
 
+/* ===== SEARCH CORNER BUTTON ===== */
+.search-corner {
+  display: none;
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  z-index: 150;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text);
+  font-size: 20px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  transition: background 0.15s, transform 0.15s;
+}
+.search-corner.active {
+  background: var(--accent);
+  color: white;
+}
+.search-corner:active { transform: scale(0.92); }
+
+@media (max-width: 899px) {
+  .search-corner { display: flex; }
+}
+
 /* ===== MINI PLAYER ===== */
 .mini-player {
   position: fixed; bottom: var(--nav-height); left: 0; right: 0;
@@ -520,6 +549,47 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .nav-tab.active .nav-icon { text-shadow: 0 0 12px rgba(250,45,108,0.6); }
 .nav-icon { font-size: 20px; }
 .nav-label { font-size: 10px; font-weight: 600; }
+
+.nav-group {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-around;
+  gap: 2px;
+  min-width: 0;
+}
+
+.studio-tab {
+  flex: 0 0 auto;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text);
+  padding: 6px 0 4px;
+}
+
+.studio-tab .nav-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  box-shadow: 0 6px 18px rgba(250,45,108,0.4);
+  margin-top: -18px;
+}
+
+.studio-tab .nav-label {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 10px;
+}
 
 /* ===== FULL-SCREEN PLAYER ===== */
 .full-player-overlay {
