@@ -1,150 +1,29 @@
-import { User } from '@supabase/supabase-js'
-import { Album } from '../data/music'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-interface SidebarProps {
-  search: string
-  setSearch: (value: string) => void
-  onNavigateHome: () => void
-  onSelectAlbum: (id: string) => void
-  activeAlbumId: string | null
-  albums: Album[]
-  user: User | null
-  onOpenAuth: () => void
-  onOpenUpload: () => void
-  onSignOut: () => void
-  collapsed: boolean
-  onToggleSidebar: () => void
-  activeTab: string
-  onNavigateTab: (tab: any) => void
-}
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
 
-const NavButton = ({ label, active, onClick, icon }: { label: string; active?: boolean; onClick: () => void; icon?: string }) => (
-  <button
-    className={`nav-item ${active ? 'active' : ''}`}
-    onClick={onClick}
-    title={label}
-  >
-    <span className="nav-dot-wrap">
-      {icon ? <span className="nav-icon-sm">{icon}</span> : <span className={`nav-dot ${active ? 'active' : ''}`} />}
-    </span>
-    <span className="nav-label">{label}</span>
-  </button>
-)
+  const { message } = req.body || {}
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: 'Message is required' })
+  }
 
-export default function Sidebar({
-  search,
-  setSearch,
-  onNavigateHome,
-  onSelectAlbum,
-  activeAlbumId,
-  albums,
-  user,
-  onOpenAuth,
-  onOpenUpload,
-  onSignOut,
-  collapsed,
-  onToggleSidebar,
-  activeTab,
-  onNavigateTab,
-}: SidebarProps) {
-  const displayName = user?.user_metadata?.username || user?.email?.split('@')[0] || 'Guest'
-  const initial = (displayName[0] || 'K').toUpperCase()
+  const lower = message.toLowerCase()
+  let reply = ''
 
-  return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      <button
-        className="sidebar-toggle"
-        onClick={onToggleSidebar}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        {collapsed ? '»' : '«'}
-      </button>
+  if (lower.includes('remix')) {
+    reply = 'To remix a track: load the original into the beat pads, then layer a new drum pattern and use the ElevenLabs voice for a spoken intro.'
+  } else if (lower.includes('key')) {
+    reply = 'Most Kus-lords tracks are in A minor or C major. Use the mixing panel to match energy and avoid clashing frequencies.'
+  } else if (lower.includes('tempo') || lower.includes('bpm')) {
+    reply = 'Club-ready Kus-lords anthems sit around 124–128 BPM. For stadium walkouts, try 140 BPM with an epic orchestral build.'
+  } else if (lower.includes('upload')) {
+    reply = 'Use the Upload button in the sidebar to push your finished track to the shared kus-music bucket and feed_posts table.'
+  } else {
+    reply = 'Great question! For now, I can suggest remix ideas, key matches, BPM targets, and upload workflows for the Kus-lords cloud.'
+  }
 
-      <div className="logo" onClick={onNavigateHome} style={{ cursor: 'pointer' }}>
-        <div className="logo-mark">𝄞</div>
-        <div className="logo-text">
-          <span>Harmony</span>
-          <span className="badge-royal">Kus-lords</span>
-        </div>
-      </div>
-
-      {!collapsed && (
-        <div className="search-wrap">
-          <span className="search-icon">⌕</span>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search songs, artists..."
-            aria-label="Search"
-          />
-        </div>
-      )}
-
-      <nav className="nav-list">
-        <NavButton
-          label="Home"
-          active={activeTab === 'home' && !activeAlbumId}
-          onClick={() => {
-            onNavigateHome()
-            onNavigateTab('home')
-          }}
-          icon="🏠"
-        />
-        <NavButton
-          label="Radio"
-          active={activeTab === 'radio' && !activeAlbumId}
-          onClick={() => {
-            onSelectAlbum('')
-            onNavigateTab('radio')
-          }}
-          icon="📻"
-        />
-        <NavButton
-          label="Upload to Bucket"
-          onClick={onOpenUpload}
-          icon="☁"
-        />
-      </nav>
-
-      {!collapsed && (
-        <div className="library-heading">
-          <span>Albums & Playlists</span>
-          <span className="count-pill">{albums.length}</span>
-        </div>
-      )}
-
-      <nav className="nav-list compact">
-        {albums.map((album) => (
-          <button
-            key={album.id}
-            className={`album-item ${activeAlbumId === album.id ? 'active' : ''}`}
-            onClick={() => onSelectAlbum(album.id)}
-            title={album.title}
-          >
-            <span className="album-chip" style={{ background: album.cover }} />
-            <span className="album-title-text">{album.title}</span>
-          </button>
-        ))}
-      </nav>
-
-      <div className="sidebar-footer">
-        <div className="user-avatar">{initial}</div>
-        {!collapsed && (
-          <div className="user-info">
-            <strong>{displayName}</strong>
-            <span>{user ? 'Supabase Auth' : 'Guest Mode'}</span>
-          </div>
-        )}
-        {user ? (
-          <button className="auth-btn-ghost" title="Sign Out" onClick={onSignOut}>
-            ↪
-          </button>
-        ) : (
-          <button className="auth-btn-gold" onClick={onOpenAuth}>
-            {collapsed ? 'Sign In' : 'Sign In'}
-          </button>
-        )}
-      </div>
-    </aside>
-  )
+  return res.status(200).json({ reply })
 }
