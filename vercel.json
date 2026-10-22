@@ -1,6 +1,10 @@
 {
-  "framework": "vite",
-  "buildCommand": "npm run typecheck && vite build",
+  "$schema": "https://openapi.vercel.app/vercel.json",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

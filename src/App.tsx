@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { albums as defaultAlbums, type Album, type Track } from './data/music'
+import { sportsMatches } from './data/sports'
 import { fetchRemoteTracks } from './lib/supabase'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
@@ -97,8 +98,8 @@ export default function App() {
     const q = queueRef.current
     if (!track || q.length === 0) return
     const index = q.findIndex((t) => t.id === track.id)
-    const next = q[(index + 1) % q.length]
-    playTrack(next, q)
+    const nextSong = q[(index + 1) % q.length]
+    playTrack(nextSong, q)
   }, [playTrack])
 
   const prevTrack = useCallback(() => {
@@ -106,8 +107,8 @@ export default function App() {
     const q = queueRef.current
     if (!track || q.length === 0) return
     const index = q.findIndex((t) => t.id === track.id)
-    const prev = q[(index - 1 + q.length) % q.length]
-    playTrack(prev, q)
+    const prevSong = q[(index - 1 + q.length) % q.length]
+    playTrack(prevSong, q)
   }, [playTrack])
 
   const handleSeek = (time: number) => {
@@ -171,16 +172,26 @@ export default function App() {
     
     const { type, payload } = event.data
     
+    // Only respond to messages from the same origin or trusted parent
+    const allowedOrigins = [
+      window.location.origin,
+      'https://sport-clan-nexus.vercel.app',
+    ]
+    if (!allowedOrigins.includes(event.origin)) return
+
     switch (type) {
       case 'PLAY_ANTHEM': {
         if (typeof payload?.matchId === 'string') {
-          import('./data/sports').then(({ sportsMatches }) => {
-            const match = sportsMatches.find(m => m.id === payload.matchId)
-            if (match && match.anthemTrackId) {
-              // We need to find the track from state - use a ref to access latest tracks
-              // This is handled via a separate effect below
+          // Find the track in current tracks (using ref to avoid stale closure)
+          const match = sportsMatches.find(m => m.id === payload.matchId)
+          if (match && match.anthemTrackId) {
+            const track = currentTrackRef.current?.id === match.anthemTrackId
+              ? currentTrackRef.current
+              : tracks.find(t => t.id === match.anthemTrackId) || tracks[0]
+            if (track) {
+              playTrack(track, tracks)
             }
-          })
+          }
         }
         break
       }
@@ -203,29 +214,39 @@ export default function App() {
           handleSeek(payload.time)
         }
         break
-      case 'GET_STATE':
-        event.source?.postMessage(
-          { 
-            type: 'PLAYBACK_STATE', 
-            payload: {
-              isPlaying,
-              currentTrackId: currentTrack?.id,
-              currentTime,
-              duration,
-              volume,
-              queue: queue.map(t => t.id)
-            }
-          },
-          event.origin
-        )
+      case 'GET_STATE': {
+        const source = event.source as Window
+        if (source && typeof source.postMessage === 'function') {
+          source.postMessage(
+            { 
+              type: 'PLAYBACK_STATE', 
+              payload: {
+                isPlaying,
+                currentTrackId: currentTrack?.id,
+                currentTime: Math.floor(currentTime),
+                duration: Math.floor(duration),
+                volume,
+                queue: queue.map(t => t.id)
+              }
+            },
+            event.origin
+          )
+        }
         break
+      }
       case 'SET_QUEUE':
         if (Array.isArray(payload?.trackIds)) {
-          // This is handled via a separate effect below
+          const newQueue = tracks.filter(t => payload.trackIds.includes(t.id))
+          if (newQueue.length > 0) {
+            setQueue(newQueue)
+            if (!currentTrack || !payload.trackIds.includes(currentTrack.id)) {
+              playTrack(newQueue[0], newQueue)
+            }
+          }
         }
         break
     }
-  }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, handleVolume, handleSeek])
+  }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, handleVolume, handleSeek, currentTrack, currentTime, duration, volume, queue])
 
   // Detect embedded mode (inside sport-clan-nexus iframe)
   useEffect(() => {
@@ -282,8 +303,8 @@ export default function App() {
       const q = queueRef.current
       if (!track || q.length === 0) return
       const index = q.findIndex((t) => t.id === track.id)
-      const next = q[(index + 1) % q.length]
-      playTrack(next, q)
+      const nextSong = q[(index + 1) % q.length]
+      playTrack(nextSong, q)
     }
     audio.addEventListener('ended', handleEnded)
     return () => audio.removeEventListener('ended', handleEnded)

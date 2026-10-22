@@ -6,5 +6,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    minify: 'esbuild',
+  },
+  server: {
+    port: 3000,
+    open: true,
   },
 })
