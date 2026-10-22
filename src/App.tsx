@@ -53,7 +53,7 @@ export default function App() {
   // Audio element setup
   useEffect(() => {
     if (!audioRef.current) {
-      audioRef.current = new Audio()
+      audioRef.current = document.createElement('audio')
       audioRef.current.volume = volume
     }
     const audio = audioRef.current
@@ -67,7 +67,39 @@ export default function App() {
     }
   }, [volume])
 
-  // Define player functions first so they can be used by handleParentMessage
+  // Dynamic albums list (includes cloud vault for uploaded tracks)
+  const albums = useMemo(() => {
+    if (tracks.length === 0) return defaultAlbums
+    const userUploadedTracks = tracks.filter((t) => 
+      t.id.startsWith('uploaded-') || t.id.startsWith('local-') || t.id.length > 20
+    )
+    if (userUploadedTracks.length > 0) {
+      const cloudAlbum: Album = {
+        id: 'cloud-vault',
+        title: 'Kus-lords Cloud Vault',
+        artist: user?.user_metadata?.username || 'Community',
+        description: 'Uploaded directly to Kus-lords Supabase Bucket storage.',
+        cover: 'linear-gradient(135deg, #ffd700, #ff8c00)',
+        category: 'royals',
+        tracks: userUploadedTracks,
+      }
+      return [cloudAlbum, ...defaultAlbums]
+    }
+    return defaultAlbums
+  }, [tracks, user])
+
+  const selectedAlbum = useMemo(
+    () => albums.find((album) => album.id === selectedAlbumId) ?? null,
+    [selectedAlbumId, albums],
+  )
+
+  // Helper to find index of a track in a list by id
+  const findTrackIndex = (id: string, list: Track[]): number => {
+    const ids = list.map((t: Track) => t.id)
+    return ids.indexOf(id)
+  }
+
+  // Player functions
   const playTrack = useCallback((track: Track, trackList: Track[]) => {
     if (audioRef.current) {
       audioRef.current.src = track.audioUrl
@@ -97,7 +129,7 @@ export default function App() {
     const track = currentTrackRef.current
     const q = queueRef.current
     if (!track || q.length === 0) return
-    const index = q.findIndex((t) => t.id === track.id)
+    const index = findTrackIndex(track.id, q)
     const nextSong = q[(index + 1) % q.length]
     playTrack(nextSong, q)
   }, [playTrack])
@@ -106,7 +138,7 @@ export default function App() {
     const track = currentTrackRef.current
     const q = queueRef.current
     if (!track || q.length === 0) return
-    const index = q.findIndex((t) => t.id === track.id)
+    const index = findTrackIndex(track.id, q)
     const prevSong = q[(index - 1 + q.length) % q.length]
     playTrack(prevSong, q)
   }, [playTrack])
@@ -119,32 +151,6 @@ export default function App() {
     setVolume(value)
     if (audioRef.current) audioRef.current.volume = value
   }
-
-  // Dynamic albums list (includes cloud vault for uploaded tracks)
-  const albums = useMemo(() => {
-    if (tracks.length === 0) return defaultAlbums
-    const userUploadedTracks = tracks.filter((t) => 
-      t.id.startsWith('uploaded-') || t.id.startsWith('local-') || t.id.length > 20
-    )
-    if (userUploadedTracks.length > 0) {
-      const cloudAlbum: Album = {
-        id: 'cloud-vault',
-        title: 'Kus-lords Cloud Vault',
-        artist: user?.user_metadata?.username || 'Community',
-        description: 'Uploaded directly to Kus-lords Supabase Bucket storage.',
-        cover: 'linear-gradient(135deg, #ffd700, #ff8c00)',
-        category: 'royals',
-        tracks: userUploadedTracks,
-      }
-      return [cloudAlbum, ...defaultAlbums]
-    }
-    return defaultAlbums
-  }, [tracks, user])
-
-  const selectedAlbum = useMemo(
-    () => albums.find((album) => album.id === selectedAlbumId) ?? null,
-    [selectedAlbumId, albums],
-  )
 
   const filteredAlbums = useMemo(() => {
     const q = search.toLowerCase()
@@ -172,7 +178,6 @@ export default function App() {
     
     const { type, payload } = event.data
     
-    // Only respond to messages from the same origin or trusted parent
     const allowedOrigins = [
       window.location.origin,
       'https://sport-clan-nexus.vercel.app',
@@ -182,7 +187,6 @@ export default function App() {
     switch (type) {
       case 'PLAY_ANTHEM': {
         if (typeof payload?.matchId === 'string') {
-          // Find the track in current tracks (using ref to avoid stale closure)
           const match = sportsMatches.find(m => m.id === payload.matchId)
           if (match && match.anthemTrackId) {
             const track = currentTrackRef.current?.id === match.anthemTrackId
@@ -302,7 +306,8 @@ export default function App() {
       const track = currentTrackRef.current
       const q = queueRef.current
       if (!track || q.length === 0) return
-      const index = q.findIndex((t) => t.id === track.id)
+      const ids = q.map((t: Track) => t.id)
+      const index = ids.indexOf(track.id)
       const nextSong = q[(index + 1) % q.length]
       playTrack(nextSong, q)
     }
