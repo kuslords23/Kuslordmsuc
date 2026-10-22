@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { albums as defaultAlbums, type Album, type Track } from './data/music'
 import { sportsMatches, type SportsMatch } from './data/sports'
-import { fetchRemoteTracks } from './lib/supabase'
+import { fetchRemoteTracks, subscribeToTrackChanges, isSupabaseConfigured } from './lib/supabase'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
 import PlaylistView from './components/PlaylistView'
@@ -22,8 +22,9 @@ const formatTime = (seconds: number): string => {
 }
 
 export default function App() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [tracks, setTracks] = useState<Track[]>([])
+  const [libraryStatus, setLibraryStatus] = useState<'loading' | 'remote' | 'empty' | 'fallback' | 'error'>('loading')
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
@@ -39,7 +40,8 @@ export default function App() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [isEmbedded, setIsEmbedded] = useState(false)
 
-  // Real-time dynamic Matchday and Music updates state
+  // Lightweight matchday simulation for UI motion.
+  // Real shared library updates come from subscribeToTrackChanges below.
   const [liveMatches, setLiveMatches] = useState<SportsMatch[]>(sportsMatches)
   const [goalAlert, setGoalAlert] = useState<{ message: string; sub: string } | null>(null)
 
@@ -53,12 +55,10 @@ export default function App() {
   // --- Real-time Sports & Music simulation ---
   useEffect(() => {
     const interval = setInterval(() => {
-      // 1. Simulating match minutes and live goals
       setLiveMatches((prevMatches) => {
         return prevMatches.map((match) => {
           if (match.status !== 'LIVE') return match
 
-          // Increment live minute
           let nextMinute = match.minute || "1'"
           const minNum = parseInt(nextMinute)
           if (!isNaN(minNum)) {
@@ -75,18 +75,16 @@ export default function App() {
             }
           }
 
-          // Goal chance: 8% probability per tick
           const hasGoal = Math.random() < 0.08
           if (hasGoal) {
             const isHomeScorer = Math.random() < 0.5
             const homeScoreInc = isHomeScorer ? 1 : 0
             const awayScoreInc = isHomeScorer ? 0 : 1
             const scoringTeam = isHomeScorer ? match.homeTeam : match.awayTeam
-            
+
             const nextHomeScore = match.homeScore + homeScoreInc
             const nextAwayScore = match.awayScore + awayScoreInc
 
-            // Trigger Real-time Goal Alert
             setGoalAlert({
               message: `⚽ GOAL FOR ${scoringTeam.toUpperCase()}!`,
               sub: `${match.homeTeam} ${nextHomeScore} - ${nextAwayScore} ${match.awayTeam} (${nextMinute})`
@@ -107,7 +105,6 @@ export default function App() {
         })
       })
 
-      // 2. Simulating real-time dynamic track likes updates
       setTracks((prevTracks) => {
         if (prevTracks.length === 0) return prevTracks
         return prevTracks.map((track) => {
@@ -133,14 +130,74 @@ export default function App() {
     }
   }, [goalAlert])
 
-  // --- Dynamic lists and computed states ---
+  // --- Initial track & session loading ---
+  useEffect(() => {
+    let cancelled = false
 
-  // Dynamic albums list (includes cloud vault for uploaded tracks)
-  const albums = useMemo(() => {
-    if (tracks.length === 0) return defaultAlbums
-    const userUploadedTracks = tracks.filter((t) => 
-      t.id.startsWith('uploaded-') || t.id.startsWith('local-') || t.id.length > 20
+    fetchRemoteTracks().then((result) => {
+      if (cancelled) return
+      setTracks(result.tracks)
+      setLibraryStatus(result.status)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // --- Supabase Realtime subscription for shared `music_tracks` table ---
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return
+
+    const unsubscribe = subscribeToTrackChanges(
+      (newTrack) => {
+        setTracks((prev) => {
+          if (prev.some((t) => t.id === newTrack.id)) return prev
+          return [newTrack, ...prev]
+        })
+      },
+      (updatedTrack) => {
+        setTracks((prev) => prev.map((t) => (t.id === updatedTrack.id ? updatedTrack : t)))
+      },
+      (deletedId) => {
+        setTracks((prev) => prev.filter((t) => t.id !== deletedId))
+      },
     )
+
+    return unsubscribe
+  }, [])
+
+  // Audio element setup
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio()
+      audioRef.current.volume = volume
+    }
+    const audio = audioRef.current
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const handleLoadedMetadata = () => setDuration(audio.duration || 0)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+    }
+  }, [volume])
+
+  // --- Dynamic albums list (includes cloud vault for uploaded tracks) ---
+  const albums = useMemo(() => {
+    // A valid empty cloud library should not be masked by demo albums.
+    if (tracks.length === 0 && libraryStatus === 'empty') return []
+
+    if (tracks.length === 0) return defaultAlbums
+
+    const userUploadedTracks = tracks.filter((t) =>
+      libraryStatus === 'remote' ||
+      t.id.startsWith('uploaded-') ||
+      t.id.startsWith('local-') ||
+      t.id.length > 20,
+    )
+
     if (userUploadedTracks.length > 0) {
       const cloudAlbum: Album = {
         id: 'cloud-vault',
@@ -153,8 +210,9 @@ export default function App() {
       }
       return [cloudAlbum, ...defaultAlbums]
     }
+
     return defaultAlbums
-  }, [tracks, user])
+  }, [tracks, user, libraryStatus])
 
   const selectedAlbum = useMemo(
     () => albums.find((album) => album.id === selectedAlbumId) ?? null,
@@ -235,37 +293,12 @@ export default function App() {
     if (audioRef.current) audioRef.current.volume = value
   }
 
-  // --- Initial loading & listeners ---
-
-  // Initial track & session loading
-  useEffect(() => {
-    fetchRemoteTracks().then((data) => setTracks(data))
-  }, [])
-
-  // Audio element setup
-  useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio()
-      audioRef.current.volume = volume
-    }
-    const audio = audioRef.current
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
-    const handleLoadedMetadata = () => setDuration(audio.duration || 0)
-    audio.addEventListener('timeupdate', handleTimeUpdate)
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-    return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate)
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-    }
-  }, [volume])
-
-  // Handle messages from parent (sport-clan-nexus hub)
+  // --- Handle messages from parent (sport-clan-nexus hub) ---
   const handleParentMessage = useCallback((event: MessageEvent) => {
     if (!event.data || typeof event.data !== 'object') return
-    
+
     const { type, payload } = event.data
-    
-    // Only respond to messages from the same origin or trusted parent
+
     const allowedOrigins = [
       window.location.origin,
       'https://sport-clan-nexus.vercel.app',
@@ -310,8 +343,8 @@ export default function App() {
         const source = event.source as Window
         if (source && typeof source.postMessage === 'function') {
           source.postMessage(
-            { 
-              type: 'PLAYBACK_STATE', 
+            {
+              type: 'PLAYBACK_STATE',
               payload: {
                 isPlaying,
                 currentTrackId: currentTrack?.id,
@@ -364,7 +397,7 @@ export default function App() {
   // Broadcast state updates to parent when embedded
   useEffect(() => {
     if (!isEmbedded) return
-    
+
     let lastState = ''
     const broadcastState = () => {
       const state = JSON.stringify({
@@ -382,7 +415,7 @@ export default function App() {
         )
       }
     }
-    
+
     const interval = setInterval(broadcastState, 1000)
     return () => clearInterval(interval)
   }, [isEmbedded, isPlaying, currentTrack?.id, currentTime, duration, volume])
@@ -402,13 +435,22 @@ export default function App() {
     return () => audio.removeEventListener('ended', handleEnded)
   }, [playTrack])
 
+  // --- Actual Supabase sign-out ---
   const handleSignOut = async () => {
-    setAuthModalOpen(false)
-    setUploadModalOpen(false)
+    try {
+      await signOut()
+      setAuthModalOpen(false)
+      setUploadModalOpen(false)
+    } catch (err) {
+      console.error('Sign-out failed:', err)
+    }
   }
 
   const handleTrackUploaded = useCallback((newTrack: Track) => {
-    setTracks((prev) => [newTrack, ...prev])
+    setTracks((prev) => {
+      if (prev.some((t) => t.id === newTrack.id)) return prev
+      return [newTrack, ...prev]
+    })
     playTrack(newTrack, [newTrack])
   }, [playTrack])
 
@@ -416,6 +458,16 @@ export default function App() {
 
   const renderHome = () => (
     <div className="tab-scroll">
+      {libraryStatus === 'fallback' && (
+        <div className="library-notice">⚠️ Running in demo mode — Supabase is not configured.</div>
+      )}
+      {libraryStatus === 'error' && (
+        <div className="library-notice error">⚠️ Cloud sync failed — showing demo tracks.</div>
+      )}
+      {libraryStatus === 'empty' && (
+        <div className="library-notice">☁️ Cloud library is empty. Upload your first track.</div>
+      )}
+
       <div className="mobile-hero">
         <span className="hero-tag">👑 KUS-LORDS ROYAL SOUND</span>
         <h1>Discover the feeling of infinite sound.</h1>
@@ -670,7 +722,6 @@ export default function App() {
 
   return (
     <div className="app-mobile">
-      {/* Dynamic Real-time Goal Alert Banner */}
       {goalAlert && (
         <div className="realtime-goal-banner">
           <div className="goal-banner-content">
@@ -683,7 +734,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Desktop Sidebar */}
       <div className="desktop-sidebar">
         <Sidebar
           search={search}
@@ -707,7 +757,6 @@ export default function App() {
         />
       </div>
 
-      {/* Main Content Area */}
       <div className="main-mobile">
         <div className="mobile-content">
           {selectedAlbum ? (
@@ -746,7 +795,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Mini Player (Mobile) */}
       {currentTrack && (
         <div className="mini-player" onClick={() => setMiniPlayerOpen(true)}>
           <div className="mini-cover" style={{ background: currentTrack.cover }} />
@@ -763,10 +811,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Full Screen Player */}
       {miniPlayerOpen && renderFullPlayer()}
 
-      {/* Bottom Navigation (Mobile) */}
       <nav className="bottom-nav">
         {(['home', 'browse', 'radio', 'sports', 'library', 'search'] as Tab[]).map((tab) => (
           <button
@@ -782,7 +828,6 @@ export default function App() {
         ))}
       </nav>
 
-      {/* Desktop Player */}
       <div className="desktop-player">
         <PlayerBar
           title={currentTrack?.title}
@@ -800,7 +845,6 @@ export default function App() {
         />
       </div>
 
-      {/* Modals */}
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <UploadModal
         isOpen={uploadModalOpen}

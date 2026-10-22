@@ -21,6 +21,53 @@ export const supabase = isSupabaseConfigured()
 
 const gradient = (colors: string) => `linear-gradient(135deg, ${colors})`
 
+export type LibraryStatus = 'remote' | 'empty' | 'fallback' | 'error'
+
+export interface RemoteLibraryResult {
+  tracks: Track[]
+  status: LibraryStatus
+  message?: string
+}
+
+interface DbTrack {
+  id: string
+  title: string | null
+  artist?: string | null
+  album?: string | null
+  duration?: number | null
+  audio_url?: string | null
+  cover_url?: string | null
+  cover?: string | null
+  genre?: string | null
+  is_sports_anthem?: boolean | null
+  match_vibe?: string | null
+  likes?: number | null
+  created_at?: string
+}
+
+/**
+ * Maps a Supabase `music_tracks` row to the frontend Track shape.
+ * This keeps database field names (`audio_url`, `cover_url`) isolated
+ * from the UI model (`audioUrl`, `cover`).
+ */
+function rowToTrack(d: DbTrack): Track | null {
+  if (!d?.id || !d?.audio_url) return null
+
+  return {
+    id: d.id,
+    title: d.title || 'Untitled',
+    artist: d.artist || 'Unknown Artist',
+    album: d.album || 'Single',
+    duration: d.duration || 210,
+    audioUrl: d.audio_url,
+    cover: d.cover_url || d.cover || gradient('#fa2d6c, #fc6f60'),
+    genre: d.genre || undefined,
+    isSportsAnthem: d.is_sports_anthem ? true : undefined,
+    matchVibe: d.match_vibe || undefined,
+    likes: d.likes ?? 0,
+  }
+}
+
 const fallbackTracks: Track[] = [
   {
     id: 't-sports-1',
@@ -166,20 +213,22 @@ const fallbackTracks: Track[] = [
   },
 ]
 
-interface DbTrack {
-  id: string
-  title: string
-  artist: string | null
-  album: string | null
-  duration: number | null
-  audio_url: string
-  cover_url: string | null
-  created_at: string
-}
-
-export async function fetchRemoteTracks(): Promise<Track[]> {
+/**
+ * Fetches the shared SCN `music_tracks` table.
+ *
+ * Important behavior:
+ * - A successful remote fetch returns ONLY remote tracks.
+ * - A valid empty table returns `status: 'empty'` and no tracks.
+ * - A failed request returns demo tracks with `status: 'error'` so the UI
+ *   can show a truthful banner instead of pretending cloud sync succeeded.
+ */
+export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
   if (!isSupabaseConfigured() || !supabase) {
-    return fallbackTracks
+    return {
+      tracks: fallbackTracks,
+      status: 'fallback',
+      message: 'Supabase is not configured.',
+    }
   }
 
   try {
@@ -188,26 +237,58 @@ export async function fetchRemoteTracks(): Promise<Track[]> {
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (error || !data || data.length === 0) {
-      return fallbackTracks
+    if (error) {
+      console.error('Failed to load remote tracks:', error.message)
+      return {
+        tracks: fallbackTracks,
+        status: 'error',
+        message: error.message,
+      }
     }
 
-    const fetched: Track[] = data.map((d: DbTrack) => ({
-      id: d.id,
-      title: d.title,
-      artist: d.artist || 'Unknown Artist',
-      album: d.album || 'Single',
-      duration: d.duration || 210,
-      audioUrl: d.audio_url,
-      cover: d.cover_url || gradient('#fa2d6c, #fc6f60'),
-    }))
+    if (!data || data.length === 0) {
+      return { tracks: [], status: 'empty' }
+    }
 
-    return [...fetched, ...fallbackTracks]
-  } catch {
-    return fallbackTracks
+    const fetched: Track[] = data
+      .map((d) => rowToTrack(d as DbTrack))
+      .filter((t): t is Track => t !== null)
+
+    return { tracks: fetched, status: 'remote' }
+  } catch (err: any) {
+    console.error('Failed to load remote tracks:', err?.message || err)
+    return {
+      tracks: fallbackTracks,
+      status: 'error',
+      message: err?.message || 'Unknown error',
+    }
   }
 }
 
+/**
+ * Deletes a storage object created during a failed upload.
+ * This only ever targets objects created by the current operation.
+ */
+async function removeUploadedFile(bucket: string, path: string) {
+  if (!supabase || !path) return
+  const { error } = await supabase.storage.from(bucket).remove([path])
+  if (error) {
+    console.error(`Failed to clean up ${bucket}/${path}:`, error.message)
+  }
+}
+
+/**
+ * Uploads a track to the shared SCN storage buckets and creates its
+ * database record in `music_tracks`.
+ *
+ * Success is only reported after:
+ * 1. Audio exists in `music-audio`.
+ * 2. Optional cover exists in `music-covers`.
+ * 3. The `music_tracks` row is inserted AND returned with its real DB ID.
+ *
+ * If the database insert fails, the newly uploaded audio (and cover) are
+ * cleaned up so the shared buckets do not accumulate orphan files.
+ */
 export async function uploadTrackToBucket(params: {
   title: string
   artist: string
@@ -215,82 +296,131 @@ export async function uploadTrackToBucket(params: {
   audioFile: File
   coverFile: File | null
   user: { id: string }
-}): Promise<Track | null> {
+}): Promise<Track> {
   if (!isSupabaseConfigured() || !supabase) {
-    const audioUrl = URL.createObjectURL(params.audioFile)
-    let coverUrl = gradient('#d4af37, #1a1a24')
-    if (params.coverFile) coverUrl = URL.createObjectURL(params.coverFile)
+    throw new Error('Supabase is not configured. Uploads require the shared SCN Supabase project.')
+  }
 
-    return {
-      id: `uploaded-${Date.now()}`,
-      title: params.title,
-      artist: params.artist,
-      album: params.album,
-      duration: 210,
-      audioUrl,
-      cover: coverUrl,
-    }
+  const fileExt = params.audioFile.name.split('.').pop()
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(7)}.${fileExt}`
+  const audioPath = `tracks/${fileName}`
+
+  let coverPath: string | null = null
+  let coverPublicUrl: string | null = null
+
+  const { error: uploadError } = await supabase.storage
+    .from('music-audio')
+    .upload(audioPath, params.audioFile)
+
+  if (uploadError) {
+    throw new Error(`Audio upload failed: ${uploadError.message}`)
   }
 
   try {
-    const fileExt = params.audioFile.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(7)}.${fileExt}`
-    const filePath = `tracks/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
+    const { data: audioUrlData } = supabase.storage
       .from('music-audio')
-      .upload(filePath, params.audioFile)
+      .getPublicUrl(audioPath)
+    const audioPublicUrl = audioUrlData.publicUrl
 
-    if (uploadError) throw uploadError
-
-    const { data: { publicUrl: audioPublicUrl } } = supabase.storage
-      .from('music-audio')
-      .getPublicUrl(filePath)
-
-    let coverPublicUrl = gradient('#d4af37, #1a1a24')
+    // Optional cover upload. If it fails, continue without it but surface a warning.
     if (params.coverFile) {
       const coverExt = params.coverFile.name.split('.').pop()
-      const coverName = `${Date.now()}-cover.${coverExt}`
-      const coverPath = `covers/${coverName}`
+      coverPath = `covers/${Date.now()}-cover.${coverExt}`
+
       const { error: coverErr } = await supabase.storage
         .from('music-covers')
         .upload(coverPath, params.coverFile)
 
-      if (!coverErr) {
-        const { data: { publicUrl } } = supabase.storage
+      if (coverErr) {
+        console.warn('Cover upload failed; continuing without a cover image.', coverErr.message)
+        coverPath = null
+      } else {
+        const { data: coverUrlData } = supabase.storage
           .from('music-covers')
           .getPublicUrl(coverPath)
-        coverPublicUrl = publicUrl
+        coverPublicUrl = coverUrlData.publicUrl
       }
     }
 
-    const { error: dbError } = await supabase.from('music_tracks').insert([
-      {
+    const { data: inserted, error: dbError } = await supabase
+      .from('music_tracks')
+      .insert({
         title: params.title,
         artist: params.artist,
         album: params.album,
         audio_url: audioPublicUrl,
-        cover_url: coverPublicUrl,
+        cover_url: coverPublicUrl || '',
         duration: 240,
         user_id: params.user.id,
-      },
-    ])
+      })
+      .select('*')
+      .single()
 
     if (dbError) {
-      console.error('DB insert notice:', dbError.message)
+      throw new Error(`Database insert failed: ${dbError.message}`)
     }
 
-    return {
-      id: fileName,
-      title: params.title,
-      artist: params.artist,
-      album: params.album,
-      duration: 240,
-      audioUrl: audioPublicUrl,
-      cover: coverPublicUrl,
+    const track = rowToTrack(inserted as DbTrack)
+    if (!track) {
+      throw new Error('Track was saved but the database returned an invalid record.')
     }
-  } catch (err: any) {
-    console.error('Upload failed:', err)
-    return null
+
+    return track
+  } catch (err) {
+    // Only remove files created by this failed operation.
+    await removeUploadedFile('music-audio', audioPath)
+    if (coverPath) {
+      await removeUploadedFile('music-covers', coverPath)
+    }
+    throw err
+  }
+}
+
+/**
+ * Subscribes to realtime changes on the shared `music_tracks` table.
+ * Requires Realtime to be enabled on that table in Supabase:
+ *
+ *   alter publication supabase_realtime add table music_tracks;
+ */
+export function subscribeToTrackChanges(
+  onInsert: (track: Track) => void,
+  onUpdate: (track: Track) => void,
+  onDelete: (trackId: string) => void,
+): () => void {
+  if (!isSupabaseConfigured() || !supabase) {
+    return () => {}
+  }
+
+  const channel = supabase.channel('music-tracks-realtime')
+
+  channel
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'music_tracks' },
+      (payload) => {
+        const track = rowToTrack((payload.new || {}) as DbTrack)
+        if (track) onInsert(track)
+      },
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'music_tracks' },
+      (payload) => {
+        const track = rowToTrack((payload.new || {}) as DbTrack)
+        if (track) onUpdate(track)
+      },
+    )
+    .on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'music_tracks' },
+      (payload) => {
+        const oldRow = (payload.old || {}) as DbTrack
+        if (oldRow?.id) onDelete(oldRow.id)
+      },
+    )
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
   }
 }

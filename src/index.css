@@ -11,6 +11,23 @@
 body { background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
+/* ===== CLOUD LIBRARY STATUS ===== */
+.library-notice {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-bottom: 16px;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  color: var(--gold);
+}
+
+.library-notice.error {
+  background: rgba(250, 45, 108, 0.12);
+  border-color: rgba(250, 45, 108, 0.3);
+  color: #ff7597;
+}
+
 /* ===== REALTIME GOAL BANNER ===== */
 .realtime-goal-banner {
   position: fixed;
