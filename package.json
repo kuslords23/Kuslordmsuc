@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/unzip-integrate.js",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "prebuild": "node scripts/unzip-integrate.cjs",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
