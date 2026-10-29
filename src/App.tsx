@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { albums as defaultAlbums, type Album, type Track } from './data/music'
+import { albums as defaultAlbums, initialTracks, type Album, type Track } from './data/music'
 import { sportsMatches } from './data/sports'
 import { fetchRemoteTracks } from './lib/supabase'
 import { loadExtractedTracks } from './lib/integrateExtracted'
@@ -24,7 +24,14 @@ const formatTime = (seconds: number): string => {
 
 export default function App() {
   const { user, signOut } = useAuth()
-  const [tracks, setTracks] = useState<Track[]>([])
+
+  // Start with the built-in tracks so the screen is never empty
+  // while we wait for the cloud library to load.
+  const [tracks, setTracks] = useState<Track[]>(() => [
+    ...loadExtractedTracks(),
+    ...initialTracks,
+  ])
+
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
@@ -47,12 +54,20 @@ export default function App() {
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
 
-  // Initial track & session loading
+  // Load cloud tracks; never let a failure blank the screen
   useEffect(() => {
-    fetchRemoteTracks().then((data) => {
-      // Merge any tracks extracted from zips with remote/fallback tracks
-      setTracks([...loadExtractedTracks(), ...data.tracks])
-    })
+    let cancelled = false
+    fetchRemoteTracks()
+      .then((data) => {
+        if (cancelled) return
+        const remote = Array.isArray(data?.tracks) ? data.tracks : []
+        const merged = [...loadExtractedTracks(), ...remote]
+        if (merged.length > 0) setTracks(merged)
+      })
+      .catch((err) => {
+        console.error('Could not load cloud library:', err)
+      })
+    return () => { cancelled = true }
   }, [])
 
   // Audio element setup
@@ -75,7 +90,7 @@ export default function App() {
   // Dynamic albums list (includes cloud vault for uploaded tracks)
   const albums = useMemo(() => {
     if (tracks.length === 0) return defaultAlbums
-    const userUploadedTracks = tracks.filter((t) => 
+    const userUploadedTracks = tracks.filter((t) =>
       t.id.startsWith('uploaded-') || t.id.startsWith('local-') || t.id.length > 20
     )
     if (userUploadedTracks.length > 0) {
@@ -119,12 +134,13 @@ export default function App() {
   }, [search, tracks])
 
   const studioTracks = useMemo(
-    () => tracks.length > 0 ? tracks : defaultAlbums.flatMap((album) => album.tracks),
+    () => (tracks.length > 0 ? tracks : initialTracks),
     [tracks],
   )
 
   // Player functions
-  const playTrack = useCallback((track: Track, trackList: Track[]) => {
+  const playTrack = useCallback((track: Track | undefined, trackList: Track[]) => {
+    if (!track) return
     if (audioRef.current) {
       audioRef.current.src = track.audioUrl
       audioRef.current.currentTime = 0
@@ -154,8 +170,7 @@ export default function App() {
     const q = queueRef.current
     if (!track || q.length === 0) return
     const index = q.findIndex((t) => t.id === track.id)
-    const nextSong = q[(index + 1) % q.length]
-    playTrack(nextSong, q)
+    playTrack(q[(index + 1) % q.length], q)
   }, [playTrack])
 
   const prevTrack = useCallback(() => {
@@ -163,8 +178,7 @@ export default function App() {
     const q = queueRef.current
     if (!track || q.length === 0) return
     const index = q.findIndex((t) => t.id === track.id)
-    const prevSong = q[(index - 1 + q.length) % q.length]
-    playTrack(prevSong, q)
+    playTrack(q[(index - 1 + q.length) % q.length], q)
   }, [playTrack])
 
   const handleSeek = (time: number) => {
@@ -179,9 +193,9 @@ export default function App() {
   // Handle messages from parent (sport-clan-nexus hub)
   const handleParentMessage = useCallback((event: MessageEvent) => {
     if (!event.data || typeof event.data !== 'object') return
-    
+
     const { type, payload } = event.data
-    
+
     const allowedOrigins = [
       window.location.origin,
       'https://sport-clan-nexus.vercel.app',
@@ -191,14 +205,11 @@ export default function App() {
     switch (type) {
       case 'PLAY_ANTHEM': {
         if (typeof payload?.matchId === 'string') {
-          const match = sportsMatches.find(m => m.id === payload.matchId)
+          const match = sportsMatches.find((m) => m.id === payload.matchId)
           if (match && match.anthemTrackId) {
-            const track = currentTrackRef.current?.id === match.anthemTrackId
-              ? currentTrackRef.current
-              : tracks.find(t => t.id === match.anthemTrackId) || tracks[0]
-            if (track) {
-              playTrack(track, tracks)
-            }
+            const track =
+              tracks.find((t) => t.id === match.anthemTrackId) || tracks[0]
+            if (track) playTrack(track, tracks)
           }
         }
         break
@@ -218,33 +229,31 @@ export default function App() {
         }
         break
       case 'SEEK':
-        if (typeof payload?.time === 'number') {
-          handleSeek(payload.time)
-        }
+        if (typeof payload?.time === 'number') handleSeek(payload.time)
         break
       case 'GET_STATE': {
         const source = event.source as Window
         if (source && typeof source.postMessage === 'function') {
           source.postMessage(
-            { 
-              type: 'PLAYBACK_STATE', 
+            {
+              type: 'PLAYBACK_STATE',
               payload: {
                 isPlaying,
                 currentTrackId: currentTrack?.id,
                 currentTime: Math.floor(currentTime),
                 duration: Math.floor(duration),
                 volume,
-                queue: queue.map(t => t.id)
-              }
+                queue: queue.map((t) => t.id),
+              },
             },
-            event.origin
+            event.origin,
           )
         }
         break
       }
       case 'SET_QUEUE':
         if (Array.isArray(payload?.trackIds)) {
-          const newQueue = tracks.filter(t => payload.trackIds.includes(t.id))
+          const newQueue = tracks.filter((t) => payload.trackIds.includes(t.id))
           if (newQueue.length > 0) {
             setQueue(newQueue)
             if (!currentTrack || !payload.trackIds.includes(currentTrack.id)) {
@@ -254,25 +263,22 @@ export default function App() {
         }
         break
     }
-  }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, handleVolume, handleSeek, currentTrack, currentTime, duration, volume, queue])
+  }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, currentTrack, currentTime, duration, volume, queue])
 
   // Detect embedded mode (inside sport-clan-nexus iframe)
   useEffect(() => {
-    const checkEmbedded = () => {
-      try {
-        const embedded = window.parent !== window
-        setIsEmbedded(embedded)
-        if (embedded) {
-          window.parent.postMessage(
-            { type: 'MUSIC_APP_READY', payload: { version: '1.0.0' } },
-            '*'
-          )
-        }
-      } catch (e) {
-        setIsEmbedded(false)
+    try {
+      const embedded = window.parent !== window
+      setIsEmbedded(embedded)
+      if (embedded) {
+        window.parent.postMessage(
+          { type: 'MUSIC_APP_READY', payload: { version: '1.0.0' } },
+          '*',
+        )
       }
+    } catch {
+      setIsEmbedded(false)
     }
-    checkEmbedded()
     window.addEventListener('message', handleParentMessage)
     return () => window.removeEventListener('message', handleParentMessage)
   }, [handleParentMessage])
@@ -280,7 +286,7 @@ export default function App() {
   // Broadcast state updates to parent when embedded
   useEffect(() => {
     if (!isEmbedded) return
-    
+
     let lastState = ''
     const broadcastState = () => {
       const state = JSON.stringify({
@@ -294,11 +300,11 @@ export default function App() {
         lastState = state
         window.parent?.postMessage(
           { type: 'PLAYBACK_STATE_UPDATE', payload: JSON.parse(state) },
-          '*'
+          '*',
         )
       }
     }
-    
+
     const interval = setInterval(broadcastState, 1000)
     return () => clearInterval(interval)
   }, [isEmbedded, isPlaying, currentTrack?.id, currentTime, duration, volume])
@@ -311,8 +317,7 @@ export default function App() {
       const q = queueRef.current
       if (!track || q.length === 0) return
       const index = q.findIndex((t) => t.id === track.id)
-      const nextSong = q[(index + 1) % q.length]
-      playTrack(nextSong, q)
+      playTrack(q[(index + 1) % q.length], q)
     }
     audio.addEventListener('ended', handleEnded)
     return () => audio.removeEventListener('ended', handleEnded)
@@ -344,8 +349,8 @@ export default function App() {
         <p>Stream high-fidelity tracks, access your Supabase bucket vault, and curate playlists.</p>
         <div className="hero-actions">
           <button className="hero-play" onClick={() => {
-            const t = albums[0]
-            if (t?.tracks.length) playTrack(t.tracks[0], t.tracks)
+            const a = albums[0]
+            if (a?.tracks.length) playTrack(a.tracks[0], a.tracks)
           }}>▶ Listen Now</button>
           <button className="hero-upload" onClick={() => setUploadModalOpen(true)}>☁ Upload</button>
         </div>
@@ -416,7 +421,8 @@ export default function App() {
           { name: 'Afro Grooves', genre: 'Afrobeats', color: '#ff6b6b, #c5a059', icon: '🌍' },
         ].map((s) => (
           <div key={s.name} className="radio-card" onClick={() => {
-            const t = tracks.find(t => t.genre?.toLowerCase().includes(s.genre.split(' ')[0].toLowerCase())) || tracks[0]
+            const first = s.genre.split(' ')[0].toLowerCase()
+            const t = tracks.find((x) => x.genre?.toLowerCase().includes(first)) || tracks[0]
             playTrack(t, tracks)
           }}>
             <div className="radio-art" style={{ background: `linear-gradient(135deg, ${s.color})` }}>
@@ -431,7 +437,7 @@ export default function App() {
       <section>
         <div className="section-title"><h2>Stadium Anthems</h2></div>
         <div className="track-list-compact">
-          {tracks.filter(t => t.isSportsAnthem).map((t) => (
+          {tracks.filter((t) => t.isSportsAnthem).map((t) => (
             <div key={t.id} className="track-row-compact" onClick={() => playTrack(t, tracks)}>
               <div className="mini-cover" style={{ background: t.cover }} />
               <div className="track-meta"><strong>{t.title}</strong><span>{t.artist}</span></div>
@@ -471,7 +477,7 @@ export default function App() {
             <div key={t.id} className="track-row-compact" onClick={() => playTrack(t, tracks)}>
               <div className="mini-cover" style={{ background: t.cover }} />
               <div className="track-meta"><strong>{t.title}</strong><span>{t.artist}</span></div>
-              <span className="like-count">❤️ {t.likes}</span>
+              <span className="like-count">❤️ {t.likes || 0}</span>
             </div>
           ))}
         </div>
@@ -619,7 +625,7 @@ export default function App() {
       {/* Mobile Search Corner */}
       <button
         className={`search-corner ${activeTab === 'search' ? 'active' : ''}`}
-        onClick={() => { setActiveTab('search'); setSelectedAlbumId(null); }}
+        onClick={() => { setActiveTab('search'); setSelectedAlbumId(null) }}
         aria-label="Search"
       >
         ⌕
@@ -686,11 +692,9 @@ export default function App() {
             <button
               key={tab}
               className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => { setActiveTab(tab); setSelectedAlbumId(null); }}
+              onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}
             >
-              <span className="nav-icon">
-                {tab === 'home' ? '🏠' : '🆕'}
-              </span>
+              <span className="nav-icon">{tab === 'home' ? '🏠' : '🆕'}</span>
               <span className="nav-label">{tab === 'home' ? 'Home' : 'Browse'}</span>
             </button>
           ))}
@@ -698,7 +702,7 @@ export default function App() {
 
         <button
           className={`nav-tab studio-tab ${activeTab === 'studio' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('studio'); setSelectedAlbumId(null); }}
+          onClick={() => { setActiveTab('studio'); setSelectedAlbumId(null) }}
           aria-label="Open Studio"
         >
           <span className="nav-icon">🎛</span>
@@ -710,11 +714,9 @@ export default function App() {
             <button
               key={tab}
               className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => { setActiveTab(tab); setSelectedAlbumId(null); }}
+              onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}
             >
-              <span className="nav-icon">
-                {tab === 'radio' ? '📻' : '📚'}
-              </span>
+              <span className="nav-icon">{tab === 'radio' ? '📻' : '📚'}</span>
               <span className="nav-label">{tab === 'radio' ? 'Radio' : 'Library'}</span>
             </button>
           ))}
