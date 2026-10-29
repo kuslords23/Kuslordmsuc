@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/unzip-integrate.cjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "integrate": "node scripts/unzip-integrate.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
