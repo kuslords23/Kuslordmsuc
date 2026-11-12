@@ -248,3 +248,10 @@ The standalone artist storefront now supports Follow/Following. It uses the same
 ## 001-F: Track likes
 
 The player and Royal bridge now expose Like/Unlike for the currently selected track. This updates the app's in-memory track state and current session's displayed count. It is intentionally labelled as session-local: the SCN music hub's current `toggleLike` path also updates its in-memory track collection rather than writing a durable likes table. No shared database likes table was found in the inspected SCN migrations, so this port does not invent one or claim cross-device persistence.
+
+
+## 001-D: Artist profile management
+
+The artist directory now includes Create Artist Profile and owner-only Edit Profile workflows. The adapter obtains the active Supabase session itself, inserts with `session.user.id`, and scopes updates by both profile ID and authenticated owner ID. It exposes the SCN storefront fields for biography, tagline, vision, avatar, genre focus, hero image, press kit, booking email, CTA, and social links.
+
+The existing SCN RLS policy and artist-tier trigger remain authoritative. Profile creation may be rejected by the existing tier limit or global unique artist-name constraint; the UI reports the database error rather than bypassing either rule.
