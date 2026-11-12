@@ -50,6 +50,7 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
+  const parentOriginRef = useRef<string>("")
 
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
@@ -190,124 +191,182 @@ export default function App() {
     if (audioRef.current) audioRef.current.volume = value
   }
 
-  // Handle messages from parent (sport-clan-nexus hub)
+  // Strict-origin bridge for Royal and the SCN parent surfaces.
+  const configuredParentOrigins = (
+    (import.meta as ImportMeta & { env: { VITE_ALLOWED_PARENT_ORIGINS?: string } }).env
+      .VITE_ALLOWED_PARENT_ORIGINS || ""
+  ).split(",").map((origin) => origin.trim()).filter(Boolean)
+  const allowedParentOrigins = useMemo(() => new Set([
+    "https://sport-clan-nexus.vercel.app",
+    "https://kus-ai-app.vercel.app",
+    window.location.origin,
+    ...configuredParentOrigins,
+  ]), [configuredParentOrigins.join(",")])
+
+  const trackSummary = useCallback((track: Track) => ({
+    id: track.id,
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    duration: track.duration,
+    cover: track.cover,
+  }), [])
+
+  const replyToParent = useCallback((source: MessageEventSource | null, origin: string, type: string, payload: Record<string, unknown> = {}) => {
+    if (!source || !allowedParentOrigins.has(origin) || typeof (source as Window).postMessage !== "function") return
+    ;(source as Window).postMessage({ type, payload }, origin)
+  }, [allowedParentOrigins])
+
   const handleParentMessage = useCallback((event: MessageEvent) => {
-    if (!event.data || typeof event.data !== 'object') return
+    if (!event.data || typeof event.data !== "object") return
+    if (event.source !== window.parent || !allowedParentOrigins.has(event.origin)) return
 
-    const { type, payload } = event.data
-
-    const allowedOrigins = [
-      window.location.origin,
-      'https://sport-clan-nexus.vercel.app',
-    ]
-    if (!allowedOrigins.includes(event.origin)) return
+    const { type, payload = {} } = event.data as { type?: string; payload?: Record<string, unknown> }
+    const respond = (responseType: string, responsePayload: Record<string, unknown> = {}) =>
+      replyToParent(event.source, event.origin, responseType, responsePayload)
+    const current = currentTrackRef.current
+    const summary = current ? trackSummary(current) : null
+    const actionResult = (ok: boolean, error?: string) =>
+      respond("MUSIC_ACTION_RESULT", { ok, ...(error ? { error } : {}) })
 
     switch (type) {
-      case 'PLAY_ANTHEM': {
-        if (typeof payload?.matchId === 'string') {
-          const match = sportsMatches.find((m) => m.id === payload.matchId)
-          if (match && match.anthemTrackId) {
-            const track =
-              tracks.find((t) => t.id === match.anthemTrackId) || tracks[0]
-            if (track) playTrack(track, tracks)
-          }
+      case "KUS_MUSIC_CONNECT":
+        parentOriginRef.current = event.origin
+        respond("MUSIC_APP_READY", {
+          version: "1.1.0",
+          capabilities: ["search", "play", "pause", "queue", "seek", "volume", "state"],
+        })
+        respond("PLAYBACK_STATE_UPDATE", {
+          isPlaying,
+          currentTrack: summary,
+          currentTrackId: current?.id ?? null,
+          currentTime: Math.floor(currentTime),
+          duration: Math.floor(duration),
+          volume,
+          queue: queueRef.current.map((track) => track.id),
+        })
+        break
+      case "PLAY_ANTHEM": {
+        if (typeof payload.matchId === "string") {
+          const match = sportsMatches.find((item) => item.id === payload.matchId)
+          const track = match?.anthemTrackId
+            ? tracks.find((item) => item.id === match.anthemTrackId) || tracks[0]
+            : undefined
+          if (track) { playTrack(track, tracks); actionResult(true) }
+          else actionResult(false, "No anthem track was found for that match.")
         }
         break
       }
-      case 'TOGGLE_PLAY':
+      case "GET_STATE":
+        respond("PLAYBACK_STATE", {
+          isPlaying,
+          currentTrack: summary,
+          currentTrackId: current?.id ?? null,
+          currentTime: Math.floor(currentTime),
+          duration: Math.floor(duration),
+          volume,
+          queue: queueRef.current.map((track) => track.id),
+        })
+        break
+      case "GET_TRACKS": {
+        const limit = Math.max(1, Math.min(50, Number(payload.limit) || 20))
+        respond("MUSIC_TRACKS", { results: tracks.slice(0, limit).map(trackSummary) })
+        break
+      }
+      case "SEARCH_TRACKS": {
+        const query = typeof payload.query === "string" ? payload.query.trim().toLocaleLowerCase() : ""
+        if (!query) { respond("MUSIC_SEARCH_RESULTS", { results: [] }); break }
+        const limit = Math.max(1, Math.min(50, Number(payload.limit) || 20))
+        const results = tracks.filter((track) =>
+          [track.title, track.artist, track.album, track.genre || ""]
+            .some((value) => value.toLocaleLowerCase().includes(query))
+        ).slice(0, limit).map(trackSummary)
+        respond("MUSIC_SEARCH_RESULTS", { results })
+        break
+      }
+      case "PLAY_TRACK": {
+        const track = typeof payload.trackId === "string"
+          ? tracks.find((item) => item.id === payload.trackId)
+          : undefined
+        if (track) { playTrack(track, tracks); actionResult(true) }
+        else actionResult(false, "Track not found in the available library.")
+        break
+      }
+      case "SET_QUEUE":
+      case "ADD_TO_QUEUE": {
+        if (!Array.isArray(payload.trackIds)) { actionResult(false, "trackIds must be an array."); break }
+        const ids = payload.trackIds.filter((id): id is string => typeof id === "string")
+        const selected = tracks.filter((track) => ids.includes(track.id))
+        if (!selected.length) { actionResult(false, "No matching tracks were found."); break }
+        const nextQueue = type === "ADD_TO_QUEUE" ? [...queueRef.current, ...selected.filter((track) => !queueRef.current.some((item) => item.id === track.id))] : selected
+        setQueue(nextQueue)
+        if (type === "SET_QUEUE" || !currentTrackRef.current) playTrack(nextQueue[0], nextQueue)
+        actionResult(true)
+        break
+      }
+      case "CLEAR_QUEUE":
+        setQueue([])
+        queueRef.current = []
+        actionResult(true)
+        break
+      case "PLAY":
+      case "RESUME":
+        if (audioRef.current && currentTrackRef.current) {
+          audioRef.current.play().then(() => { setIsPlaying(true); actionResult(true) })
+            .catch(() => actionResult(false, "Browser could not start playback."))
+        } else { togglePlay(); actionResult(true) }
+        break
+      case "PAUSE":
+        audioRef.current?.pause()
+        setIsPlaying(false)
+        actionResult(true)
+        break
+      case "TOGGLE_PLAY":
         togglePlay()
+        actionResult(true)
         break
-      case 'NEXT_TRACK':
+      case "NEXT_TRACK":
         nextTrack()
+        actionResult(true)
         break
-      case 'PREV_TRACK':
+      case "PREV_TRACK":
         prevTrack()
+        actionResult(true)
         break
-      case 'SET_VOLUME':
-        if (typeof payload?.volume === 'number' && payload.volume >= 0 && payload.volume <= 1) {
-          handleVolume(payload.volume)
-        }
+      case "SET_VOLUME":
+        if (typeof payload.volume === "number" && payload.volume >= 0 && payload.volume <= 1) {
+          handleVolume(payload.volume); actionResult(true)
+        } else actionResult(false, "Volume must be between 0 and 1.")
         break
-      case 'SEEK':
-        if (typeof payload?.time === 'number') handleSeek(payload.time)
-        break
-      case 'GET_STATE': {
-        const source = event.source as Window
-        if (source && typeof source.postMessage === 'function') {
-          source.postMessage(
-            {
-              type: 'PLAYBACK_STATE',
-              payload: {
-                isPlaying,
-                currentTrackId: currentTrack?.id,
-                currentTime: Math.floor(currentTime),
-                duration: Math.floor(duration),
-                volume,
-                queue: queue.map((t) => t.id),
-              },
-            },
-            event.origin,
-          )
-        }
-        break
-      }
-      case 'SET_QUEUE':
-        if (Array.isArray(payload?.trackIds)) {
-          const newQueue = tracks.filter((t) => payload.trackIds.includes(t.id))
-          if (newQueue.length > 0) {
-            setQueue(newQueue)
-            if (!currentTrack || !payload.trackIds.includes(currentTrack.id)) {
-              playTrack(newQueue[0], newQueue)
-            }
-          }
-        }
+      case "SEEK":
+        if (typeof payload.time === "number" && Number.isFinite(payload.time) && payload.time >= 0 && payload.time <= (audioRef.current?.duration || duration || 0)) {
+          handleSeek(payload.time); actionResult(true)
+        } else actionResult(false, "Seek position is outside the current track.")
         break
     }
-  }, [tracks, playTrack, togglePlay, nextTrack, prevTrack, currentTrack, currentTime, duration, volume, queue])
+  }, [allowedParentOrigins, currentTime, duration, isPlaying, tracks, trackSummary, replyToParent, playTrack, togglePlay, nextTrack, prevTrack, volume])
 
-  // Detect embedded mode (inside sport-clan-nexus iframe)
   useEffect(() => {
-    try {
-      const embedded = window.parent !== window
-      setIsEmbedded(embedded)
-      if (embedded) {
-        window.parent.postMessage(
-          { type: 'MUSIC_APP_READY', payload: { version: '1.0.0' } },
-          '*',
-        )
-      }
-    } catch {
-      setIsEmbedded(false)
-    }
-    window.addEventListener('message', handleParentMessage)
-    return () => window.removeEventListener('message', handleParentMessage)
+    const embedded = window.parent !== window
+    setIsEmbedded(embedded)
+    window.addEventListener("message", handleParentMessage)
+    return () => window.removeEventListener("message", handleParentMessage)
   }, [handleParentMessage])
 
-  // Broadcast state updates to parent when embedded
+  // Broadcast only to the origin that completed the explicit parent handshake.
   useEffect(() => {
-    if (!isEmbedded) return
-
-    let lastState = ''
-    const broadcastState = () => {
-      const state = JSON.stringify({
-        isPlaying,
-        currentTrackId: currentTrack?.id,
-        currentTime: Math.floor(currentTime),
-        duration: Math.floor(duration),
-        volume,
-      })
-      if (state !== lastState) {
-        lastState = state
-        window.parent?.postMessage(
-          { type: 'PLAYBACK_STATE_UPDATE', payload: JSON.parse(state) },
-          '*',
-        )
-      }
+    if (!isEmbedded || !parentOriginRef.current) return
+    const state = {
+      isPlaying,
+      currentTrack: currentTrack ? trackSummary(currentTrack) : null,
+      currentTrackId: currentTrack?.id ?? null,
+      currentTime: Math.floor(currentTime),
+      duration: Math.floor(duration),
+      volume,
+      queue: queue.map((track) => track.id),
     }
-
-    const interval = setInterval(broadcastState, 1000)
-    return () => clearInterval(interval)
-  }, [isEmbedded, isPlaying, currentTrack?.id, currentTime, duration, volume])
+    window.parent.postMessage({ type: "PLAYBACK_STATE_UPDATE", payload: state }, parentOriginRef.current)
+  }, [isEmbedded, isPlaying, currentTrack, currentTime, duration, volume, queue, trackSummary])
 
   useEffect(() => {
     const audio = audioRef.current
