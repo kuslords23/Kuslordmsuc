@@ -378,6 +378,59 @@ export interface MusicArtistProfileOption {
   name: string
 }
 
+export interface PublicMusicArtistProfile extends MusicArtistProfileOption {
+  userId: string
+  bio: string
+  avatar: string
+  verified: boolean
+  followerCount: number
+  tagline?: string
+  vision?: string
+  genreFocus?: string
+  ctaLabel?: string
+  ctaUrl?: string
+  heroImageUrl?: string
+  pressKitUrl?: string
+  bookingEmail?: string
+  socials: Record<string, string>
+  credits: Array<{ title: string; role: string; artist?: string; url?: string }>
+}
+
+/** Public artist directory backed by the SCN artist_profiles table and its RLS read policy. */
+export async function fetchPublicArtistProfiles(): Promise<PublicMusicArtistProfile[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('artist_profiles')
+    .select('id,name,user_id,bio,avatar,verified,follower_count,tagline,vision,genre_focus,cta_label,cta_url,hero_image_url,press_kit_url,booking_email,socials,credits')
+    .order('follower_count', { ascending: false })
+    .limit(60)
+  if (error) {
+    console.warn('Could not load public artist directory:', error.message)
+    return []
+  }
+  return (data || []).map((row) => ({
+    id: String(row.id),
+    name: String(row.name || 'Unknown artist'),
+    userId: String(row.user_id || ''),
+    bio: String(row.bio || ''),
+    avatar: String(row.avatar || '🎤'),
+    verified: Boolean(row.verified),
+    followerCount: Number(row.follower_count || 0),
+    tagline: typeof row.tagline === 'string' ? row.tagline : undefined,
+    vision: typeof row.vision === 'string' ? row.vision : undefined,
+    genreFocus: typeof row.genre_focus === 'string' ? row.genre_focus : undefined,
+    ctaLabel: typeof row.cta_label === 'string' ? row.cta_label : undefined,
+    ctaUrl: typeof row.cta_url === 'string' ? row.cta_url : undefined,
+    heroImageUrl: typeof row.hero_image_url === 'string' ? row.hero_image_url : undefined,
+    pressKitUrl: typeof row.press_kit_url === 'string' ? row.press_kit_url : undefined,
+    bookingEmail: typeof row.booking_email === 'string' ? row.booking_email : undefined,
+    socials: row.socials && typeof row.socials === 'object' && !Array.isArray(row.socials)
+      ? row.socials as Record<string, string>
+      : {},
+    credits: Array.isArray(row.credits) ? row.credits as Array<{ title: string; role: string; artist?: string; url?: string }> : [],
+  }))
+}
+
 /** Lists the signed-in creator's own artist profiles using the active RLS session. */
 export async function fetchOwnedArtistProfiles(userId: string): Promise<MusicArtistProfileOption[]> {
   if (!userId || !supabase) return []
