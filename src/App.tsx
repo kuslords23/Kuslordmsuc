@@ -11,6 +11,7 @@ import AuthModal from './components/AuthModal'
 import UploadModal from './components/UploadModal'
 import Studio from './components/Studio'
 import ArtistDirectory from './components/ArtistDirectory'
+import CommentsPanel from './components/CommentsPanel'
 import PlaylistLibrary from './components/PlaylistLibrary'
 import { loadPlaylistsLocal, savePlaylistsLocal, type MusicPlaylist } from './lib/playlists'
 import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
@@ -37,6 +38,7 @@ export default function App() {
   ])
   const [artistProfiles, setArtistProfiles] = useState<PublicMusicArtistProfile[]>([])
   const [playlists, setPlaylists] = useState<MusicPlaylist[]>(() => loadPlaylistsLocal())
+  const [commentsTrack, setCommentsTrack] = useState<Track | null>(null)
 
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -853,10 +855,12 @@ export default function App() {
           onPrev={prevTrack}
           onSeek={handleSeek}
           onVolume={handleVolume}
+          onOpenComments={currentTrack ? () => setCommentsTrack(currentTrack) : undefined}
         />
       </div>
 
       {/* Modals */}
+      <CommentsPanel track={commentsTrack} user={user} onClose={() => setCommentsTrack(null)} />
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <UploadModal
         isOpen={uploadModalOpen}
