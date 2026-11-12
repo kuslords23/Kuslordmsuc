@@ -396,6 +396,48 @@ export interface PublicMusicArtistProfile extends MusicArtistProfileOption {
   credits: Array<{ title: string; role: string; artist?: string; url?: string }>
 }
 
+export type MusicArtistProfileInput = {
+  name: string
+  bio?: string
+  avatar?: string
+  tagline?: string
+  vision?: string
+  genre_focus?: string
+  cta_label?: string
+  cta_url?: string
+  hero_image_url?: string
+  press_kit_url?: string
+  booking_email?: string
+  socials?: Record<string, string>
+  credits?: Array<{ title: string; role: string; artist?: string; url?: string }>
+}
+
+/** Creates or updates only the currently authenticated user's artist profile. */
+export async function saveArtistProfile(
+  profileId: string | null,
+  input: MusicArtistProfileInput,
+): Promise<{ id: string | null; error: string | null }> {
+  if (!supabase) return { id: null, error: 'Supabase is not configured.' }
+  const name = input.name.trim().slice(0, 80)
+  if (!name) return { id: null, error: 'Artist name is required.' }
+  const { data: authData, error: authError } = await supabase.auth.getSession()
+  const session = authData.session
+  if (authError || !session) return { id: null, error: 'Sign in to manage an artist profile.' }
+
+  const values = {
+    ...input,
+    name,
+    bio: (input.bio || '').slice(0, 2000),
+    user_id: session.user.id,
+  }
+  const result = profileId
+    ? await supabase.from('artist_profiles').update(values).eq('id', profileId).eq('user_id', session.user.id).select('id').maybeSingle()
+    : await supabase.from('artist_profiles').insert(values).select('id').single()
+  if (result.error) return { id: null, error: result.error.message }
+  if (!result.data?.id) return { id: null, error: 'Artist profile was not found or could not be saved.' }
+  return { id: String(result.data.id), error: null }
+}
+
 /** Public artist directory backed by the SCN artist_profiles table and its RLS read policy. */
 export async function fetchPublicArtistProfiles(): Promise<PublicMusicArtistProfile[]> {
   if (!supabase) return []
