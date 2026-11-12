@@ -15,6 +15,7 @@ interface PlayerBarProps {
   liked?: boolean
   likes?: number
   onToggleLike?: () => void
+  error?: string
 }
 
 const formatTime = (seconds: number) => {
@@ -41,6 +42,7 @@ export default function PlayerBar({
   liked = false,
   likes = 0,
   onToggleLike,
+  error,
 }: PlayerBarProps) {
   return (
     <footer className="player-bar">
@@ -54,6 +56,7 @@ export default function PlayerBar({
         <div className="now-playing-meta">
           <strong>{title || 'Select a Track'}</strong>
           <span>{artist || 'Harmony Kus-lords'}</span>
+          {error && <span role="status" aria-live="polite" style={{ color: '#ff8c8c', fontSize: '0.72rem' }}>{error}</span>}
         </div>
         {onToggleLike && (
           <button className={`like-btn ${liked ? 'liked' : ''}`} type="button" onClick={onToggleLike} title={liked ? 'Unlike' : 'Like'} aria-label={liked ? 'Unlike track' : 'Like track'}>

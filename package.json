@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "integrate": "node scripts/unzip-integrate.cjs",
-    "verify:music": "node scripts/verify-music-mega-001.mjs"
+    "verify:music": "node scripts/verify-music-mega-001.mjs",
+    "verify:music:mega-002": "node scripts/verify-music-mega-002.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
