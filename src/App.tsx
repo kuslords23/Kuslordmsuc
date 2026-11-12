@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { albums as defaultAlbums, initialTracks, type Album, type Track } from './data/music'
 import { sportsMatches } from './data/sports'
-import { fetchPublicArtistProfiles, fetchRemoteTracks, supabase, type PublicMusicArtistProfile } from './lib/supabase'
+import { fetchPublicArtistProfiles, fetchRemoteTracks, saveArtistProfile, supabase, type MusicArtistProfileInput, type PublicMusicArtistProfile } from './lib/supabase'
 import { loadExtractedTracks } from './lib/integrateExtracted'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
@@ -677,6 +677,15 @@ export default function App() {
         else next.add(artistName)
         return next
       })}
+      currentUserId={user?.id}
+      onSaveProfile={async (profileId: string | null, input: MusicArtistProfileInput) => {
+        const result = await saveArtistProfile(profileId, input)
+        if (result.id) {
+          const refreshed = await fetchPublicArtistProfiles()
+          setArtistProfiles(refreshed)
+        }
+        return result
+      }}
     />
   )
 
