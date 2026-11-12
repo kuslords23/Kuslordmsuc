@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 interface PlayerBarProps {
   title?: string
   artist?: string
@@ -38,8 +36,6 @@ export default function PlayerBar({
   onVolume,
   onOpenComments,
 }: PlayerBarProps) {
-  const [liked, setLiked] = useState(false)
-
   return (
     <footer className="player-bar">
       <div className="player-left">
@@ -53,13 +49,6 @@ export default function PlayerBar({
           <strong>{title || 'Select a Track'}</strong>
           <span>{artist || 'Harmony Kus-lords'}</span>
         </div>
-        <button
-          className={`like-btn ${liked ? 'liked' : ''}`}
-          onClick={() => setLiked(!liked)}
-          title={liked ? 'Unlike' : 'Like'}
-        >
-          {liked ? '♥' : '♡'}
-        </button>
         {onOpenComments && (
           <button className="like-btn" type="button" onClick={onOpenComments} title="Comments" aria-label="Open comments">
             💬
