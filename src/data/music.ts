@@ -15,6 +15,7 @@ export interface Track {
   isSportsAnthem?: boolean
   matchVibe?: string
   likes?: number
+  liked?: boolean
 }
 
 export interface Album {
