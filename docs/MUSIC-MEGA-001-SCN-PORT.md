@@ -227,3 +227,14 @@ Text-based external catalog search is still pending because it needs a server-si
 The standalone player now opens a comments panel for published audio posts. It reads and writes the shared SCN `feed_comments` table, subscribes to new comments in realtime, and derives the comment author from the active Supabase session rather than trusting a caller-supplied user ID. The entry point is available from desktop player controls and the mobile mini-player.
 
 The comment author RLS hardening is proposed separately in SCN PR #142 (`053_feed_comment_identity_hardening.sql`). Until that migration is applied, the standalone client still uses the verified session identity, but the database's existing insert policy remains weaker than desired. Replies, comment likes, video replies, and comment notifications are not yet ported.
+
+
+## 001-F: Royal comment capability
+
+The music app bridge now supports:
+- `GET_COMMENTS`: read comments for the current or selected published audio post.
+- `POST_COMMENT`: create a comment using the active Supabase session identity.
+
+The bridge rejects comment publishing unless the caller supplies `confirmed: true`. Royal's embedded music panel exposes a Post button; clicking it is the user's explicit confirmation. The app derives the author ID from `session.user.id`, not from a message payload.
+
+This is a comment capability, not a general messaging capability. Likes, follows, replies, and direct person-to-person messages still need their own real data contracts and approval flows. SCN PR #142 proposes database-level comment author RLS hardening; apply migration 053 before treating the comment write path as fully protected at the database boundary.
