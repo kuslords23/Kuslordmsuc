@@ -238,7 +238,7 @@ export default function App() {
     window.parent.postMessage({ type, payload }, parentOrigin)
   }, [allowedParentOrigins, parentOrigin])
 
-  const handleParentMessage = useCallback((event: MessageEvent) => {
+  const handleParentMessage = useCallback(async (event: MessageEvent) => {
     if (event.source !== window.parent || !event.data || typeof event.data !== 'object') return
     if (!allowedParentOrigins.has(event.origin)) return
 
