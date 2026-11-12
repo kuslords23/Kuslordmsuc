@@ -81,3 +81,40 @@ MUSIC-MEGA-001 removes the automatic `predev` hook. The historical ZIPs and manu
 - The player has one authoritative playback state and supports app UI plus approved parent/Royal controls.
 - All user-owned mutations are authenticated and enforced by database policies or trusted server-side checks.
 - Unavailable provider integrations are clearly reported as unavailable, not simulated as successful.
+
+
+## 001-B: First compatibility findings
+
+### Changes already applied on the working branch
+
+- Removed the `predev` script from `package.json`. Normal Vite startup no longer runs the recursive ZIP extractor.
+- Extended the standalone `Track` type with optional canonical record identifiers and metadata pointers: `postId`, `userId`, `artistProfileId`, and `audioContentHash`.
+- Updated the Supabase adapter to read only `feed_posts.post_type = 'audio'` and accept either a public `media_url` or a `storage_path`. The previous query required both fields to be non-null, which excluded valid rows.
+- Updated the standalone upload insert to mark records as `post_type: 'audio'` and persist SCN's `sound_title` and `sound_artist` metadata fields.
+- Updated the mapper to prefer canonical sound title/artist fields and retain the feed post/user/artist/hash identifiers.
+
+### Compatibility issues identified
+
+| Area | Finding | Required treatment |
+|---|---|---|
+| Audio uploads | Previous standalone uploads omitted `post_type: 'audio'`, `sound_title`, and `sound_artist`. | Corrected in this branch; verify against live schema and RLS before release. |
+| Library query | Previous query required both `media_url` and `storage_path`, despite the mapper supporting either. | Corrected to an audio-type filter plus an either/or URL-path condition. |
+| Artist identity | Previous mapper hard-coded a generic artist name and discarded owner/artist-profile identifiers. | Basic fields now retained; artist profile lookup and storefront integration remain. |
+| Playback | Standalone has one app-level audio element and a useful postMessage bridge. It does not yet expose the full SCN player contract or stream verification. | Preserve one player; add a typed, origin-checked control/state contract and durable stream event calls. |
+| Likes | Standalone `PlayerBar` currently stores the like state in component-local state only. | Replace with persisted, authenticated social actions; no optimistic success without a confirmed write. |
+| Monetization | SCN's `musicMonetization.ts` contains substantial localStorage-backed earnings, affiliate, referral, paid-sound-license, and boost state. | Treat these as prototype/UI logic, not authoritative money records. Audit durable ledger/payment support before exposing real balances, purchases, or payouts. |
+| Artist API | SCN's artist-profile route can use a service-role client while accepting a client-supplied `userId`. | Do not copy this trust model. Use verified session identity and RLS or a server route that validates the bearer session before privileged writes. |
+| Release registry | SCN has a release-registry RPC and RLS. The SECURITY DEFINER function accepts an owner ID argument; its caller/owner binding must be reviewed before exposing it to a browser client. | Preserve the unique content-hash/ISRC rule, but harden authorization at the database boundary. |
+| Stream tracking | SCN uses verified-listen thresholds (30 seconds direct or full completion; 10 seconds video attribution), idempotency keys, and a durable RPC. | Port the thresholds and idempotency contract. Do not count a stream merely because playback started. |
+| Historical archives | The standalone repository contains four historical overhaul ZIPs and the extractor can overwrite tracked files. | Keep archives as reference artifacts; do not run them wholesale. Build a reviewed manifest/patch workflow if any archive contents are needed. |
+
+### Schema facts established from SCN migrations
+
+- Migration 027 adds `sound_source_post_id`, `sound_title`, and `sound_artist` to `feed_posts`.
+- Migration 040 adds `artist_profiles`, artist-tier enforcement, `artist_profile_id`, `audio_content_hash`, `isrc`, `music_release_registry`, `music_stream_events`, and verified stream RPCs.
+- Migration 043 adds artist storefront fields including tagline, vision, genre focus, CTA, hero image, press kit, booking email, socials, and credits.
+- Migration 037 covers audio MIME/storage support; migration 038 covers listen-count support. Their exact storage policies and dependencies still need to be mapped before any database migration is copied or modified.
+
+### Verification still outstanding
+
+No production build, live Supabase write, RLS test, storage upload, stream-count test, or mobile playback test has been run from this GitHub-only editing session. The code changes above are source-level corrections and must not be described as runtime-verified.
