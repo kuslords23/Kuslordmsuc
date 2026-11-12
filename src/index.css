@@ -930,3 +930,78 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .artist-credits span { opacity: .7; font-size: .78rem; }
 .artist-credits a { margin-left: auto; font-size: .75rem; }
+
+
+/* SCN-style user playlist management */
+.playlist-library { margin: 1rem 0 1.5rem; }
+.playlist-create-row, .playlist-add-row {
+  display: flex;
+  gap: .55rem;
+  margin: .75rem 0;
+}
+.playlist-create-row input, .playlist-add-row select {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid rgba(212,175,55,.2);
+  border-radius: 10px;
+  padding: .7rem .8rem;
+  color: inherit;
+  background: rgba(255,255,255,.04);
+}
+.playlist-create-row button, .playlist-add-row button {
+  border: 1px solid rgba(212,175,55,.35);
+  border-radius: 10px;
+  padding: .65rem .85rem;
+  color: inherit;
+  background: rgba(212,175,55,.12);
+  cursor: pointer;
+}
+.playlist-create-row button:disabled, .playlist-add-row button:disabled { opacity: .4; cursor: not-allowed; }
+.playlist-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  gap: .7rem;
+}
+.playlist-library-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .35rem;
+  padding: .65rem;
+  border: 1px solid rgba(212,175,55,.16);
+  border-radius: 14px;
+  background: rgba(255,255,255,.035);
+  color: inherit;
+  text-align: left;
+}
+.playlist-library-art {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  font-size: 2.2rem;
+}
+.playlist-library-card strong { font-size: .85rem; }
+.playlist-library-card small, .playlist-storage-note { color: var(--text-muted, #999); font-size: .7rem; }
+.playlist-track-play {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: .7rem;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+.playlist-remove-track, .playlist-delete {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  padding: .35rem .55rem;
+  color: inherit;
+  background: rgba(255,255,255,.04);
+}
+.playlist-delete { margin-top: 1rem; color: #f18b8b; }
+.playlist-storage-note { margin-top: .65rem; }
