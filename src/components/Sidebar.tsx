@@ -109,6 +109,15 @@ export default function Sidebar({
           icon="📻"
         />
         <NavButton
+          label="Artist Directory"
+          active={activeTab === 'artists' && !activeAlbumId}
+          onClick={() => {
+            onSelectAlbum('')
+            onNavigateTab('artists')
+          }}
+          icon="🎤"
+        />
+        <NavButton
           label="Upload to Bucket"
           onClick={onOpenUpload}
           icon="☁"

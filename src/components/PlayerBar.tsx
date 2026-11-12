@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 interface PlayerBarProps {
   title?: string
   artist?: string
@@ -13,6 +11,10 @@ interface PlayerBarProps {
   onPrev: () => void
   onSeek: (time: number) => void
   onVolume: (value: number) => void
+  onOpenComments?: () => void
+  liked?: boolean
+  likes?: number
+  onToggleLike?: () => void
 }
 
 const formatTime = (seconds: number) => {
@@ -35,9 +37,11 @@ export default function PlayerBar({
   onPrev,
   onSeek,
   onVolume,
+  onOpenComments,
+  liked = false,
+  likes = 0,
+  onToggleLike,
 }: PlayerBarProps) {
-  const [liked, setLiked] = useState(false)
-
   return (
     <footer className="player-bar">
       <div className="player-left">
@@ -51,13 +55,16 @@ export default function PlayerBar({
           <strong>{title || 'Select a Track'}</strong>
           <span>{artist || 'Harmony Kus-lords'}</span>
         </div>
-        <button
-          className={`like-btn ${liked ? 'liked' : ''}`}
-          onClick={() => setLiked(!liked)}
-          title={liked ? 'Unlike' : 'Like'}
-        >
-          {liked ? '♥' : '♡'}
-        </button>
+        {onToggleLike && (
+          <button className={`like-btn ${liked ? 'liked' : ''}`} type="button" onClick={onToggleLike} title={liked ? 'Unlike' : 'Like'} aria-label={liked ? 'Unlike track' : 'Like track'}>
+            {liked ? '♥' : '♡'} <small>{likes}</small>
+          </button>
+        )}
+        {onOpenComments && (
+          <button className="like-btn" type="button" onClick={onOpenComments} title="Comments" aria-label="Open comments">
+            💬
+          </button>
+        )}
       </div>
 
       <div className="player-center">

@@ -39,6 +39,12 @@ export interface RemoteLibraryResult {
 
 interface DbFeedPost {
   id: string
+  post_type?: string | null
+  sound_title?: string | null
+  sound_artist?: string | null
+  artist_profile_id?: string | null
+  audio_content_hash?: string | null
+  listen_count?: number | null
   media_url?: string | null
   storage_path?: string | null
   cover_storage_path?: string | null
@@ -71,9 +77,14 @@ function bucketPublicUrl(bucket: string, path: string | null | undefined): strin
  */
 function deriveTitle(post: DbFeedPost): string {
   // Try common text fields first
-  if (post.content && post.content.trim()) return post.content.trim()
-  if (post.caption && post.caption.trim()) return post.caption.trim()
+  if (post.sound_title && post.sound_title.trim()) return post.sound_title.trim()
   if (post.title && post.title.trim()) return post.title.trim()
+  if (post.caption && post.caption.trim()) return post.caption.trim()
+  if (post.content && post.content.trim()) {
+    const content = post.content.trim()
+    // Older uploads stored a combined "title — artist (album)" display string.
+    return content.split(/\s+[—-]\s+/)[0]?.trim() || content
+  }
 
   // Fall back to the filename in storage_path
   if (post.storage_path) {
@@ -115,12 +126,17 @@ function rowToTrack(d: DbFeedPost): Track | null {
 
   return {
     id: d.id,
+    postId: d.id,
+    userId: d.user_id || undefined,
+    artistProfileId: d.artist_profile_id || undefined,
+    audioContentHash: d.audio_content_hash || undefined,
     title,
-    artist: 'Kus-lords Artist', // stored in user_media; default when unavailable
+    artist: d.sound_artist?.trim() || 'Kus-lords Artist',
     album: 'Cloud Vault',
-    duration: 0, // not stored in feed_posts; could be read from user_media
+    duration: 0, // Duration is not part of the verified feed_posts audio contract yet.
     audioUrl,
     cover,
+    likes: 0,
   }
 }
 
@@ -295,8 +311,8 @@ export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
     const { data, error } = await supabase
       .from('feed_posts')
       .select('*')
-      .not('media_url', 'is', null)          // only rows with audio
-      .not('storage_path', 'is', null)
+      .eq('post_type', 'audio')
+      .or('media_url.not.is.null,storage_path.not.is.null')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -357,6 +373,123 @@ async function removeUploadedFile(bucket: string, path: string) {
  * On database failure, cleans up newly created storage objects.
  * Does not create new tables or buckets.
  */
+export interface MusicArtistProfileOption {
+  id: string
+  name: string
+}
+
+export interface PublicMusicArtistProfile extends MusicArtistProfileOption {
+  userId: string
+  bio: string
+  avatar: string
+  verified: boolean
+  followerCount: number
+  tagline?: string
+  vision?: string
+  genreFocus?: string
+  ctaLabel?: string
+  ctaUrl?: string
+  heroImageUrl?: string
+  pressKitUrl?: string
+  bookingEmail?: string
+  socials: Record<string, string>
+  credits: Array<{ title: string; role: string; artist?: string; url?: string }>
+}
+
+export type MusicArtistProfileInput = {
+  name: string
+  bio?: string
+  avatar?: string
+  tagline?: string
+  vision?: string
+  genre_focus?: string
+  cta_label?: string
+  cta_url?: string
+  hero_image_url?: string
+  press_kit_url?: string
+  booking_email?: string
+  socials?: Record<string, string>
+  credits?: Array<{ title: string; role: string; artist?: string; url?: string }>
+}
+
+/** Creates or updates only the currently authenticated user's artist profile. */
+export async function saveArtistProfile(
+  profileId: string | null,
+  input: MusicArtistProfileInput,
+): Promise<{ id: string | null; error: string | null }> {
+  if (!supabase) return { id: null, error: 'Supabase is not configured.' }
+  const name = input.name.trim().slice(0, 80)
+  if (!name) return { id: null, error: 'Artist name is required.' }
+  const { data: authData, error: authError } = await supabase.auth.getSession()
+  const session = authData.session
+  if (authError || !session) return { id: null, error: 'Sign in to manage an artist profile.' }
+
+  const values = {
+    ...input,
+    name,
+    bio: (input.bio || '').slice(0, 2000),
+    user_id: session.user.id,
+  }
+  const result = profileId
+    ? await supabase.from('artist_profiles').update(values).eq('id', profileId).eq('user_id', session.user.id).select('id').maybeSingle()
+    : await supabase.from('artist_profiles').insert(values).select('id').single()
+  if (result.error) return { id: null, error: result.error.message }
+  if (!result.data?.id) return { id: null, error: 'Artist profile was not found or could not be saved.' }
+  return { id: String(result.data.id), error: null }
+}
+
+/** Public artist directory backed by the SCN artist_profiles table and its RLS read policy. */
+export async function fetchPublicArtistProfiles(): Promise<PublicMusicArtistProfile[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('artist_profiles')
+    .select('id,name,user_id,bio,avatar,verified,follower_count,tagline,vision,genre_focus,cta_label,cta_url,hero_image_url,press_kit_url,booking_email,socials,credits')
+    .order('follower_count', { ascending: false })
+    .limit(60)
+  if (error) {
+    console.warn('Could not load public artist directory:', error.message)
+    return []
+  }
+  return (data || []).map((row) => ({
+    id: String(row.id),
+    name: String(row.name || 'Unknown artist'),
+    userId: String(row.user_id || ''),
+    bio: String(row.bio || ''),
+    avatar: String(row.avatar || '🎤'),
+    verified: Boolean(row.verified),
+    followerCount: Number(row.follower_count || 0),
+    tagline: typeof row.tagline === 'string' ? row.tagline : undefined,
+    vision: typeof row.vision === 'string' ? row.vision : undefined,
+    genreFocus: typeof row.genre_focus === 'string' ? row.genre_focus : undefined,
+    ctaLabel: typeof row.cta_label === 'string' ? row.cta_label : undefined,
+    ctaUrl: typeof row.cta_url === 'string' ? row.cta_url : undefined,
+    heroImageUrl: typeof row.hero_image_url === 'string' ? row.hero_image_url : undefined,
+    pressKitUrl: typeof row.press_kit_url === 'string' ? row.press_kit_url : undefined,
+    bookingEmail: typeof row.booking_email === 'string' ? row.booking_email : undefined,
+    socials: row.socials && typeof row.socials === 'object' && !Array.isArray(row.socials)
+      ? row.socials as Record<string, string>
+      : {},
+    credits: Array.isArray(row.credits) ? row.credits as Array<{ title: string; role: string; artist?: string; url?: string }> : [],
+  }))
+}
+
+/** Lists the signed-in creator's own artist profiles using the active RLS session. */
+export async function fetchOwnedArtistProfiles(userId: string): Promise<MusicArtistProfileOption[]> {
+  if (!userId || !supabase) return []
+  const { data, error } = await supabase
+    .from('artist_profiles')
+    .select('id, name')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+  if (error) {
+    console.warn('Could not load artist profiles:', error.message)
+    return []
+  }
+  return (data || []).filter((item): item is MusicArtistProfileOption =>
+    typeof item.id === 'string' && typeof item.name === 'string'
+  )
+}
+
 export async function uploadTrackToBucket(params: {
   title: string
   artist: string
@@ -364,6 +497,7 @@ export async function uploadTrackToBucket(params: {
   audioFile: File
   coverFile: File | null
   user: { id: string }
+  artistProfileId?: string | null
 }): Promise<Track> {
   if (!isSupabaseConfigured() || !supabase) {
     throw new Error(
@@ -427,10 +561,14 @@ export async function uploadTrackToBucket(params: {
     const { data: inserted, error: dbError } = await supabase
       .from('feed_posts')
       .insert({
+        post_type: 'audio',
         content,
+        sound_title: params.title.trim(),
+        sound_artist: params.artist.trim(),
         media_url: audioPublicUrl,
         storage_path: audioPath,
         cover_storage_path: coverPath || null,
+        artist_profile_id: params.artistProfileId || null,
         user_id: params.user.id,
       })
       .select('*')

@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
-import { uploadTrackToBucket } from '../lib/supabase'
+import { fetchOwnedArtistProfiles, uploadTrackToBucket, type MusicArtistProfileOption } from '../lib/supabase'
 import { Track } from '../data/music'
 
 interface UploadModalProps {
@@ -20,11 +20,32 @@ export default function UploadModal({
 }: UploadModalProps) {
   const [title, setTitle] = useState('')
   const [artist, setArtist] = useState('')
+  const [artistProfiles, setArtistProfiles] = useState<MusicArtistProfileOption[]>([])
+  const [artistProfileId, setArtistProfileId] = useState('')
   const [album, setAlbum] = useState('')
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+
+  useEffect(() => {
+    if (!isOpen || !user) {
+      setArtistProfiles([])
+      setArtistProfileId('')
+      return
+    }
+    let cancelled = false
+    fetchOwnedArtistProfiles(user.id).then((profiles) => {
+      if (cancelled) return
+      setArtistProfiles(profiles)
+      setArtistProfileId((current) =>
+        current && profiles.some((profile) => profile.id === current)
+          ? current
+          : profiles[0]?.id || ''
+      )
+    })
+    return () => { cancelled = true }
+  }, [isOpen, user?.id])
 
   if (!isOpen) return null
 
@@ -56,6 +77,7 @@ export default function UploadModal({
         audioFile,
         coverFile,
         user,
+        artistProfileId: artistProfileId || null,
       })
 
       if (track) {
@@ -120,6 +142,20 @@ export default function UploadModal({
                 onChange={(e) => setArtist(e.target.value)}
               />
             </div>
+
+            {artistProfiles.length > 0 && (
+              <div className="form-group">
+                <label>Publish under artist profile</label>
+                <select
+                  value={artistProfileId}
+                  onChange={(e) => setArtistProfileId(e.target.value)}
+                >
+                  {artistProfiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>{profile.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="form-group">
               <label>Album / Collection</label>
