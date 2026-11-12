@@ -7,6 +7,7 @@ const app = read("../src/App.tsx");
 const data = read("../src/lib/supabase.ts");
 const upload = read("../src/components/UploadModal.tsx");
 const model = read("../src/data/music.ts");
+const artists = read("../src/components/ArtistDirectory.tsx");
 
 assert.equal(pkg.scripts.predev, undefined, "dev startup must not auto-extract ZIP archives");
 assert.match(pkg.scripts.dev, /vite/, "dev script must remain Vite");
@@ -22,6 +23,9 @@ assert.match(data, /sound_title: params\.title\.trim\(\)/, "uploads must persist
 assert.match(data, /artist_profile_id: params\.artistProfileId \|\| null/, "uploads must persist selected artist profile");
 assert.match(upload, /fetchOwnedArtistProfiles/, "upload UI must load the current user's artist profiles");
 assert.match(upload, /Publish under artist profile/, "upload UI must expose artist profile selection");
+assert.match(data, /fetchPublicArtistProfiles/, "public artist storefront data adapter must exist");
+assert.match(artists, /Artist Directory/, "artist directory surface must exist");
+assert.match(artists, /artistProfileId === selected.id/, "artist storefront must resolve its linked releases");
 assert.match(model, /postId\?: string/, "track model must retain canonical feed post ID");
 assert.match(model, /artistProfileId\?: string/, "track model must retain artist profile ID");
 
