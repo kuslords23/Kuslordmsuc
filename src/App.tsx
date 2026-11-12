@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { albums as defaultAlbums, initialTracks, type Album, type Track } from './data/music'
 import { sportsMatches } from './data/sports'
-import { fetchRemoteTracks } from './lib/supabase'
+import { fetchPublicArtistProfiles, fetchRemoteTracks, type PublicMusicArtistProfile } from './lib/supabase'
 import { loadExtractedTracks } from './lib/integrateExtracted'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
@@ -10,10 +10,11 @@ import PlayerBar from './components/PlayerBar'
 import AuthModal from './components/AuthModal'
 import UploadModal from './components/UploadModal'
 import Studio from './components/Studio'
+import ArtistDirectory from './components/ArtistDirectory'
 import { useAuth } from './context/AuthContext'
 import './index.css'
 
-type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search' | 'studio'
+type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search' | 'studio' | 'artists'
 
 const formatTime = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
@@ -31,6 +32,7 @@ export default function App() {
     ...loadExtractedTracks(),
     ...initialTracks,
   ])
+  const [artistProfiles, setArtistProfiles] = useState<PublicMusicArtistProfile[]>([])
 
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -67,6 +69,15 @@ export default function App() {
       .catch((err) => {
         console.error('Could not load cloud library:', err)
       })
+    return () => { cancelled = true }
+  }, [])
+
+  // Public SCN artist profiles and storefront metadata.
+  useEffect(() => {
+    let cancelled = false
+    fetchPublicArtistProfiles().then((profiles) => {
+      if (!cancelled) setArtistProfiles(profiles)
+    })
     return () => { cancelled = true }
   }, [])
 
@@ -543,6 +554,14 @@ export default function App() {
     </div>
   )
 
+  const renderArtists = () => (
+    <ArtistDirectory
+      profiles={artistProfiles}
+      tracks={tracks}
+      onPlayTrack={playTrack}
+    />
+  )
+
   const renderSearch = () => (
     <div className="tab-scroll">
       <div className="search-input-wrap">
@@ -711,6 +730,7 @@ export default function App() {
               {activeTab === 'browse' && renderBrowse()}
               {activeTab === 'radio' && renderRadio()}
               {activeTab === 'library' && renderLibrary()}
+              {activeTab === 'artists' && renderArtists()}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'studio' && (
                 <Studio
@@ -768,14 +788,14 @@ export default function App() {
         </button>
 
         <div className="nav-group">
-          {(['radio', 'library'] as Tab[]).map((tab) => (
+          {(['radio', 'library', 'artists'] as Tab[]).map((tab) => (
             <button
               key={tab}
               className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
               onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}
             >
-              <span className="nav-icon">{tab === 'radio' ? '📻' : '📚'}</span>
-              <span className="nav-label">{tab === 'radio' ? 'Radio' : 'Library'}</span>
+              <span className="nav-icon">{tab === 'radio' ? '📻' : tab === 'library' ? '📚' : '🎤'}</span>
+              <span className="nav-label">{tab === 'radio' ? 'Radio' : tab === 'library' ? 'Library' : 'Artists'}</span>
             </button>
           ))}
         </div>
