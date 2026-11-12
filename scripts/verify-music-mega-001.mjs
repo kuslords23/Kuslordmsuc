@@ -12,6 +12,7 @@ const playlists = read("../src/components/PlaylistLibrary.tsx");
 const playlistStore = read("../src/lib/playlists.ts");
 const embeds = read("../src/lib/musicEmbeds.ts");
 const comments = read("../src/components/CommentsPanel.tsx");
+const follows = read("../src/lib/artistFollows.ts");
 
 assert.equal(pkg.scripts.predev, undefined, "dev startup must not auto-extract ZIP archives");
 assert.match(pkg.scripts.dev, /vite/, "dev script must remain Vite");
@@ -30,6 +31,8 @@ assert.match(upload, /Publish under artist profile/, "upload UI must expose arti
 assert.match(data, /fetchPublicArtistProfiles/, "public artist storefront data adapter must exist");
 assert.match(artists, /Artist Directory/, "artist directory surface must exist");
 assert.match(artists, /artistProfileId === selected.id/, "artist storefront must resolve its linked releases");
+assert.match(artists, /Follow artist/, "artist storefront must expose follow controls");
+assert.match(follows, /kus_followed_artists/, "follow state must use SCN-compatible local storage key");
 assert.match(playlists, /Your Playlists/, "playlist library UI must exist");
 assert.match(playlistStore, /kus_music_playlists/, "playlist persistence must use SCN-compatible local storage key");
 assert.match(embeds, /parseMusicLink/, "official music link parser must exist");
