@@ -1,5 +1,10 @@
 export interface Track {
   id: string
+  /** Canonical feed_posts.id for persisted SCN-compatible audio posts. */
+  postId?: string
+  userId?: string
+  artistProfileId?: string
+  audioContentHash?: string
   title: string
   artist: string
   album: string
