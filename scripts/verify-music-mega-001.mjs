@@ -17,7 +17,7 @@ assert.equal(pkg.scripts.predev, undefined, "dev startup must not auto-extract Z
 assert.match(pkg.scripts.dev, /vite/, "dev script must remain Vite");
 assert.match(app, /event\.source !== window\.parent/, "bridge must accept messages only from parent");
 assert.match(app, /allowedParentOrigins\.has\(event\.origin\)/, "bridge must enforce exact origin allowlist");
-for (const command of ["SEARCH_TRACKS", "GET_TRACKS", "PLAY_TRACK", "SET_QUEUE", "ADD_TO_QUEUE", "CLEAR_QUEUE", "GET_STATE"]) {
+for (const command of ["SEARCH_TRACKS", "GET_TRACKS", "PLAY_TRACK", "SET_QUEUE", "ADD_TO_QUEUE", "CLEAR_QUEUE", "GET_STATE", "GET_COMMENTS", "POST_COMMENT"]) {
   assert.ok(app.includes(`case '${command}'`), `missing bridge command: ${command}`);
 }
 assert.match(data, /\.eq\('post_type', 'audio'\)/, "library must filter canonical audio posts");
@@ -37,6 +37,7 @@ assert.match(embeds, /w\.soundcloud\.com\/player/, "SoundCloud embed must use it
 assert.match(app, /external-music-embed/, "search UI must render official platform embeds");
 assert.match(comments, /session\.user\.id/, "comment author must come from the verified Supabase session");
 assert.match(comments, /feed_comments/, "music comments must use the shared SCN comments table");
+assert.match(app, /payload\?\.confirmed !== true/, "Royal comment publishing must require explicit confirmation");
 assert.match(app, /setCommentsTrack\(currentTrack\)/, "player must expose comments on the current track");
 assert.match(model, /postId\?: string/, "track model must retain canonical feed post ID");
 assert.match(model, /artistProfileId\?: string/, "track model must retain artist profile ID");
