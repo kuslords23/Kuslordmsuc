@@ -373,6 +373,28 @@ async function removeUploadedFile(bucket: string, path: string) {
  * On database failure, cleans up newly created storage objects.
  * Does not create new tables or buckets.
  */
+export interface MusicArtistProfileOption {
+  id: string
+  name: string
+}
+
+/** Lists the signed-in creator's own artist profiles using the active RLS session. */
+export async function fetchOwnedArtistProfiles(userId: string): Promise<MusicArtistProfileOption[]> {
+  if (!userId || !supabase) return []
+  const { data, error } = await supabase
+    .from('artist_profiles')
+    .select('id, name')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+  if (error) {
+    console.warn('Could not load artist profiles:', error.message)
+    return []
+  }
+  return (data || []).filter((item): item is MusicArtistProfileOption =>
+    typeof item.id === 'string' && typeof item.name === 'string'
+  )
+}
+
 export async function uploadTrackToBucket(params: {
   title: string
   artist: string
@@ -380,6 +402,7 @@ export async function uploadTrackToBucket(params: {
   audioFile: File
   coverFile: File | null
   user: { id: string }
+  artistProfileId?: string | null
 }): Promise<Track> {
   if (!isSupabaseConfigured() || !supabase) {
     throw new Error(
@@ -450,6 +473,7 @@ export async function uploadTrackToBucket(params: {
         media_url: audioPublicUrl,
         storage_path: audioPath,
         cover_storage_path: coverPath || null,
+        artist_profile_id: params.artistProfileId || null,
         user_id: params.user.id,
       })
       .select('*')
