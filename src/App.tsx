@@ -13,6 +13,7 @@ import Studio from './components/Studio'
 import ArtistDirectory from './components/ArtistDirectory'
 import PlaylistLibrary from './components/PlaylistLibrary'
 import { loadPlaylistsLocal, savePlaylistsLocal, type MusicPlaylist } from './lib/playlists'
+import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
 import { useAuth } from './context/AuthContext'
 import './index.css'
 
@@ -591,6 +592,28 @@ export default function App() {
       </div>
       {search.trim() ? (
         <>
+          {(() => {
+            const external = parseMusicLink(search)
+            if (!external) return null
+            return (
+              <section className="external-music-embed">
+                <div className="section-title">
+                  <h2>{external.platform === 'appleMusic' ? 'Apple Music' : external.platform === 'soundcloud' ? 'SoundCloud' : 'Spotify'} embed</h2>
+                  <a href={external.openUrl} target="_blank" rel="noopener noreferrer">Open original ↗</a>
+                </div>
+                <iframe
+                  title={`${external.platform} music player`}
+                  src={external.embedUrl}
+                  height={musicEmbedHeight(external.platform, external.resourceType)}
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"
+                  referrerPolicy="strict-origin"
+                  className="external-music-iframe"
+                />
+                <p>Playback is provided by the official platform player. Kus-Lords Music does not rehost external audio.</p>
+              </section>
+            )
+          })()}
           <div className="section-title"><h2>Albums</h2></div>
           <div className="album-grid">
             {filteredAlbums.map((a) => (
