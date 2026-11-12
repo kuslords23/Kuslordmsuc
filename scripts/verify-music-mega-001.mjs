@@ -11,6 +11,7 @@ const artists = read("../src/components/ArtistDirectory.tsx");
 const playlists = read("../src/components/PlaylistLibrary.tsx");
 const playlistStore = read("../src/lib/playlists.ts");
 const embeds = read("../src/lib/musicEmbeds.ts");
+const comments = read("../src/components/CommentsPanel.tsx");
 
 assert.equal(pkg.scripts.predev, undefined, "dev startup must not auto-extract ZIP archives");
 assert.match(pkg.scripts.dev, /vite/, "dev script must remain Vite");
@@ -34,6 +35,9 @@ assert.match(playlistStore, /kus_music_playlists/, "playlist persistence must us
 assert.match(embeds, /parseMusicLink/, "official music link parser must exist");
 assert.match(embeds, /w\.soundcloud\.com\/player/, "SoundCloud embed must use its official player");
 assert.match(app, /external-music-embed/, "search UI must render official platform embeds");
+assert.match(comments, /session\.user\.id/, "comment author must come from the verified Supabase session");
+assert.match(comments, /feed_comments/, "music comments must use the shared SCN comments table");
+assert.match(app, /setCommentsTrack\(currentTrack\)/, "player must expose comments on the current track");
 assert.match(model, /postId\?: string/, "track model must retain canonical feed post ID");
 assert.match(model, /artistProfileId\?: string/, "track model must retain artist profile ID");
 
