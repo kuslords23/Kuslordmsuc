@@ -14,6 +14,7 @@ import ArtistDirectory from './components/ArtistDirectory'
 import CommentsPanel from './components/CommentsPanel'
 import PlaylistLibrary from './components/PlaylistLibrary'
 import { loadPlaylistsLocal, savePlaylistsLocal, type MusicPlaylist } from './lib/playlists'
+import { loadFollowedArtists, saveFollowedArtists } from './lib/artistFollows'
 import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
 import { useAuth } from './context/AuthContext'
 import './index.css'
@@ -39,6 +40,7 @@ export default function App() {
   const [artistProfiles, setArtistProfiles] = useState<PublicMusicArtistProfile[]>([])
   const [playlists, setPlaylists] = useState<MusicPlaylist[]>(() => loadPlaylistsLocal())
   const [commentsTrack, setCommentsTrack] = useState<Track | null>(null)
+  const [followedArtists, setFollowedArtists] = useState<Set<string>>(() => loadFollowedArtists())
 
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -81,6 +83,10 @@ export default function App() {
   useEffect(() => {
     savePlaylistsLocal(playlists)
   }, [playlists])
+
+  useEffect(() => {
+    saveFollowedArtists(followedArtists)
+  }, [followedArtists])
 
   // Public SCN artist profiles and storefront metadata.
   useEffect(() => {
@@ -633,6 +639,13 @@ export default function App() {
       profiles={artistProfiles}
       tracks={tracks}
       onPlayTrack={playTrack}
+      followedArtists={followedArtists}
+      onToggleFollow={(artistName) => setFollowedArtists((previous) => {
+        const next = new Set(previous)
+        if (next.has(artistName)) next.delete(artistName)
+        else next.add(artistName)
+        return next
+      })}
     />
   )
 
