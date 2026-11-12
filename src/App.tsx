@@ -174,6 +174,8 @@ export default function App() {
     const audio = audioRef.current
     if (!track || !audio) return false
     setPlaybackError(null)
+    currentTrackRef.current = track
+    queueRef.current = trackList
     setCurrentTrack(track)
     setQueue(trackList)
     audio.pause()
@@ -302,7 +304,8 @@ export default function App() {
         const trackId = typeof payload?.trackId === 'string' ? payload.trackId : ''
         const track = tracks.find((item) => item.id === trackId || item.postId === trackId)
         if (track) {
-          const ok = await playTrack(track, queue.length ? queue : tracks)
+          const playbackQueue = queue.some((item) => item.id === track.id) ? queue : tracks
+        const ok = await playTrack(track, playbackQueue)
           reply('MUSIC_ACTION_RESULT', { action: type, ok, trackId: track.id, error: ok ? null : 'The browser could not start this track.' })
         } else {
           reply('MUSIC_ACTION_RESULT', { action: type, ok: false, error: 'Track not found in loaded library' })
@@ -451,6 +454,7 @@ export default function App() {
         const nextQueue = type === 'ADD_TO_QUEUE'
           ? [...queue, ...validTracks.filter((item) => !queue.some((queued) => queued.id === item.id))]
           : validTracks
+        queueRef.current = nextQueue
         setQueue(nextQueue)
         let startedPlayback = false
         if (type === 'SET_QUEUE' && nextQueue.length > 0 && (!currentTrack || !nextQueue.some((t) => t.id === currentTrack.id))) {
@@ -460,11 +464,12 @@ export default function App() {
         break
       }
       case 'CLEAR_QUEUE':
+        queueRef.current = []
         setQueue([])
         reply('MUSIC_ACTION_RESULT', { action: type, ok: true, queue: [] })
         break
     }
-  }, [allowedParentOrigins, tracks, queue, playTrack, togglePlay, nextTrack, prevTrack, currentTrack, currentTime, duration, volume])
+  }, [allowedParentOrigins, tracks, queue, playTrack, togglePlay, nextTrack, prevTrack, currentTrack, currentTime, duration, volume, playbackError])
 
   useEffect(() => {
     const embedded = window.parent !== window
@@ -495,8 +500,9 @@ export default function App() {
       duration: Math.floor(duration),
       volume,
       queue: queue.map((t) => t.id),
+      playbackError,
     })
-  }, [isEmbedded, parentOrigin, allowedParentOrigins, sendParentMessage, isPlaying, currentTrack, currentTime, duration, volume, queue])
+  }, [isEmbedded, parentOrigin, allowedParentOrigins, sendParentMessage, isPlaying, currentTrack, currentTime, duration, volume, queue, playbackError])
 
   useEffect(() => {
     const audio = audioRef.current
