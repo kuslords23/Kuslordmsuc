@@ -201,3 +201,15 @@ Limitations:
 | Royal control | SCN app bridge / companion surfaces | Embedded Royal player panel and search/play/queue bridge added; deployment config pending |
 
 The source verifier now also checks the artist-directory data adapter and storefront release linkage.
+
+
+## 001-D: Playlist management parity slice
+
+The standalone app now includes SCN-compatible local playlist management:
+- Create up to 30 named playlists.
+- Persist playlists under the same `kus_music_playlists` localStorage key used by SCN.
+- Add tracks from the loaded music library.
+- Play a playlist queue, remove tracks, and delete playlists.
+- Keep the playlist UI in the existing Library tab without introducing a second playback engine.
+
+This intentionally matches SCN's current localStorage-based playlist persistence. It is not cross-device cloud sync. The UI states that clearly rather than implying that a local playlist is backed up to Supabase.
