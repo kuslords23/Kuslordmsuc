@@ -18,6 +18,13 @@ function spotifyPath(type: MusicEmbedResourceType) {
 }
 
 function parseSpotify(raw: string): ParsedMusicLink | null {
+  if (SPOTIFY_ID.test(raw)) {
+    return {
+      platform: 'spotify', resourceType: 'track', id: raw,
+      openUrl: `https://open.spotify.com/track/${raw}`,
+      embedUrl: `https://open.spotify.com/embed/track/${raw}?utm_source=generator`,
+    }
+  }
   if (raw.startsWith('spotify:')) {
     const [, kind, id] = raw.split(':')
     if (!id || !SPOTIFY_ID.test(id)) return null
@@ -47,6 +54,13 @@ function parseSpotify(raw: string): ParsedMusicLink | null {
 }
 
 function parseAppleMusic(raw: string): ParsedMusicLink | null {
+  if (APPLE_ID.test(raw)) {
+    return {
+      platform: 'appleMusic', resourceType: 'artist', id: raw, storefront: 'us',
+      openUrl: `https://music.apple.com/us/artist/${raw}`,
+      embedUrl: `https://embed.music.apple.com/us/artist/${raw}`,
+    }
+  }
   try {
     const url = new URL(raw)
     const host = url.hostname.replace(/^www\./, '')
