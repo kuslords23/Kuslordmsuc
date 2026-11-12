@@ -111,8 +111,8 @@ export function parseMusicLink(input: string): ParsedMusicLink | null {
   const raw = input.trim()
   if (!raw) return null
   const lower = raw.toLowerCase()
-  if (lower.startsWith('spotify:') || lower.includes('spotify.com')) return parseSpotify(raw)
-  if (lower.includes('music.apple.com') || lower.includes('itunes.apple.com')) return parseAppleMusic(raw)
+  if (lower.startsWith('spotify:') || lower.includes('spotify.com') || SPOTIFY_ID.test(raw)) return parseSpotify(raw)
+  if (lower.includes('music.apple.com') || lower.includes('itunes.apple.com') || APPLE_ID.test(raw)) return parseAppleMusic(raw)
   if (lower.includes('soundcloud.com')) return parseSoundCloud(raw)
   return null
 }
