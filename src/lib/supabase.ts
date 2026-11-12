@@ -39,6 +39,12 @@ export interface RemoteLibraryResult {
 
 interface DbFeedPost {
   id: string
+  post_type?: string | null
+  sound_title?: string | null
+  sound_artist?: string | null
+  artist_profile_id?: string | null
+  audio_content_hash?: string | null
+  listen_count?: number | null
   media_url?: string | null
   storage_path?: string | null
   cover_storage_path?: string | null
@@ -71,9 +77,14 @@ function bucketPublicUrl(bucket: string, path: string | null | undefined): strin
  */
 function deriveTitle(post: DbFeedPost): string {
   // Try common text fields first
-  if (post.content && post.content.trim()) return post.content.trim()
-  if (post.caption && post.caption.trim()) return post.caption.trim()
+  if (post.sound_title && post.sound_title.trim()) return post.sound_title.trim()
   if (post.title && post.title.trim()) return post.title.trim()
+  if (post.caption && post.caption.trim()) return post.caption.trim()
+  if (post.content && post.content.trim()) {
+    const content = post.content.trim()
+    // Older uploads stored a combined "title — artist (album)" display string.
+    return content.split(/\s+[—-]\s+/)[0]?.trim() || content
+  }
 
   // Fall back to the filename in storage_path
   if (post.storage_path) {
@@ -115,12 +126,17 @@ function rowToTrack(d: DbFeedPost): Track | null {
 
   return {
     id: d.id,
+    postId: d.id,
+    userId: d.user_id || undefined,
+    artistProfileId: d.artist_profile_id || undefined,
+    audioContentHash: d.audio_content_hash || undefined,
     title,
-    artist: 'Kus-lords Artist', // stored in user_media; default when unavailable
+    artist: d.sound_artist?.trim() || 'Kus-lords Artist',
     album: 'Cloud Vault',
-    duration: 0, // not stored in feed_posts; could be read from user_media
+    duration: 0, // Duration is not part of the verified feed_posts audio contract yet.
     audioUrl,
     cover,
+    likes: 0,
   }
 }
 
@@ -295,8 +311,8 @@ export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
     const { data, error } = await supabase
       .from('feed_posts')
       .select('*')
-      .not('media_url', 'is', null)          // only rows with audio
-      .not('storage_path', 'is', null)
+      .eq('post_type', 'audio')
+      .or('media_url.not.is.null,storage_path.not.is.null')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -427,7 +443,10 @@ export async function uploadTrackToBucket(params: {
     const { data: inserted, error: dbError } = await supabase
       .from('feed_posts')
       .insert({
+        post_type: 'audio',
         content,
+        sound_title: params.title.trim(),
+        sound_artist: params.artist.trim(),
         media_url: audioPublicUrl,
         storage_path: audioPath,
         cover_storage_path: coverPath || null,
