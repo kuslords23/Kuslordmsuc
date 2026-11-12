@@ -6,6 +6,8 @@ interface ArtistDirectoryProps {
   profiles: PublicMusicArtistProfile[]
   tracks: Track[]
   onPlayTrack: (track: Track, queue: Track[]) => void
+  followedArtists: Set<string>
+  onToggleFollow: (artistName: string) => void
 }
 
 function safeExternalUrl(value?: string): string | null {
@@ -18,7 +20,7 @@ function safeExternalUrl(value?: string): string | null {
   }
 }
 
-export default function ArtistDirectory({ profiles, tracks, onPlayTrack }: ArtistDirectoryProps) {
+export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followedArtists, onToggleFollow }: ArtistDirectoryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected = profiles.find((profile) => profile.id === selectedId) || null
   const artistTracks = useMemo(
@@ -53,6 +55,9 @@ export default function ArtistDirectory({ profiles, tracks, onPlayTrack }: Artis
             <div className="artist-meta-line">
               {selected.genreFocus && <span>{selected.genreFocus}</span>}
               <span>{selected.followerCount.toLocaleString()} followers</span>
+              <button type="button" className="artist-follow-button" onClick={() => onToggleFollow(selected.name)}>
+                {followedArtists.has(selected.name) ? 'Following' : 'Follow artist'}
+              </button>
             </div>
             <div className="artist-socials">
               {socials.map((item) => (
