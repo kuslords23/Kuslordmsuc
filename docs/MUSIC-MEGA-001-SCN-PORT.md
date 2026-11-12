@@ -243,3 +243,8 @@ This is a comment capability, not a general messaging capability. Likes, follows
 ## 001-D: Artist follow state
 
 The standalone artist storefront now supports Follow/Following. It uses the same `kus_followed_artists` localStorage key as SCN's current music hub. This preserves local-device behaviour only; it is not the shared cross-device `follows` graph and does not claim to notify artists.
+
+
+## 001-F: Track likes
+
+The player and Royal bridge now expose Like/Unlike for the currently selected track. This updates the app's in-memory track state and current session's displayed count. It is intentionally labelled as session-local: the SCN music hub's current `toggleLike` path also updates its in-memory track collection rather than writing a durable likes table. No shared database likes table was found in the inspected SCN migrations, so this port does not invent one or claim cross-device persistence.
