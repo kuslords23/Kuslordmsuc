@@ -74,17 +74,25 @@ export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followe
       setSavingProfile(false)
       return
     }
-    const result = await onSaveProfile(editingProfileId, { ...draft, socials })
-    setSavingProfile(false)
-    if (result.error || !result.id) {
-      setEditorError(result.error || 'Could not save artist profile.')
-      return
+    try {
+      const result = await onSaveProfile(editingProfileId, { ...draft, socials })
+      if (result.error || !result.id) {
+        setEditorError(result.error || 'Could not save artist profile.')
+        return
+      }
+      setSelectedId(result.id)
+      setEditorOpen(false)
+    } catch (cause) {
+      setEditorError(cause instanceof Error ? cause.message : 'Could not save artist profile.')
+    } finally {
+      setSavingProfile(false)
     }
-    setSelectedId(result.id)
-    setEditorOpen(false)
   }
 
-  const updateDraft = (key: keyof MusicArtistProfileInput, value: string) => {
+  const updateDraft = (
+    key: 'name' | 'bio' | 'avatar' | 'tagline' | 'vision' | 'genre_focus' | 'cta_label' | 'cta_url' | 'hero_image_url' | 'press_kit_url' | 'booking_email',
+    value: string,
+  ) => {
     setDraft((previous) => ({ ...previous, [key]: value }))
   }
 
