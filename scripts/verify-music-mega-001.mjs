@@ -29,6 +29,9 @@ assert.match(data, /artist_profile_id: params\.artistProfileId \|\| null/, "uplo
 assert.match(upload, /fetchOwnedArtistProfiles/, "upload UI must load the current user's artist profiles");
 assert.match(upload, /Publish under artist profile/, "upload UI must expose artist profile selection");
 assert.match(data, /fetchPublicArtistProfiles/, "public artist storefront data adapter must exist");
+assert.match(data, /saveArtistProfile/, "artist profile editor must have an RLS-scoped Supabase adapter");
+assert.match(data, /eq\('user_id', session\.user\.id\)/, "artist profile updates must be scoped to the authenticated owner");
+assert.match(artists, /Create artist profile/, "artist profile creation UI must exist");
 assert.match(artists, /Artist Directory/, "artist directory surface must exist");
 assert.match(artists, /artistProfileId === selected.id/, "artist storefront must resolve its linked releases");
 assert.match(artists, /Follow artist/, "artist storefront must expose follow controls");
