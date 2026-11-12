@@ -1094,3 +1094,43 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   font-weight: 700;
   cursor: pointer;
 }
+
+
+.artist-profile-editor {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(212,175,55,.24);
+  border-radius: 16px;
+  background: rgba(255,255,255,.035);
+}
+.artist-profile-editor > label, .artist-editor-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  margin: .65rem 0;
+  color: var(--text-muted, #aaa);
+  font-size: .74rem;
+}
+.artist-profile-editor input, .artist-profile-editor textarea {
+  width: 100%;
+  min-width: 0;
+  padding: .65rem .75rem;
+  border: 1px solid rgba(212,175,55,.18);
+  border-radius: 9px;
+  background: rgba(0,0,0,.15);
+  color: inherit;
+  font: inherit;
+}
+.artist-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .15rem .75rem;
+}
+.artist-editor-actions { display: flex; gap: .6rem; margin-top: .8rem; }
+.artist-editor-actions button {
+  padding: .55rem .8rem;
+  border: 1px solid rgba(212,175,55,.3);
+  border-radius: 9px;
+  background: rgba(212,175,55,.12);
+  color: inherit;
+}
