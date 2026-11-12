@@ -1030,3 +1030,55 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: rgba(0,0,0,.15);
 }
 .external-music-embed p { margin: .5rem 0 0; color: var(--text-muted, #999); font-size: .7rem; }
+
+
+/* Authenticated comments for published music posts */
+.music-comments-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0,0,0,.62);
+  backdrop-filter: blur(8px);
+}
+.music-comments-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 620px);
+  max-height: min(82dvh, 760px);
+  overflow: hidden;
+  border: 1px solid rgba(212,175,55,.22);
+  border-radius: 20px;
+  background: #17151d;
+  color: #f7f4ed;
+  box-shadow: 0 24px 80px rgba(0,0,0,.45);
+}
+.music-comments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.music-comments-header > div { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+.music-comments-header span { color: #aaa4b3; font-size: .72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-comments-header button { border: 0; background: transparent; color: inherit; font-size: 1.1rem; }
+.music-comments-list { flex: 1; min-height: 120px; overflow-y: auto; padding: .75rem 1rem; }
+.music-comment { display: flex; align-items: flex-start; gap: .7rem; padding: .7rem 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.music-comment-avatar { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; background: rgba(212,175,55,.16); }
+.music-comment > div { min-width: 0; }
+.music-comment strong { font-size: .8rem; }
+.music-comment p { margin: .2rem 0; font-size: .85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.music-comment small { color: #9b95a3; font-size: .65rem; }
+.music-comment-form { padding: .8rem 1rem 1rem; border-top: 1px solid rgba(255,255,255,.08); }
+.music-comment-form textarea { display: block; width: 100%; resize: vertical; min-height: 64px; padding: .7rem; border: 1px solid rgba(212,175,55,.22); border-radius: 12px; background: rgba(255,255,255,.05); color: inherit; }
+.music-comment-form button { margin-top: .55rem; padding: .55rem .9rem; border: 1px solid rgba(212,175,55,.35); border-radius: 10px; background: rgba(212,175,55,.15); color: inherit; }
+.music-comment-form button:disabled { opacity: .4; }
+.music-comment-error { color: #f29a9a; font-size: .75rem; }
+@media (min-width: 720px) {
+  .music-comments-overlay { align-items: center; }
+}
