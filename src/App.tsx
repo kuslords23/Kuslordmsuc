@@ -256,6 +256,8 @@ export default function App() {
     const trackSummary = (track: Track) => ({
       id: track.id,
       postId: track.postId || track.id,
+      liked: Boolean(track.liked),
+      likes: track.likes || 0,
       title: track.title,
       artist: track.artist,
       album: track.album,
@@ -274,6 +276,22 @@ export default function App() {
             : undefined
           if (track) playTrack(track, tracks)
         }
+        break
+      }
+      case 'LIKE_TRACK': {
+        const requestedId = typeof payload?.trackId === 'string' ? payload.trackId : currentTrack?.id || ''
+        const target = tracks.find((item) => item.id === requestedId || item.postId === requestedId)
+        if (!target) {
+          reply('MUSIC_ACTION_RESULT', { action: type, ok: false, error: 'Track not found in loaded library' })
+          break
+        }
+        const nextLiked = !target.liked
+        const nextLikes = Math.max(0, (target.likes || 0) + (nextLiked ? 1 : -1))
+        const updateTrack = (item: Track): Track => item.id === target.id ? { ...item, liked: nextLiked, likes: nextLikes } : item
+        setTracks((previous) => previous.map(updateTrack))
+        setQueue((previous) => previous.map(updateTrack))
+        setCurrentTrack((previous) => previous?.id === target.id ? updateTrack(previous) : previous)
+        reply('MUSIC_ACTION_RESULT', { action: type, ok: true, trackId: target.id, liked: nextLiked, likes: nextLikes, persistence: 'local-session' })
         break
       }
       case 'PLAY_TRACK': {
@@ -424,7 +442,7 @@ export default function App() {
     setIsEmbedded(embedded)
     if (embedded && parentOrigin && allowedParentOrigins.has(parentOrigin)) {
       window.parent.postMessage(
-        { type: 'MUSIC_APP_READY', payload: { version: '1.1.0', capabilities: ['SEARCH_TRACKS', 'GET_TRACKS', 'PLAY_TRACK', 'SET_QUEUE', 'ADD_TO_QUEUE', 'CLEAR_QUEUE', 'GET_STATE', 'GET_COMMENTS', 'POST_COMMENT', 'PLAY', 'PAUSE', 'NEXT_TRACK', 'PREV_TRACK', 'SEEK', 'SET_VOLUME'] } },
+        { type: 'MUSIC_APP_READY', payload: { version: '1.1.0', capabilities: ['SEARCH_TRACKS', 'GET_TRACKS', 'PLAY_TRACK', 'SET_QUEUE', 'ADD_TO_QUEUE', 'CLEAR_QUEUE', 'GET_STATE', 'GET_COMMENTS', 'POST_COMMENT', 'LIKE_TRACK', 'PLAY', 'PAUSE', 'NEXT_TRACK', 'PREV_TRACK', 'SEEK', 'SET_VOLUME'] } },
         parentOrigin,
       )
     }
@@ -633,6 +651,19 @@ export default function App() {
       </section>
     </div>
   )
+
+  const toggleCurrentTrackLike = useCallback(() => {
+    if (!currentTrack) return
+    const targetId = currentTrack.id
+    const nextLiked = !currentTrack.liked
+    const nextLikes = Math.max(0, (currentTrack.likes || 0) + (nextLiked ? 1 : -1))
+    const updateTrack = (track: Track): Track => track.id === targetId
+      ? { ...track, liked: nextLiked, likes: nextLikes }
+      : track
+    setTracks((previous) => previous.map(updateTrack))
+    setQueue((previous) => previous.map(updateTrack))
+    setCurrentTrack((previous) => previous?.id === targetId ? updateTrack(previous) : previous)
+  }, [currentTrack])
 
   const renderArtists = () => (
     <ArtistDirectory
@@ -929,6 +960,9 @@ export default function App() {
           onSeek={handleSeek}
           onVolume={handleVolume}
           onOpenComments={currentTrack ? () => setCommentsTrack(currentTrack) : undefined}
+          liked={currentTrack?.liked}
+          likes={currentTrack?.likes}
+          onToggleLike={currentTrack ? toggleCurrentTrackLike : undefined}
         />
       </div>
 
