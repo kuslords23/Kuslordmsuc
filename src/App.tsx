@@ -56,6 +56,7 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [isEmbedded, setIsEmbedded] = useState(false)
+  const [playbackError, setPlaybackError] = useState<string | null>(null)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackRef = useRef<Track | null>(null)
@@ -105,12 +106,15 @@ export default function App() {
     }
     const audio = audioRef.current
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
-    const handleLoadedMetadata = () => setDuration(audio.duration || 0)
+    const handleLoadedMetadata = () => { setDuration(audio.duration || 0); setPlaybackError(null) }
+    const handleAudioError = () => { setIsPlaying(false); setPlaybackError('This audio source is unavailable or failed to load. Try another track.') }
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('error', handleAudioError)
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audio.removeEventListener('error', handleAudioError)
     }
   }, [volume])
 
@@ -166,16 +170,17 @@ export default function App() {
   )
 
   // Player functions
-  const playTrack = useCallback((track: Track | undefined, trackList: Track[]) => {
-    if (!track) return
-    if (audioRef.current) {
-      audioRef.current.src = track.audioUrl
-      audioRef.current.currentTime = 0
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false))
-    }
+  const playTrack = useCallback(async (track: Track | undefined, trackList: Track[]): Promise<boolean> => {
+    const audio = audioRef.current
+    if (!track || !audio) return false
+    setPlaybackError(null)
     setCurrentTrack(track)
     setQueue(trackList)
-    setIsPlaying(true)
+    audio.pause()
+    audio.src = track.audioUrl
+    audio.currentTime = 0
+    try { await audio.play(); setIsPlaying(true); return true }
+    catch { setIsPlaying(false); setPlaybackError('This audio source could not be played. Check the source or try another track.'); return false }
   }, [])
 
   const togglePlay = useCallback(() => {
@@ -264,7 +269,6 @@ export default function App() {
       duration: track.duration,
       cover: track.cover,
       genre: track.genre || null,
-      audioUrl: track.audioUrl,
     })
 
     switch (type) {
@@ -285,8 +289,8 @@ export default function App() {
           reply('MUSIC_ACTION_RESULT', { action: type, ok: false, error: 'Track not found in loaded library' })
           break
         }
-        const nextLiked = !target.liked
-        const nextLikes = Math.max(0, (target.likes || 0) + (nextLiked ? 1 : -1))
+        const nextLiked = typeof payload?.liked === 'boolean' ? payload.liked : !target.liked
+        const nextLikes = target.liked === nextLiked ? (target.likes || 0) : Math.max(0, (target.likes || 0) + (nextLiked ? 1 : -1))
         const updateTrack = (item: Track): Track => item.id === target.id ? { ...item, liked: nextLiked, likes: nextLikes } : item
         setTracks((previous) => previous.map(updateTrack))
         setQueue((previous) => previous.map(updateTrack))
@@ -298,8 +302,8 @@ export default function App() {
         const trackId = typeof payload?.trackId === 'string' ? payload.trackId : ''
         const track = tracks.find((item) => item.id === trackId || item.postId === trackId)
         if (track) {
-          playTrack(track, queue.length ? queue : tracks)
-          reply('MUSIC_ACTION_RESULT', { action: type, ok: true, trackId: track.id })
+          const ok = await playTrack(track, queue.length ? queue : tracks)
+          reply('MUSIC_ACTION_RESULT', { action: type, ok, trackId: track.id, error: ok ? null : 'The browser could not start this track.' })
         } else {
           reply('MUSIC_ACTION_RESULT', { action: type, ok: false, error: 'Track not found in loaded library' })
         }
@@ -353,6 +357,7 @@ export default function App() {
           duration: Math.floor(duration),
           volume,
           queue: queue.map((t) => t.id),
+          playbackError,
         })
         break
       case 'GET_COMMENTS': {
@@ -969,6 +974,7 @@ export default function App() {
           onSeek={handleSeek}
           onVolume={handleVolume}
           onOpenComments={currentTrack ? () => setCommentsTrack(currentTrack) : undefined}
+          error={playbackError || undefined}
           liked={currentTrack?.liked}
           likes={currentTrack?.likes}
           onToggleLike={currentTrack ? toggleCurrentTrackLike : undefined}
