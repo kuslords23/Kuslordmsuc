@@ -255,3 +255,8 @@ The player and Royal bridge now expose Like/Unlike for the currently selected tr
 The artist directory now includes Create Artist Profile and owner-only Edit Profile workflows. The adapter obtains the active Supabase session itself, inserts with `session.user.id`, and scopes updates by both profile ID and authenticated owner ID. It exposes the SCN storefront fields for biography, tagline, vision, avatar, genre focus, hero image, press kit, booking email, CTA, and social links.
 
 The existing SCN RLS policy and artist-tier trigger remain authoritative. Profile creation may be rejected by the existing tier limit or global unique artist-name constraint; the UI reports the database error rather than bypassing either rule.
+
+
+### Royal natural-language control boundary
+
+The embedded panel currently provides direct user-interface controls and a validated cross-origin command protocol. It is not yet connected to Royal's model tool-calling/action dispatcher. Therefore the bridge is ready for the next integration layer, but natural-language instructions such as "play this song", "like that track", or "comment on this release" are not yet guaranteed to execute from chat without the user operating the embedded panel. The next Royal integration slice must register typed music actions with KUS AI's execution boundary, return action receipts to the conversation, and require confirmation for public comments or other consequential actions.
