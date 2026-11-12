@@ -220,3 +220,10 @@ This intentionally matches SCN's current localStorage-based playlist persistence
 The standalone search surface now recognizes Spotify URLs/URIs, Apple Music URLs, SoundCloud URLs, and supported bare platform IDs. It renders each platform's official embed player and an external open link. Audio remains hosted and played by the licensed platform; the app does not download or rehost third-party audio.
 
 Text-based external catalog search is still pending because it needs a server-side provider integration and credentials. The current slice handles direct links/IDs only.
+
+
+## 001-D: Music comments
+
+The standalone player now opens a comments panel for published audio posts. It reads and writes the shared SCN `feed_comments` table, subscribes to new comments in realtime, and derives the comment author from the active Supabase session rather than trusting a caller-supplied user ID. The entry point is available from desktop player controls and the mobile mini-player.
+
+The comment author RLS hardening is proposed separately in SCN PR #142 (`053_feed_comment_identity_hardening.sql`). Until that migration is applied, the standalone client still uses the verified session identity, but the database's existing insert policy remains weaker than desired. Replies, comment likes, video replies, and comment notifications are not yet ported.
