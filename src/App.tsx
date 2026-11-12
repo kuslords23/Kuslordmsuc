@@ -11,6 +11,8 @@ import AuthModal from './components/AuthModal'
 import UploadModal from './components/UploadModal'
 import Studio from './components/Studio'
 import ArtistDirectory from './components/ArtistDirectory'
+import PlaylistLibrary from './components/PlaylistLibrary'
+import { loadPlaylistsLocal, savePlaylistsLocal, type MusicPlaylist } from './lib/playlists'
 import { useAuth } from './context/AuthContext'
 import './index.css'
 
@@ -33,6 +35,7 @@ export default function App() {
     ...initialTracks,
   ])
   const [artistProfiles, setArtistProfiles] = useState<PublicMusicArtistProfile[]>([])
+  const [playlists, setPlaylists] = useState<MusicPlaylist[]>(() => loadPlaylistsLocal())
 
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -71,6 +74,10 @@ export default function App() {
       })
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    savePlaylistsLocal(playlists)
+  }, [playlists])
 
   // Public SCN artist profiles and storefront metadata.
   useEffect(() => {
@@ -521,6 +528,13 @@ export default function App() {
   const renderLibrary = () => (
     <div className="tab-scroll">
       <div className="section-title"><h2>📚 Your Library</h2></div>
+      <PlaylistLibrary
+        playlists={playlists}
+        tracks={tracks}
+        createdBy={user?.user_metadata?.username || user?.email?.split('@')[0] || 'You'}
+        onChange={setPlaylists}
+        onPlay={playTrack}
+      />
       <div className="lib-segments">
         {['Playlists', 'Artists', 'Albums', 'Songs', 'Downloaded'].map((seg) => (
           <button key={seg} className="lib-seg-btn">{seg}</button>
