@@ -796,6 +796,9 @@ export default function App() {
           <button className="mini-ctrl" onClick={(e) => { e.stopPropagation(); nextTrack() }}>
             ⏭
           </button>
+          <button className="mini-ctrl" onClick={(e) => { e.stopPropagation(); setCommentsTrack(currentTrack) }} title="Comments" aria-label="Open comments">
+            💬
+          </button>
         </div>
       )}
 
