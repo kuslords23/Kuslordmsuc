@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import type { Track } from '../data/music'
-import type { PublicMusicArtistProfile } from '../lib/supabase'
+import type { MusicArtistProfileInput, PublicMusicArtistProfile } from '../lib/supabase'
 
 interface ArtistDirectoryProps {
   profiles: PublicMusicArtistProfile[]
@@ -8,6 +8,8 @@ interface ArtistDirectoryProps {
   onPlayTrack: (track: Track, queue: Track[]) => void
   followedArtists: Set<string>
   onToggleFollow: (artistName: string) => void
+  currentUserId?: string
+  onSaveProfile: (profileId: string | null, input: MusicArtistProfileInput) => Promise<{ id: string | null; error: string | null }>
 }
 
 function safeExternalUrl(value?: string): string | null {
@@ -20,13 +22,98 @@ function safeExternalUrl(value?: string): string | null {
   }
 }
 
-export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followedArtists, onToggleFollow }: ArtistDirectoryProps) {
+export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followedArtists, onToggleFollow, currentUserId, onSaveProfile }: ArtistDirectoryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [editorError, setEditorError] = useState('')
+  const [draft, setDraft] = useState<MusicArtistProfileInput>({ name: '', bio: '', avatar: '🎤', tagline: '', vision: '', genre_focus: '', cta_label: '', cta_url: '', hero_image_url: '', press_kit_url: '', booking_email: '', socials: {} })
+  const [socialsText, setSocialsText] = useState('{}')
   const selected = profiles.find((profile) => profile.id === selectedId) || null
   const artistTracks = useMemo(
     () => selected ? tracks.filter((track) => track.artistProfileId === selected.id) : [],
     [selected, tracks],
   )
+
+  const startCreate = () => {
+    setEditingProfileId(null)
+    setDraft({ name: '', bio: '', avatar: '🎤', tagline: '', vision: '', genre_focus: '', cta_label: '', cta_url: '', hero_image_url: '', press_kit_url: '', booking_email: '', socials: {} })
+    setSocialsText('{}')
+    setEditorError('')
+    setEditorOpen(true)
+  }
+
+  const startEdit = () => {
+    if (!selected) return
+    setEditingProfileId(selected.id)
+    setDraft({
+      name: selected.name, bio: selected.bio, avatar: selected.avatar,
+      tagline: selected.tagline || '', vision: selected.vision || '',
+      genre_focus: selected.genreFocus || '', cta_label: selected.ctaLabel || '',
+      cta_url: selected.ctaUrl || '', hero_image_url: selected.heroImageUrl || '',
+      press_kit_url: selected.pressKitUrl || '', booking_email: selected.bookingEmail || '',
+      socials: selected.socials || {}, credits: selected.credits || [],
+    })
+    setSocialsText(JSON.stringify(selected.socials || {}, null, 2))
+    setEditorError('')
+    setEditorOpen(true)
+  }
+
+  const submitProfile = async (event: FormEvent) => {
+    event.preventDefault()
+    setSavingProfile(true)
+    setEditorError('')
+    let socials: Record<string, string>
+    try {
+      const parsed = JSON.parse(socialsText || '{}')
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Social links must be a JSON object.')
+      socials = Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+    } catch (cause) {
+      setEditorError(cause instanceof Error ? cause.message : 'Invalid social links JSON.')
+      setSavingProfile(false)
+      return
+    }
+    const result = await onSaveProfile(editingProfileId, { ...draft, socials })
+    setSavingProfile(false)
+    if (result.error || !result.id) {
+      setEditorError(result.error || 'Could not save artist profile.')
+      return
+    }
+    setSelectedId(result.id)
+    setEditorOpen(false)
+  }
+
+  const updateDraft = (key: keyof MusicArtistProfileInput, value: string) => {
+    setDraft((previous) => ({ ...previous, [key]: value }))
+  }
+
+  const editor = editorOpen ? (
+    <form className="artist-profile-editor" onSubmit={submitProfile}>
+      <div className="section-title"><h2>{editingProfileId ? 'Edit artist profile' : 'Create artist profile'}</h2></div>
+      <label>Artist name<input required maxLength={80} value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} /></label>
+      <label>Short tagline<input maxLength={180} value={draft.tagline || ''} onChange={(event) => updateDraft('tagline', event.target.value)} /></label>
+      <label>Biography<textarea rows={3} maxLength={2000} value={draft.bio || ''} onChange={(event) => updateDraft('bio', event.target.value)} /></label>
+      <label>Artist vision<textarea rows={2} maxLength={1000} value={draft.vision || ''} onChange={(event) => updateDraft('vision', event.target.value)} /></label>
+      <div className="artist-editor-grid">
+        <label>Avatar / emoji<input maxLength={120} value={draft.avatar || ''} onChange={(event) => updateDraft('avatar', event.target.value)} /></label>
+        <label>Genre focus<input maxLength={120} value={draft.genre_focus || ''} onChange={(event) => updateDraft('genre_focus', event.target.value)} /></label>
+        <label>Hero image URL<input type="url" value={draft.hero_image_url || ''} onChange={(event) => updateDraft('hero_image_url', event.target.value)} /></label>
+        <label>Press kit URL<input type="url" value={draft.press_kit_url || ''} onChange={(event) => updateDraft('press_kit_url', event.target.value)} /></label>
+        <label>Booking email<input type="email" value={draft.booking_email || ''} onChange={(event) => updateDraft('booking_email', event.target.value)} /></label>
+        <label>Call-to-action label<input maxLength={60} value={draft.cta_label || ''} onChange={(event) => updateDraft('cta_label', event.target.value)} /></label>
+        <label>Call-to-action URL<input type="url" value={draft.cta_url || ''} onChange={(event) => updateDraft('cta_url', event.target.value)} /></label>
+      </div>
+      <label>Social links (JSON object)
+        <textarea rows={3} value={socialsText} onChange={(event) => setSocialsText(event.target.value)} placeholder='{"spotify":"https://open.spotify.com/artist/..."}' />
+      </label>
+      {editorError && <p role="alert" className="music-comment-error">{editorError}</p>}
+      <div className="artist-editor-actions">
+        <button type="submit" disabled={savingProfile || !draft.name.trim()}>{savingProfile ? 'Saving…' : 'Save profile'}</button>
+        <button type="button" onClick={() => setEditorOpen(false)}>Cancel</button>
+      </div>
+    </form>
+  ) : null
 
   if (selected) {
     const socials = Object.entries(selected.socials || {})
@@ -59,6 +146,9 @@ export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followe
                 {followedArtists.has(selected.name) ? 'Following' : 'Follow artist'}
               </button>
             </div>
+            {currentUserId === selected.userId && (
+              <button type="button" className="artist-follow-button" onClick={startEdit}>Edit profile</button>
+            )}
             <div className="artist-socials">
               {socials.map((item) => (
                 <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer">{item.label}</a>
@@ -69,6 +159,7 @@ export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followe
             </div>
           </div>
         </div>
+        {editor}
         <section>
           <div className="section-title"><h2>Releases</h2><span>{artistTracks.length} tracks</span></div>
           {artistTracks.length ? (
@@ -111,6 +202,8 @@ export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followe
         <h2>Artist Directory</h2>
         <span>{profiles.length} profiles</span>
       </div>
+      {currentUserId && !editorOpen && <button type="button" className="artist-follow-button" onClick={startCreate}>＋ Create artist profile</button>}
+      {editor}
       {profiles.length === 0 ? (
         <div className="empty">No public artist profiles are available yet.</div>
       ) : (
