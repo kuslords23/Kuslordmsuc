@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import type { Track } from '../data/music'
 import { addTrackToPlaylist, createMusicPlaylist, type MusicPlaylist } from '../lib/playlists'
 
@@ -20,7 +20,7 @@ export default function PlaylistLibrary({ playlists, tracks, createdBy, onChange
     [selected, tracks],
   )
 
-  const create = (event: React.FormEvent) => {
+  const create = (event: FormEvent) => {
     event.preventDefault()
     if (!name.trim() || playlists.length >= 30) return
     const next = createMusicPlaylist(name, createdBy)
