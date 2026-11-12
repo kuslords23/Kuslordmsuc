@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { albums as defaultAlbums, initialTracks, type Album, type Track } from './data/music'
 import { sportsMatches } from './data/sports'
-import { fetchPublicArtistProfiles, fetchRemoteTracks, type PublicMusicArtistProfile } from './lib/supabase'
+import { fetchPublicArtistProfiles, fetchRemoteTracks, supabase, type PublicMusicArtistProfile } from './lib/supabase'
 import { loadExtractedTracks } from './lib/integrateExtracted'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
@@ -331,6 +331,63 @@ export default function App() {
           queue: queue.map((t) => t.id),
         })
         break
+      case 'GET_COMMENTS': {
+        const requestedId = typeof payload?.trackId === 'string' ? payload.trackId : currentTrack?.id || ''
+        const track = tracks.find((item) => item.id === requestedId || item.postId === requestedId)
+        const postId = track?.postId || track?.id || ''
+        if (!track || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId) || !supabase) {
+          reply('MUSIC_COMMENTS', { trackId: requestedId, comments: [], error: 'Comments are available for published audio posts only' })
+          break
+        }
+        const { data, error } = await supabase.from('feed_comments')
+          .select('id,user_id,user_name,user_avatar,body,created_at')
+          .eq('post_id', postId)
+          .order('created_at', { ascending: true })
+          .limit(100)
+        reply('MUSIC_COMMENTS', {
+          trackId: requestedId,
+          comments: error ? [] : (data || []).map((item) => ({
+            id: item.id, userName: item.user_name, userAvatar: item.user_avatar,
+            body: item.body, createdAt: item.created_at,
+          })),
+          error: error?.message || null,
+        })
+        break
+      }
+      case 'POST_COMMENT': {
+        const requestedId = typeof payload?.trackId === 'string' ? payload.trackId : currentTrack?.id || ''
+        const body = typeof payload?.text === 'string' ? payload.text.trim().slice(0, 2000) : ''
+        const track = tracks.find((item) => item.id === requestedId || item.postId === requestedId)
+        const postId = track?.postId || track?.id || ''
+        if (payload?.confirmed !== true) {
+          reply('MUSIC_ACTION_RESULT', { action: type, ok: false, requiresConfirmation: true, error: 'Explicit confirmation is required before publishing a comment' })
+          break
+        }
+        if (!track || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId) || !body || !supabase) {
+          reply('MUSIC_ACTION_RESULT', { action: type, ok: false, error: 'A published track, comment text, and Supabase connection are required' })
+          break
+        }
+        const { data: authData } = await supabase.auth.getSession()
+        const session = authData.session
+        if (!session) {
+          reply('MUSIC_ACTION_RESULT', { action: type, ok: false, error: 'Sign in to comment' })
+          break
+        }
+        const author = session.user
+        const userName = String(author.user_metadata?.username || author.user_metadata?.full_name || author.email?.split('@')[0] || 'Kus-lord')
+        const userAvatar = String(author.user_metadata?.avatar_url || author.user_metadata?.avatar || '👑')
+        const { data, error } = await supabase.from('feed_comments').insert({
+          post_id: postId, user_id: author.id, user_name: userName,
+          user_avatar: userAvatar, body, comment_type: 'text',
+        }).select('id,user_name,user_avatar,body,created_at').single()
+        reply('MUSIC_ACTION_RESULT', {
+          action: type,
+          ok: !error && Boolean(data),
+          comment: data ? { id: data.id, userName: data.user_name, userAvatar: data.user_avatar, body: data.body, createdAt: data.created_at } : null,
+          error: error?.message || null,
+        })
+        break
+      }
       case 'SET_QUEUE':
       case 'ADD_TO_QUEUE': {
         if (Array.isArray(payload?.trackIds)) {
@@ -361,7 +418,7 @@ export default function App() {
     setIsEmbedded(embedded)
     if (embedded && parentOrigin && allowedParentOrigins.has(parentOrigin)) {
       window.parent.postMessage(
-        { type: 'MUSIC_APP_READY', payload: { version: '1.1.0', capabilities: ['SEARCH_TRACKS', 'GET_TRACKS', 'PLAY_TRACK', 'SET_QUEUE', 'ADD_TO_QUEUE', 'CLEAR_QUEUE', 'GET_STATE', 'PLAY', 'PAUSE', 'NEXT_TRACK', 'PREV_TRACK', 'SEEK', 'SET_VOLUME'] } },
+        { type: 'MUSIC_APP_READY', payload: { version: '1.1.0', capabilities: ['SEARCH_TRACKS', 'GET_TRACKS', 'PLAY_TRACK', 'SET_QUEUE', 'ADD_TO_QUEUE', 'CLEAR_QUEUE', 'GET_STATE', 'GET_COMMENTS', 'POST_COMMENT', 'PLAY', 'PAUSE', 'NEXT_TRACK', 'PREV_TRACK', 'SEEK', 'SET_VOLUME'] } },
         parentOrigin,
       )
     }
