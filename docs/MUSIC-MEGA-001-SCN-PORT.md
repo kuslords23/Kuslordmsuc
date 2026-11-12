@@ -163,3 +163,41 @@ The Royal panel validates both iframe message origin and iframe window source. T
 ### Remaining before feature parity
 
 Artist profile display/storefront editing, artist discovery/catalog API parity, playlists persisted to shared storage, social interactions, verified stream events, and secure server-side release registration are still outstanding. Monetization UI must not be treated as a real payout or wallet system.
+
+
+## 001-D: Artist storefront parity slice
+
+The standalone app now includes a public artist directory backed by SCN's `artist_profiles` table and a storefront detail view.
+
+Ported fields:
+- Artist name, bio, avatar, verified flag, follower count.
+- Tagline, vision, genre focus.
+- Hero image, press kit URL, booking email.
+- Social links and credits.
+- Linked releases through `feed_posts.artist_profile_id`.
+
+The directory uses the existing public-read RLS policy and only accepts HTTP(S) URLs for external links. It does not copy the SCN service-role artist API. The upload modal can select an artist profile owned by the signed-in user, and the upload adapter writes that profile ID to the audio post.
+
+Limitations:
+- Storefront data is read-only in this slice; artist editing/management is next.
+- A profile only displays releases explicitly linked by `artist_profile_id`; it does not guess ownership from artist display names.
+- If migration 043 is not applied in the shared Supabase project, the storefront query will report the schema issue and the directory will remain empty. No schema migration was applied from this session.
+
+## Updated parity snapshot
+
+| Capability | SCN reference | Standalone status |
+|---|---|---|
+| Audio upload and discovery | `feed_posts` audio records + `kus-music` / `kus-images` | Basic contract aligned; runtime verification pending |
+| Creator-to-artist linking | `artist_profiles` + `artist_profile_id` | Upload selector + persisted link added |
+| Public artist directory/storefront | `artist_profiles` + migration 043 fields | Read-only directory/detail view added |
+| Global playback | SCN global music player | Standalone single player + origin-checked bridge commands |
+| Search | Native + curated + external catalog APIs | Local loaded-library search via bridge; external catalog parity pending |
+| Playlists | SCN client-side playlist state | Standalone custom playlist management still pending |
+| Likes/comments/follows | Feed/social services | Not ported yet |
+| Verified stream events | RPC + API + idempotency | SCN security hardening PR created; standalone integration pending |
+| Monetization | UI + localStorage calculations in SCN | Not treated as a real financial ledger |
+| Studio | SCN creator studio | Existing standalone beat pads/AI Mix Assistant/TTS retained; full DAW pending |
+| AI music generation | Provider-dependent | Not yet connected; provider credentials and product/API terms required |
+| Royal control | SCN app bridge / companion surfaces | Embedded Royal player panel and search/play/queue bridge added; deployment config pending |
+
+The source verifier now also checks the artist-directory data adapter and storefront release linkage.
