@@ -238,3 +238,8 @@ The music app bridge now supports:
 The bridge rejects comment publishing unless the caller supplies `confirmed: true`. Royal's embedded music panel exposes a Post button; clicking it is the user's explicit confirmation. The app derives the author ID from `session.user.id`, not from a message payload.
 
 This is a comment capability, not a general messaging capability. Likes, follows, replies, and direct person-to-person messages still need their own real data contracts and approval flows. SCN PR #142 proposes database-level comment author RLS hardening; apply migration 053 before treating the comment write path as fully protected at the database boundary.
+
+
+## 001-D: Artist follow state
+
+The standalone artist storefront now supports Follow/Following. It uses the same `kus_followed_artists` localStorage key as SCN's current music hub. This preserves local-device behaviour only; it is not the shared cross-device `follows` graph and does not claim to notify artists.
