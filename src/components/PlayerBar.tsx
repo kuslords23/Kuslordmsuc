@@ -13,6 +13,7 @@ interface PlayerBarProps {
   onPrev: () => void
   onSeek: (time: number) => void
   onVolume: (value: number) => void
+  onOpenComments?: () => void
 }
 
 const formatTime = (seconds: number) => {
@@ -35,6 +36,7 @@ export default function PlayerBar({
   onPrev,
   onSeek,
   onVolume,
+  onOpenComments,
 }: PlayerBarProps) {
   const [liked, setLiked] = useState(false)
 
@@ -58,6 +60,11 @@ export default function PlayerBar({
         >
           {liked ? '♥' : '♡'}
         </button>
+        {onOpenComments && (
+          <button className="like-btn" type="button" onClick={onOpenComments} title="Comments" aria-label="Open comments">
+            💬
+          </button>
+        )}
       </div>
 
       <div className="player-center">
