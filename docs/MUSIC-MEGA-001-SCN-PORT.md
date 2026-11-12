@@ -118,3 +118,48 @@ MUSIC-MEGA-001 removes the automatic `predev` hook. The historical ZIPs and manu
 ### Verification still outstanding
 
 No production build, live Supabase write, RLS test, storage upload, stream-count test, or mobile playback test has been run from this GitHub-only editing session. The code changes above are source-level corrections and must not be described as runtime-verified.
+
+
+## 001-D / 001-F: First player, creator, and Royal integration slice
+
+### Standalone player bridge
+
+The standalone app now exposes an expanded parent-window bridge:
+
+- Exact-origin allowlist from `VITE_ALLOWED_PARENT_ORIGINS`, plus the existing SCN origin.
+- Parent-source check so unrelated windows cannot send control messages.
+- Target-origin replies and state broadcasts; wildcard `postMessage` targets have been removed.
+- Search/list tracks, play a selected track, set/add/clear queue, playback state, play/pause, next/previous, seek, and volume commands.
+- The ready handshake advertises supported capabilities.
+- Royal can control the existing audio player rather than creating a second audio stream.
+
+This is a cross-origin UI control channel only. It is not a substitute for authentication, RLS, or Guardian approval.
+
+### Creator upload identity
+
+- Added an RLS-session-backed lookup for the signed-in user's own artist profiles.
+- Added an artist-profile selector to the upload modal when profiles exist.
+- Uploads now persist the selected `artist_profile_id` alongside the canonical audio post fields.
+- The selected profile is optional so users without a profile can still upload under the existing account flow.
+
+### Repeatable source checks
+
+- Added `npm run verify:music`, which checks the startup safety rule, bridge command handlers, origin restrictions, canonical audio query/insert fields, and artist-profile upload wiring.
+- This is a static source-contract check. It does not replace a Vite production build, browser test, or live Supabase/RLS verification.
+
+### Royal integration
+
+Royal's chat now includes a collapsible Kus-Lords Music panel with an embedded iframe, playback controls, track search, and click-to-play results. The companion registry marks Music active only when `NEXT_PUBLIC_MUSIC_COMPANION_URL` is configured; otherwise it does not silently route users to the Hub.
+
+The Royal panel validates both iframe message origin and iframe window source. The music app independently validates its parent origin and source.
+
+### Deployment requirements
+
+- Set `NEXT_PUBLIC_MUSIC_COMPANION_URL` in the Kus AI deployment to the actual deployed standalone Music URL.
+- Set `VITE_ALLOWED_PARENT_ORIGINS` in the Music deployment to the exact Kus AI and SCN production origins.
+- Deploy both sides before expecting the embedded handshake to complete.
+- Do not mark cross-origin playback verified until tested in the deployed browser environment.
+
+### Remaining before feature parity
+
+Artist profile display/storefront editing, artist discovery/catalog API parity, playlists persisted to shared storage, social interactions, verified stream events, and secure server-side release registration are still outstanding. Monetization UI must not be treated as a real payout or wallet system.
