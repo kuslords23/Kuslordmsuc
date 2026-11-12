@@ -185,18 +185,28 @@ export default function App() {
     catch { setIsPlaying(false); setPlaybackError('This audio source could not be played. Check the source or try another track.'); return false }
   }, [])
 
-  const togglePlay = useCallback(() => {
+  const togglePlay = useCallback(async (): Promise<boolean> => {
     const audio = audioRef.current
     if (!audio || !currentTrack) {
-      if (selectedAlbum && selectedAlbum.tracks.length > 0) {
-        playTrack(selectedAlbum.tracks[0], selectedAlbum.tracks)
-      } else if (albums.length > 0 && albums[0].tracks.length > 0) {
-        playTrack(albums[0].tracks[0], albums[0].tracks)
-      }
-      return
+      if (selectedAlbum?.tracks.length) return playTrack(selectedAlbum.tracks[0], selectedAlbum.tracks)
+      if (albums[0]?.tracks.length) return playTrack(albums[0].tracks[0], albums[0].tracks)
+      return false
     }
-    if (audio.paused) { audio.play(); setIsPlaying(true) }
-    else { audio.pause(); setIsPlaying(false) }
+    if (audio.paused) {
+      try {
+        await audio.play()
+        setIsPlaying(true)
+        setPlaybackError(null)
+        return true
+      } catch {
+        setIsPlaying(false)
+        setPlaybackError('This audio source could not be resumed. Try selecting the track again.')
+        return false
+      }
+    }
+    audio.pause()
+    setIsPlaying(false)
+    return true
   }, [currentTrack, selectedAlbum, albums, playTrack])
 
   const nextTrack = useCallback(async (): Promise<boolean> => {
