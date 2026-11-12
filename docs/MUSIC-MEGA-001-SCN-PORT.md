@@ -213,3 +213,10 @@ The standalone app now includes SCN-compatible local playlist management:
 - Keep the playlist UI in the existing Library tab without introducing a second playback engine.
 
 This intentionally matches SCN's current localStorage-based playlist persistence. It is not cross-device cloud sync. The UI states that clearly rather than implying that a local playlist is backed up to Supabase.
+
+
+## 001-D: Official external music embeds
+
+The standalone search surface now recognizes Spotify URLs/URIs, Apple Music URLs, SoundCloud URLs, and supported bare platform IDs. It renders each platform's official embed player and an external open link. Audio remains hosted and played by the licensed platform; the app does not download or rehost third-party audio.
+
+Text-based external catalog search is still pending because it needs a server-side provider integration and credentials. The current slice handles direct links/IDs only.
