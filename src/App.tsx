@@ -321,6 +321,11 @@ export default function App() {
     await refreshPlaylists()
   }, [refreshPlaylists])
 
+  const handleUpdatePlaylistVisibility = useCallback(async (playlistId: string, visibility: 'private' | 'public') => {
+    await updateCloudPlaylistVisibility(playlistId, visibility)
+    await refreshPlaylists()
+  }, [refreshPlaylists])
+
   const handleToggleTrackLike = useCallback(async () => {
     if (!currentTrack || !user || likeBusy) return
     setLikeBusy(true)
@@ -750,7 +755,7 @@ export default function App() {
         onAddTrack={handleAddPlaylistTrack}
         onRemoveTrack={handleRemovePlaylistTrack}
         onDeletePlaylist={handleDeletePlaylist}
-        onUpdateVisibility={updateCloudPlaylistVisibility}
+        onUpdateVisibility={handleUpdatePlaylistVisibility}
         onPlay={playTrack}
       />
       <section>
