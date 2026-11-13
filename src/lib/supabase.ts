@@ -48,6 +48,7 @@ interface DbFeedPost {
   media_url?: string | null
   storage_path?: string | null
   cover_storage_path?: string | null
+  audio_content_hash?: string | null
   content?: string | null
   caption?: string | null
   title?: string | null
@@ -130,6 +131,8 @@ function rowToTrack(d: DbFeedPost): Track | null {
     userId: d.user_id || undefined,
     artistProfileId: d.artist_profile_id || undefined,
     audioContentHash: d.audio_content_hash || undefined,
+    storagePath: d.storage_path || undefined,
+    coverStoragePath: d.cover_storage_path || undefined,
     title,
     artist: d.sound_artist?.trim() || 'Unknown artist',
     album: 'Singles',
@@ -352,6 +355,7 @@ export async function uploadTrackToBucket(params: {
   coverFile: File | null
   user: { id: string }
   artistProfileId?: string | null
+  audioContentHash?: string
 }): Promise<Track> {
   if (!isSupabaseConfigured() || !supabase) {
     throw new Error(
@@ -423,6 +427,7 @@ export async function uploadTrackToBucket(params: {
         storage_path: audioPath,
         cover_storage_path: coverPath || null,
         artist_profile_id: params.artistProfileId || null,
+        audio_content_hash: params.audioContentHash || null,
         user_id: params.user.id,
       })
       .select('*')
