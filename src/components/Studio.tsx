@@ -1,4 +1,4 @@
-import { useState, useRef, type FormEvent } from 'react'
+import { useState, useRef, useEffect, type FormEvent } from 'react'
 import type { Track } from '../data/music'
 import { supabase } from '../lib/supabase'
 import CreatorAnalytics from './CreatorAnalytics'
@@ -25,7 +25,14 @@ export default function Studio({ tracks, onPlayTrack }: StudioProps) {
   const [ttsText, setTtsText] = useState('')
   const [ttsVoice, setTtsVoice] = useState(voices[0].id)
   const [ttsLoading, setTtsLoading] = useState(false)
+  const [ttsError, setTtsError] = useState('')
+  const [ttsAudioUrl, setTtsAudioUrl] = useState('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const ttsUrlRef = useRef<string | null>(null)
+
+  useEffect(() => () => {
+    if (ttsUrlRef.current) URL.revokeObjectURL(ttsUrlRef.current)
+  }, [])
 
   const handleAssistant = async (e: FormEvent) => {
     e.preventDefault()
@@ -58,25 +65,32 @@ export default function Studio({ tracks, onPlayTrack }: StudioProps) {
     e.preventDefault()
     if (!ttsText.trim() || ttsLoading) return
     setTtsLoading(true)
+    setTtsError('')
     try {
+      if (!supabase) throw new Error('Sign in to your Kus-Lords account to use voice generation.')
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (sessionError || !accessToken) throw new Error('Sign in to your Kus-Lords account to use voice generation.')
       const res = await fetch('/api/studio/elevenlabs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ text: ttsText.trim(), voice: ttsVoice }),
       })
       if (!res.ok) {
-        const err = await res.json()
-        setAssistantReply(err.error || 'TTS failed')
-        return
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'ElevenLabs voice generation failed.')
       }
       const blob = await res.blob()
+      if (ttsUrlRef.current) URL.revokeObjectURL(ttsUrlRef.current)
       const url = URL.createObjectURL(blob)
+      ttsUrlRef.current = url
+      setTtsAudioUrl(url)
       if (audioRef.current) {
         audioRef.current.src = url
-        audioRef.current.play().catch(() => setAssistantReply('Could not play audio.'))
+        await audioRef.current.play().catch(() => undefined)
       }
     } catch (err) {
-      setAssistantReply('TTS service unavailable.')
+      setTtsError(err instanceof Error ? err.message : 'Voice generation is unavailable.')
     } finally {
       setTtsLoading(false)
     }
@@ -143,7 +157,8 @@ export default function Studio({ tracks, onPlayTrack }: StudioProps) {
               {ttsLoading ? 'Generating…' : '🔊 Generate Voice'}
             </button>
           </form>
-          <audio ref={audioRef} style={{ display: 'none' }} />
+          {ttsError && <p className="studio-reply" role="alert">{ttsError}</p>}
+          {ttsAudioUrl && <audio ref={audioRef} src={ttsAudioUrl} controls className="studio-audio-output" />}
         </div>
       </div>
 
