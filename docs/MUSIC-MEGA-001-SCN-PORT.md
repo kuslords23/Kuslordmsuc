@@ -384,4 +384,14 @@ Applied to the shared Kus-lords-prod Supabase project on 2026-11-13.
 - Added Search, Explore, Playlists, Library and Studio to mobile navigation; added Search, Explore, Playlists and Library to the desktop sidebar while retaining Radio and Artist Directory.
 - Playlist owners can set a playlist to private or public and reorder tracks with up/down controls.
 - Added owner-scoped playlist play-history records. Starting a track from a playlist records the playlist and native track reference; this is KUS listening history, not a claim about provider stream counts.
-- Collaborative invitation/acceptance, public playlist discovery and follow/save controls still need their UI and safe invite-accept workflow. External provider catalogue tracks are not yet addable to playlists until catalogue ingestion and provider-neutral track references are completed.
+- The database now also has music_playlist_catalog_entries, which binds a canonical KUS track and an available provider source to a playlist with owner/editor RLS and source-match validation. The UI still needs catalogue ingestion and controls to add/play those external entries. Collaborative invitation/acceptance, public playlist discovery and follow/save controls still need their UI and safe invite-accept workflow.
+
+
+## 001-P: Cross-provider playlist storage and CI verification
+
+- Added music_playlist_catalog_entries so a playlist can eventually contain KUS catalogue tracks backed by one specific authorized provider source, without requiring a feed_posts audio upload.
+- Added a database trigger that rejects unavailable provider sources or a source/track identity mismatch.
+- Added separate owner/editor insert, update and delete policies. Public playlist readers can read entries only through the playlist visibility policy.
+- Applied Supabase migrations kus_music_cross_provider_playlist_entries and kus_music_cross_provider_playlist_entry_policy_fix.
+- Added GitHub Actions verification on main: Royal contract checks, Music static checks, TypeScript typecheck and Vite production build.
+- GitHub Actions run 43495949459 completed successfully on commit 0dca0302d4caf1d1f2f24cb402cef9b4b297381d. This verifies the repository build and TypeScript checks, not the live provider credentials or production runtime.
