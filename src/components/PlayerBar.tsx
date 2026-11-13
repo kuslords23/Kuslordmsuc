@@ -12,6 +12,10 @@ interface PlayerBarProps {
   onSeek: (time: number) => void
   onVolume: (value: number) => void
   onOpenComments?: () => void
+  liked?: boolean
+  likes?: number
+  onToggleLike?: () => void
+  likeBusy?: boolean
 }
 
 const formatTime = (seconds: number) => {
@@ -35,6 +39,10 @@ export default function PlayerBar({
   onSeek,
   onVolume,
   onOpenComments,
+  liked = false,
+  likes = 0,
+  onToggleLike,
+  likeBusy = false,
 }: PlayerBarProps) {
   return (
     <footer className="player-bar">
@@ -52,6 +60,11 @@ export default function PlayerBar({
         {onOpenComments && (
           <button className="like-btn" type="button" onClick={onOpenComments} title="Comments" aria-label="Open comments">
             💬
+          </button>
+        )}
+        {onToggleLike && (
+          <button className={`like-btn track-like-btn ${liked ? 'liked' : ''}`} type="button" onClick={onToggleLike} disabled={likeBusy} title={liked ? 'Unlike track' : 'Like track'} aria-label={liked ? 'Unlike track' : 'Like track'}>
+            {liked ? '♥' : '♡'} <small>{likes}</small>
           </button>
         )}
       </div>
