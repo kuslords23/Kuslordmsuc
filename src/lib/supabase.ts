@@ -140,151 +140,6 @@ function rowToTrack(d: DbFeedPost): Track | null {
   }
 }
 
-const fallbackTracks: Track[] = [
-  {
-    id: 't-sports-1',
-    title: 'Champions Arena Anthem',
-    artist: 'Royal Kus-Lords Brass',
-    album: 'Matchday Stadium Hype',
-    duration: 310,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    cover: gradient('#d4af37, #855800'),
-    genre: 'Stadium Anthem',
-    isSportsAnthem: true,
-    matchVibe: 'Pre-Match Tunnel Walkout',
-    likes: 1420,
-  },
-  {
-    id: 't-sports-2',
-    title: 'Final Whistle Victory',
-    artist: 'Dynasty Sound Squad',
-    album: 'Matchday Stadium Hype',
-    duration: 278,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    cover: gradient('#e6c656, #2d1800'),
-    genre: 'High Energy',
-    isSportsAnthem: true,
-    matchVibe: 'Trophy Celebration',
-    likes: 980,
-  },
-  {
-    id: 't-sports-3',
-    title: 'Dream League Goal Frenzy',
-    artist: 'Pulse Arena',
-    album: 'Fantasy League Beats',
-    duration: 295,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    cover: gradient('#ff6b6b, #c5a059'),
-    genre: 'Electronic / Bass',
-    isSportsAnthem: true,
-    matchVibe: 'Halftime Energy',
-    likes: 854,
-  },
-  {
-    id: 't-sports-4',
-    title: '90th Minute Stoppage Time',
-    artist: 'Apex Strikers',
-    album: 'Fantasy League Beats',
-    duration: 330,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    cover: gradient('#1e3c72, #2a5298'),
-    genre: 'Epic Orchestral',
-    isSportsAnthem: true,
-    matchVibe: 'Clutch Comeback',
-    likes: 1120,
-  },
-  {
-    id: 't1',
-    title: 'Midnight Highway Drive',
-    artist: 'Neon Coast',
-    album: 'Midnight Highway',
-    duration: 368,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    cover: gradient('#f857a6, #614ad2'),
-    genre: 'Synthwave',
-    likes: 640,
-  },
-  {
-    id: 't2',
-    title: 'Royal Crown Serenade',
-    artist: 'The Velvet Shores',
-    album: 'Coastal Lights & Gold',
-    duration: 412,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    cover: gradient('#f5af19, #e65c00'),
-    genre: 'Afro Chill',
-    likes: 830,
-  },
-  {
-    id: 't3',
-    title: 'Glass Waves & Aurora',
-    artist: 'Polar Nights',
-    album: 'Aurora Borealis',
-    duration: 291,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3',
-    cover: gradient('#00c9ff, #7b2fff'),
-    genre: 'Ambient Chill',
-    likes: 540,
-  },
-  {
-    id: 't4',
-    title: 'Silk City Skyline',
-    artist: 'Marble Sky',
-    album: 'Neo Tokyo',
-    duration: 335,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
-    cover: gradient('#f6d365, #fda085'),
-    genre: 'Lo-Fi Chill',
-    likes: 420,
-  },
-  {
-    id: 't5',
-    title: 'Lagos to Accra Grooves',
-    artist: 'Kus-Lords Allstars',
-    album: 'Royal Afro Beats',
-    duration: 254,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',
-    cover: gradient('#11998e, #38ef7d'),
-    genre: 'Afrobeats',
-    likes: 1530,
-  },
-  {
-    id: 't6',
-    title: 'Pacific St. Drift',
-    artist: 'Lush Coast',
-    album: 'Pacific Waves',
-    duration: 402,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
-    cover: gradient('#13547a, #80d0c7'),
-    genre: 'Deep House',
-    likes: 710,
-  },
-  {
-    id: 't7',
-    title: 'Kuslords Golden Anthem',
-    artist: 'Clan Nexus Symphony',
-    album: 'Nexus Sovereign',
-    duration: 315,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3',
-    cover: gradient('#e6c656, #f37335'),
-    genre: 'Royal Anthem',
-    isSportsAnthem: true,
-    matchVibe: 'Sovereign Match Intro',
-    likes: 2100,
-  },
-  {
-    id: 't8',
-    title: 'Vapor Run Horizon',
-    artist: 'Chrome Pulse',
-    album: 'Midnight Highway',
-    duration: 356,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3',
-    cover: gradient('#7f5fff, #ff7fff'),
-    genre: 'Synthwave',
-    likes: 670,
-  },
-]
-
 /**
  * Fetches audio tracks from the existing feed_posts table.
  *
@@ -294,14 +149,14 @@ const fallbackTracks: Track[] = [
  * - error   : the query failed (network, RLS, or missing table)
  * - fallback: Supabase is not configured at all
  *
- * Demo tracks are ONLY returned on error or fallback — never on success.
+ * No synthetic tracks are returned for empty, unavailable, or failed data sources.
  */
 export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
   if (!isSupabaseConfigured() || !supabase) {
     return {
-      tracks: fallbackTracks,
+      tracks: [],
       status: 'fallback',
-      message: 'Supabase is not configured.',
+      message: 'Supabase is not configured. Configure the shared music project to load live audio.',
     }
   }
 
@@ -319,7 +174,7 @@ export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
       // This covers missing table, column errors, RLS, etc.
       console.error('feed_posts query failed:', error.message)
       return {
-        tracks: fallbackTracks,
+        tracks: [],
         status: 'error',
         message: error.message,
       }
@@ -342,7 +197,7 @@ export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
   } catch (err: any) {
     console.error('fetchRemoteTracks failed:', err?.message || err)
     return {
-      tracks: fallbackTracks,
+      tracks: [],
       status: 'error',
       message: err?.message || 'Unknown error',
     }
