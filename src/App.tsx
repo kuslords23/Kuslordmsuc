@@ -15,6 +15,7 @@ import { fetchMusicPlaylists, createCloudPlaylist, addCloudPlaylistTrack, remove
 import { fetchFollowedArtists, toggleCloudArtistFollow } from './lib/artistFollows'
 import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
 import { recordVerifiedDirectStream } from './lib/streamTracking'
+import { toggleMusicTrackLike } from './lib/trackLikes'
 import { useAuth } from './context/AuthContext'
 import './index.css'
 
@@ -58,6 +59,8 @@ export default function App() {
   const [externalSearchLoading, setExternalSearchLoading] = useState(false)
   const [activeExternalHit, setActiveExternalHit] = useState<ExternalCatalogHit | null>(null)
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
+  const [likeBusy, setLikeBusy] = useState(false)
+  const [likeError, setLikeError] = useState('')
   const [queue, setQueue] = useState<Track[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -307,6 +310,25 @@ export default function App() {
     await deleteCloudPlaylist(playlistId)
     await refreshPlaylists()
   }, [refreshPlaylists])
+
+  const handleToggleTrackLike = useCallback(async () => {
+    if (!currentTrack || !user || likeBusy) return
+    setLikeBusy(true)
+    setLikeError('')
+    try {
+      const liked = await toggleMusicTrackLike(currentTrack.postId || currentTrack.id)
+      const update = (track: Track): Track => track.id === currentTrack.id
+        ? { ...track, liked, likes: Math.max(0, Number(track.likes || 0) + (liked ? 1 : -1)) }
+        : track
+      setTracks((previous) => previous.map(update))
+      setQueue((previous) => previous.map(update))
+      setCurrentTrack((previous) => previous?.id === currentTrack.id ? update(previous) : previous)
+    } catch (cause) {
+      setLikeError(cause instanceof Error ? cause.message : 'Could not update this like.')
+    } finally {
+      setLikeBusy(false)
+    }
+  }, [currentTrack, user, likeBusy])
 
   const handleToggleArtistFollow = useCallback(async (artistProfileId: string) => {
     const following = await toggleCloudArtistFollow(artistProfileId)
@@ -1047,7 +1069,12 @@ export default function App() {
           onSeek={handleSeek}
           onVolume={handleVolume}
           onOpenComments={currentTrack ? () => setCommentsTrack(currentTrack) : undefined}
+          liked={currentTrack.liked}
+          likes={currentTrack.likes || 0}
+          onToggleLike={user ? handleToggleTrackLike : undefined}
+          likeBusy={likeBusy}
         />
+        {likeError && <p className="player-action-error" role="alert">{likeError}</p>}
       </div>}
 
       {/* Modals */}
