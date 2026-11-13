@@ -324,3 +324,12 @@ The shared Supabase migration for these tables, policies, trigger, and Realtime 
 - Supported voice IDs are allowlisted; text input is capped at 2,500 characters.
 - Generated MP3 output is returned to the app with an audio player and playback controls.
 - Production activation requires the `ELEVENLABS_API_KEY` environment variable on the Kus-Lords Music Vercel project. It is not currently configured, so the UI reports that the provider is disconnected rather than showing a fake successful generation.
+
+
+## 001-J: Persistent track likes
+
+- Reintroduced the SCN track-like control in the single global player, backed by the new `music_track_likes` table.
+- Likes are unique per authenticated user and published audio post. RLS permits users to read their own like state and create/remove only their own likes.
+- A database trigger maintains the canonical `feed_posts.likes` aggregate. The app only changes its displayed state after the database confirms the action.
+- The catalogue reads aggregate counts from `feed_posts` and the current user's own like rows from `music_track_likes`.
+- The old in-memory/session-only like behaviour has been replaced; playlist rows do not add a second like UI.
