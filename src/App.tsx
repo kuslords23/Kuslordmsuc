@@ -17,6 +17,7 @@ import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
 import { recordVerifiedDirectStream } from './lib/streamTracking'
 import { toggleMusicTrackLike } from './lib/trackLikes'
 import { useAuth } from './context/AuthContext'
+import RoyalCompanion from './components/RoyalCompanion'
 import './index.css'
 
 type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search' | 'studio' | 'artists'
@@ -850,8 +851,8 @@ export default function App() {
             ))}
           </div>
           <section className="external-catalog-results">
-            <div className="section-title"><h2>External catalogue</h2><span className="caption">Live Spotify results</span></div>
-            {externalSearchLoading && <div className="empty">Searching Spotify…</div>}
+            <div className="section-title"><h2>External catalogue</h2><span className="caption">Live Spotify and YouTube results</span></div>
+            {externalSearchLoading && <div className="empty">Searching connected music providers…</div>}
             {externalSearchHint && <div className="empty">{externalSearchHint}</div>}
             {externalSearchResults.map((item) => (
               <button type="button" className="track-row-compact external-catalog-hit" key={item.id} onClick={() => setActiveExternalHit(item)}>
@@ -1105,6 +1106,8 @@ export default function App() {
         />
         {likeError && <p className="player-action-error" role="alert">{likeError}</p>}
       </div>}
+
+      <RoyalCompanion activeTab={activeTab} currentTrack={currentTrack ? { title: currentTrack.title, artist: currentTrack.artist, album: currentTrack.album } : null} />
 
       {/* Modals */}
       <CommentsPanel track={commentsTrack} user={user} onClose={() => setCommentsTrack(null)} />
