@@ -18,6 +18,7 @@ import { recordVerifiedDirectStream } from './lib/streamTracking'
 import { toggleMusicTrackLike } from './lib/trackLikes'
 import { useAuth } from './context/AuthContext'
 import RoyalCompanion from './components/RoyalCompanion'
+import TrendFollowPanel from './components/TrendFollowPanel'
 import './index.css'
 
 type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search' | 'studio' | 'artists'
@@ -702,6 +703,7 @@ export default function App() {
     return (
       <div className="tab-scroll">
         <div className="section-title"><h2>Browse music</h2></div>
+        <TrendFollowPanel />
         <div className="genre-strip">
           {genres.map((genre) => <button key={genre} className="genre-chip" onClick={() => setSearch(genre)}>{genre}</button>)}
         </div>
