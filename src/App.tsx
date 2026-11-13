@@ -787,6 +787,7 @@ export default function App() {
               onRemoveTrack={handleRemovePlaylistTrack}
               onDeletePlaylist={handleDeletePlaylist}
               onUpdateVisibility={handleUpdatePlaylistVisibility}
+              onMoveTrack={handleMovePlaylistTrack}
               onPlay={playTrack}
             />
     </div>
