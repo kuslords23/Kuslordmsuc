@@ -71,7 +71,7 @@ assert.match(app, /Live Spotify results/, "external catalogue results must have 
 assert.match(analytics, /music_stream_events/, "creator analytics must read verified stream events");
 assert.match(analytics, /postgres_changes/, "creator analytics must refresh in realtime");
 assert.match(studio, /api\/studio\/elevenlabs/, "voice generation UI must call a real provider endpoint");
-assert.match(studio, /Authorization: `Bearer \\${accessToken}`/, "voice generation must send the authenticated session");
+assert.match(studio, /Authorization: `Bearer \${accessToken}`/, "voice generation must send the authenticated session");
 assert.match(elevenLabs, /ELEVENLABS_API_KEY/, "voice endpoint must use a server-side ElevenLabs credential");
 assert.match(elevenLabs, /auth\/v1\/user/, "voice endpoint must verify the Supabase user session");
 assert.match(streamTracking, /log_music_stream_event_v2/, "playback must write SCN verified stream events");
