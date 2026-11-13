@@ -367,3 +367,12 @@ Applied to the shared Kus-lords-prod Supabase project on 2026-11-13.
 - Supabase migration kus_music_unified_platform_foundation and follow-up migration kus_music_studio_project_updated_at were applied successfully. The new tables and RLS policies were queried after application.
 - Source changes are committed to main. Vercel production deployment is currently blocked by the account's api-deployments-free-per-day limit (HTTP 402, more than 100 deployments in the rolling daily allowance). The latest attempted production builds also stopped at the Royal prebuild verifier before the app bundle; the verifier contract has since been corrected.
 - Do not treat these changes as live on the production domain until a new production build succeeds and the deployment is checked.
+
+
+## 001-N: Follow Trends and catalogue-first lookup
+
+- Added a Follow Trends panel to Explore. Signed-in users can follow genres, artists, countries and moods; preferences are stored in music_trend_follows under owner-only RLS.
+- The panel reads active Royal-curated playlist definitions from music_auto_playlists and clearly shows an empty state until a curator publishes results. It does not fabricate trending songs.
+- The music search API now checks the public KUS catalogue first and only calls external provider search when the KUS catalogue has no matching playable source records.
+- Playlist owners can now switch their cloud playlists between private and public visibility. The database includes collaboration and playlist-save tables, but invitations, acceptance, following, sharing routes and collaborative editing UI remain to be built.
+- Trend collection, signal scoring, scheduled refresh workers and playlist track generation remain inactive until their KUS Core/cron workflows are connected.
