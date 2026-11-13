@@ -1,7 +1,7 @@
 # MUSIC-MEGA-001: SCN Music Extraction & Kus-Lords Port
 
 Status: in progress  
-Working branch: `music-mega-001-scn-port`  
+Working branch: `main`  
 Reference repository: `kuslords23/sport-clan-nexus-`  
 Target repository: `kuslords23/Kuslordmsuc`  
 Royal integration repository: `kuslords23/kus-ai-app`
@@ -260,3 +260,42 @@ The existing SCN RLS policy and artist-tier trigger remain authoritative. Profil
 ### Royal natural-language control boundary
 
 The embedded panel currently provides direct user-interface controls and a validated cross-origin command protocol. It is not yet connected to Royal's model tool-calling/action dispatcher. Therefore the bridge is ready for the next integration layer, but natural-language instructions such as "play this song", "like that track", or "comment on this release" are not yet guaranteed to execute from chat without the user operating the embedded panel. The next Royal integration slice must register typed music actions with KUS AI's execution boundary, return action receipts to the conversation, and require confirmation for public comments or other consequential actions.
+
+
+## 001-G: Live-data parity and creator operations
+
+This batch continues the SCN Music port directly on `main`.
+
+### Ported and implemented with working UI
+
+- **Live native catalogue:** the standalone app now starts with no bundled demo tracks or albums. The only native catalogue source is the shared `feed_posts` audio inventory.
+- **Honest empty/error states:** an empty library or Supabase failure no longer substitutes sample songs. The UI reports loading, empty, or unavailable states.
+- **Realtime updates:** audio post and artist-profile changes refresh the standalone catalogue and directory through Supabase Realtime subscriptions.
+- **Discovery UI:** the search screen now includes live Spotify catalogue results from a server-side Vercel function and official Spotify embeds. Existing direct Spotify, Apple Music, and SoundCloud links continue to use official platform embeds.
+- **Verified listening:** direct playback records a stream through SCN's `log_music_stream_event_v2` RPC after 30 seconds, or after completion of a shorter track. Session keys and the database uniqueness constraint prevent duplicate stream events.
+- **Creator analytics UI:** Studio now includes a creator-performance view reading the signed-in user's actual audio posts and `music_stream_events`. It refreshes on database changes and reports releases, verified streams, and listened minutes.
+- **Release registration:** uploads are SHA-256 fingerprinted, checked against `music_release_registry` and `feed_posts.audio_content_hash`, then registered under the authenticated owner. If registration fails after upload, the app attempts to remove the just-created post and storage objects.
+- **Artist / playlist / comment surfaces:** the previously ported artist directory/storefront editor, playlist manager, shared comments panel, upload flow, and global player remain in place.
+- **Removed unsupported UI/data:** removed seeded tracks/albums, fallback tracks, ZIP-extracted track loading, fake radio stations, Sports UI/data, mock stadium labels, and local-only like counters. The desktop player no longer displays a like control that is not backed by a durable SCN likes table.
+
+### Deliberately not presented as real functionality
+
+- SCN's current playlist and followed-artist state uses localStorage. The standalone port preserves that same device-local behaviour; it does not claim cloud sync or cross-device realtime persistence.
+- SCN's current track-like path is in-memory only and no durable likes table was found in the inspected migrations. The standalone app therefore omits likes rather than displaying invented engagement.
+- SCN's earnings, affiliate, referral, boost, and paid-sound UI uses localStorage calculations. Those prototypes are not copied as real wallets, purchases, payouts, or financial analytics.
+- Full text search across Spotify requires server-only `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` on the Kus-Lords Music Vercel project. Without those credentials, the UI reports that the external catalogue is not configured. Direct official embeds remain available.
+- Apple Music and SoundCloud direct links/embeds are supported; their text-search catalogue providers are not implemented in this batch.
+- A full DAW (multitrack timeline, piano roll, mixer, effects, project save/export) is a separate Kus-Lords Music product extension, not an SCN Music screen that can simply be ported. The existing beat-pad / Royal / voice studio remains.
+- Natural-language execution of every music action from Royal is still not complete. The existing bridge supports player, queue, search, and confirmed comment actions; more typed actions need to be registered in Royal's execution dispatcher.
+
+### Database prerequisites and security
+
+- The shared Supabase project must have SCN migrations 040 and 043 applied, plus the earlier audio/storage dependencies documented above.
+- The upload flow intentionally fails before uploading if the release-registry schema is unavailable. It does not silently bypass duplicate-release protection.
+- Release registration uses a direct RLS-protected insert with the authenticated owner ID. It does not call the existing public SECURITY DEFINER release RPC with a client-supplied owner ID.
+- Realtime requires `feed_posts`, `artist_profiles`, and `music_stream_events` to be included in the Supabase Realtime publication.
+- No schema migration was applied by this source-code batch. Database migration status and RLS / Realtime publication must be verified separately.
+
+### Verification boundary
+
+GitHub source commits and Vercel production builds are separate facts. The Vercel build triggered from `main` must pass the Royal and Music source verifiers plus the Vite production build. Live Supabase upload, release-registry, stream-count, RLS, Spotify search, and mobile playback tests remain necessary before claiming end-to-end parity.
