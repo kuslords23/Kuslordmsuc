@@ -111,3 +111,31 @@ export async function updateCloudPlaylistVisibility(playlistId: string, visibili
     .eq('id', playlistId)
   if (error) throw new Error(`Could not update playlist visibility: ${error.message}`)
 }
+
+export async function moveCloudPlaylistTrack(playlistId: string, trackId: string, direction: -1 | 1): Promise<void> {
+  await requireUser()
+  const { data, error } = await supabase!.from('music_playlist_tracks')
+    .select('id,track_post_id,position').eq('playlist_id', playlistId).order('position', { ascending: true })
+  if (error) throw new Error(`Could not load playlist order: ${error.message}`)
+  const rows = data || []
+  const index = rows.findIndex((row) => row.track_post_id === trackId)
+  const target = index + direction
+  if (index < 0 || target < 0 || target >= rows.length) return
+  const current = rows[index]
+  const neighbor = rows[target]
+  const first = await supabase!.from('music_playlist_tracks').update({ position: neighbor.position }).eq('id', current.id)
+  if (first.error) throw new Error(`Could not move track: ${first.error.message}`)
+  const second = await supabase!.from('music_playlist_tracks').update({ position: current.position }).eq('id', neighbor.id)
+  if (second.error) throw new Error(`Playlist order partially updated: ${second.error.message}`)
+  await supabase!.from('music_playlists').update({ updated_at: new Date().toISOString() }).eq('id', playlistId)
+}
+
+export async function recordCloudPlaylistPlay(playlistId: string, track: Track): Promise<void> {
+  const user = await requireUser()
+  const trackId = track.postId || track.id
+  if (!UUID.test(trackId)) return
+  const { error } = await supabase!.from('music_playlist_play_history').insert({
+    playlist_id: playlistId, track_post_id: trackId, user_id: user.id,
+  })
+  if (error) throw new Error(`Could not record playlist listening history: ${error.message}`)
+}
