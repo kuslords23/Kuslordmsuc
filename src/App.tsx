@@ -21,7 +21,7 @@ import RoyalCompanion from './components/RoyalCompanion'
 import TrendFollowPanel from './components/TrendFollowPanel'
 import './index.css'
 
-type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search' | 'studio' | 'artists'
+type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists'
 type ExternalCatalogHit = {
   id: string
   title: string
@@ -111,8 +111,9 @@ export default function App() {
 
   // Keep the catalogue live as SCN audio posts are published, edited, or removed.
   useEffect(() => {
-    if (!supabase) return
-    const channel = supabase
+    const client = supabase
+    if (!client) return
+    const channel = client
       .channel('kus-music-live-audio-feed')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'feed_posts', filter: 'post_type=eq.audio' }, () => {
         void fetchRemoteTracks().then((data) => {
@@ -124,7 +125,7 @@ export default function App() {
         })
       })
       .subscribe()
-    return () => { void supabase.removeChannel(channel) }
+    return () => { void client.removeChannel(channel) }
   }, [])
 
   const refreshPlaylists = useCallback(async () => {
@@ -162,14 +163,15 @@ export default function App() {
   useEffect(() => {
     void refreshPlaylists()
     void refreshFollowedArtists()
-    if (!user || !supabase) return
-    const channel = supabase
+    const client = supabase
+    if (!user || !client) return
+    const channel = client
       .channel(`kus-music-user-library-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlists', filter: `user_id=eq.${user.id}` }, () => { void refreshPlaylists() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlist_tracks' }, () => { void refreshPlaylists() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_follows', filter: `user_id=eq.${user.id}` }, () => { void refreshFollowedArtists() })
       .subscribe()
-    return () => { void supabase.removeChannel(channel) }
+    return () => { void client.removeChannel(channel) }
   }, [user, refreshPlaylists, refreshFollowedArtists])
 
   // Search the live Spotify catalogue through the server-side provider endpoint.
@@ -219,14 +221,15 @@ export default function App() {
       })
     }
     refresh()
-    if (!supabase) return () => { cancelled = true }
-    const channel = supabase
+    const client = supabase
+    if (!client) return () => { cancelled = true }
+    const channel = client
       .channel('kus-music-live-artist-profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_profiles' }, refresh)
       .subscribe()
     return () => {
       cancelled = true
-      void supabase.removeChannel(channel)
+      void client.removeChannel(channel)
     }
   }, [])
 
@@ -427,7 +430,7 @@ export default function App() {
   const allowedParentOrigins = useMemo(() => {
     const configured = (import.meta.env.VITE_ALLOWED_PARENT_ORIGINS || '')
       .split(',')
-      .map((value) => value.trim())
+      .map((value: string) => value.trim())
       .filter(Boolean)
     return new Set([
       window.location.origin,
