@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "integrate": "node scripts/unzip-integrate.cjs",
     "verify:music": "node scripts/verify-music-mega-001.mjs",
-    "verify:royal-companion": "node scripts/verify-royal-companion.mjs"
+    "verify:royal-companion": "node scripts/verify-royal-companion.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
