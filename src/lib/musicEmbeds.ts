@@ -72,7 +72,7 @@ function parseAppleMusic(raw: string): ParsedMusicLink | null {
     if (kind !== 'artist' && kind !== 'album' && kind !== 'song') return null
     const slug = parts[index + 1]
     let id = (parts[index + 2] || '').replace(/^id/, '')
-    let embedKind = kind
+    let embedKind: 'artist' | 'album' | 'song' = kind
     if (kind === 'album' && url.searchParams.get('i')) {
       id = url.searchParams.get('i') || ''
       embedKind = 'song'
