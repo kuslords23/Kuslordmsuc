@@ -6,6 +6,8 @@ export interface MusicPlaylist {
   name: string
   description?: string
   coverUrl: string
+  visibility: 'private' | 'public' | 'unlisted'
+  isCollaborative: boolean
   trackIds: string[]
   createdBy: string
   isUserPlaylist?: boolean
@@ -25,7 +27,7 @@ export async function fetchMusicPlaylists(): Promise<MusicPlaylist[]> {
   const user = await requireUser()
   const { data, error } = await supabase!
     .from('music_playlists')
-    .select('id,name,description,cover_url,created_at,updated_at')
+    .select('id,name,description,cover_url,visibility,is_collaborative,created_at,updated_at')
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
     .limit(30)
@@ -51,6 +53,8 @@ export async function fetchMusicPlaylists(): Promise<MusicPlaylist[]> {
     name: row.name,
     description: row.description || '',
     coverUrl: row.cover_url || '',
+    visibility: row.visibility || 'private',
+    isCollaborative: Boolean(row.is_collaborative),
     trackIds: trackIds.get(row.id) || [],
     createdBy,
     isUserPlaylist: true,
@@ -98,4 +102,12 @@ export async function removeCloudPlaylistTrack(playlistId: string, trackId: stri
 export async function deleteCloudPlaylist(playlistId: string): Promise<void> {
   const { error } = await supabase!.from('music_playlists').delete().eq('id', playlistId)
   if (error) throw new Error(`Could not delete playlist: ${error.message}`)
+}
+
+export async function updateCloudPlaylistVisibility(playlistId: string, visibility: 'private' | 'public'): Promise<void> {
+  await requireUser()
+  const { error } = await supabase!.from('music_playlists')
+    .update({ visibility, updated_at: new Date().toISOString() })
+    .eq('id', playlistId)
+  if (error) throw new Error(`Could not update playlist visibility: ${error.message}`)
 }
