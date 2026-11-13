@@ -118,3 +118,14 @@
   border-radius: 10px;
   padding: 10px 12px;
 }
+.studio-audio-output {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  border-radius: 10px;
+}
+.studio-empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 12px 0 18px;
+}
