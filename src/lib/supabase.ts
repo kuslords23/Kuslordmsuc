@@ -96,7 +96,7 @@ function deriveTitle(post: DbFeedPost): string {
 }
 
 function deriveAlbum(post: DbFeedPost): string {
-  const match = post.content?.match(/\\(([^()]*)\\)\\s*$/)
+  const match = post.content?.match(/\(([^()]*)\)\s*$/)
   return match?.[1]?.trim() || ''
 }
 
