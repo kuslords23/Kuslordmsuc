@@ -131,12 +131,11 @@ function rowToTrack(d: DbFeedPost): Track | null {
     artistProfileId: d.artist_profile_id || undefined,
     audioContentHash: d.audio_content_hash || undefined,
     title,
-    artist: d.sound_artist?.trim() || 'Kus-lords Artist',
-    album: 'Cloud Vault',
+    artist: d.sound_artist?.trim() || 'Unknown artist',
+    album: 'Singles',
     duration: 0, // Duration is not part of the verified feed_posts audio contract yet.
     audioUrl,
     cover,
-    likes: 0,
   }
 }
 
