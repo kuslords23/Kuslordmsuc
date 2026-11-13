@@ -72,7 +72,7 @@ assert.doesNotMatch(app, /localStorage/, "the application must not use local-onl
 assert.doesNotMatch(playlistStore, /localStorage/, "playlist data must not be stored only on this device");
 assert.doesNotMatch(follows, /localStorage/, "artist follows must not be stored only on this device");
 assert.match(app, /\/api\/music\/search/, "search UI must call the live external catalogue endpoint");
-assert.match(app, /Live Spotify results/, "external catalogue results must have a UI");
+assert.match(app, /Live Spotify, YouTube and Apple Music results/, "external catalogue results must have a UI");
 assert.match(analytics, /music_stream_events/, "creator analytics must read verified stream events");
 assert.match(analytics, /postgres_changes/, "creator analytics must refresh in realtime");
 assert.match(studio, /api\/studio\/elevenlabs/, "voice generation UI must call a real provider endpoint");
