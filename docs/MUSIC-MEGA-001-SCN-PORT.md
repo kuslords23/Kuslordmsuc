@@ -299,3 +299,18 @@ This batch continues the SCN Music port directly on `main`.
 ### Verification boundary
 
 GitHub source commits and Vercel production builds are separate facts. The Vercel build triggered from `main` must pass the Royal and Music source verifiers plus the Vite production build. Live Supabase upload, release-registry, stream-count, RLS, Spotify search, and mobile playback tests remain necessary before claiming end-to-end parity.
+
+
+## 001-H: Cloud-only user library and live social state
+
+The initial compatibility slice mirrored SCN's localStorage playlist and followed-artist keys. That was superseded to satisfy the standalone product requirement that user music data be real, account-backed, and synchronized.
+
+- Playlists now use `music_playlists` and `music_playlist_tracks`, with owner-scoped RLS.
+- Artist follows now use `artist_follows`, keyed by authenticated user and artist profile.
+- Artist follower counts are maintained by a database trigger from actual follow/unfollow rows.
+- Playlist and follow state load from Supabase and refresh through Realtime subscriptions.
+- Playlist actions require a signed-in user. Only published audio posts with canonical UUID IDs can be added.
+- Device-local playlist and artist-follow storage has been removed. Existing local-only lists are not silently presented as cloud-synced records.
+- The app does not create synthetic playlists, sample follows, demo radio stations, or fabricated track engagement.
+
+The shared Supabase migration for these tables, policies, trigger, and Realtime publication has been applied to the active `Kus-lords-prod` project. The source verifier now fails if localStorage is reintroduced for music playlists or artist follows.
