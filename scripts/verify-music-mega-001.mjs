@@ -2,6 +2,7 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
+const exists = (path) => fs.existsSync(new URL(path, import.meta.url));
 const pkg = JSON.parse(read("../package.json"));
 const app = read("../src/App.tsx");
 const data = read("../src/lib/supabase.ts");
@@ -13,12 +14,17 @@ const playlistStore = read("../src/lib/playlists.ts");
 const embeds = read("../src/lib/musicEmbeds.ts");
 const comments = read("../src/components/CommentsPanel.tsx");
 const follows = read("../src/lib/artistFollows.ts");
+const analytics = read("../src/components/CreatorAnalytics.tsx");
+const streamTracking = read("../src/lib/streamTracking.ts");
+const releaseRegistry = read("../src/lib/releaseRegistry.ts");
+const player = read("../src/components/PlayerBar.tsx");
+const playlistView = read("../src/components/PlaylistView.tsx");
 
 assert.equal(pkg.scripts.predev, undefined, "dev startup must not auto-extract ZIP archives");
 assert.match(pkg.scripts.dev, /vite/, "dev script must remain Vite");
 assert.match(app, /event\.source !== window\.parent/, "bridge must accept messages only from parent");
 assert.match(app, /allowedParentOrigins\.has\(event\.origin\)/, "bridge must enforce exact origin allowlist");
-for (const command of ["SEARCH_TRACKS", "GET_TRACKS", "PLAY_TRACK", "SET_QUEUE", "ADD_TO_QUEUE", "CLEAR_QUEUE", "GET_STATE", "GET_COMMENTS", "POST_COMMENT", "LIKE_TRACK"]) {
+for (const command of ["SEARCH_TRACKS", "GET_TRACKS", "PLAY_TRACK", "SET_QUEUE", "ADD_TO_QUEUE", "CLEAR_QUEUE", "GET_STATE", "GET_COMMENTS", "POST_COMMENT"]) {
   assert.ok(app.includes(`case '${command}'`), `missing bridge command: ${command}`);
 }
 assert.match(data, /\.eq\('post_type', 'audio'\)/, "library must filter canonical audio posts");
@@ -42,12 +48,30 @@ assert.match(embeds, /parseMusicLink/, "official music link parser must exist");
 assert.match(embeds, /w\.soundcloud\.com\/player/, "SoundCloud embed must use its official player");
 assert.match(app, /external-music-embed/, "search UI must render official platform embeds");
 assert.match(comments, /session\.user\.id/, "comment author must come from the verified Supabase session");
-assert.match(app, /case 'LIKE_TRACK'/, "track like command must be available to Royal");
-assert.match(model, /liked\?: boolean/, "track model must expose session-local like state");
 assert.match(comments, /feed_comments/, "music comments must use the shared SCN comments table");
 assert.match(app, /payload\?\.confirmed !== true/, "Royal comment publishing must require explicit confirmation");
 assert.match(app, /setCommentsTrack\(currentTrack\)/, "player must expose comments on the current track");
 assert.match(model, /postId\?: string/, "track model must retain canonical feed post ID");
 assert.match(model, /artistProfileId\?: string/, "track model must retain artist profile ID");
 
-console.log("MUSIC-MEGA-001 source checks passed.");
+assert.match(model, /export const initialTracks: Track\[\] = \[\]/, "no seeded demo tracks may ship");
+assert.match(model, /export const albums: Album\[\] = \[\]/, "no seeded demo albums may ship");
+assert.doesNotMatch(data, /fallbackTracks/, "Supabase failures must never return demo tracks");
+assert.match(app, /kus-music-live-audio-feed/, "published audio feed must subscribe to realtime changes");
+assert.match(app, /\/api\/music\/search/, "search UI must call the live external catalogue endpoint");
+assert.match(app, /Live Spotify results/, "external catalogue results must have a UI");
+assert.match(analytics, /music_stream_events/, "creator analytics must read verified stream events");
+assert.match(analytics, /postgres_changes/, "creator analytics must refresh in realtime");
+assert.match(streamTracking, /log_music_stream_event_v2/, "playback must write SCN verified stream events");
+assert.match(app, /recordVerifiedDirectStream/, "actual playback must trigger verified stream tracking");
+assert.match(releaseRegistry, /music_release_registry/, "release registry integration must use the shared SCN table");
+assert.match(releaseRegistry, /owner_user_id/, "release registration must be owner-scoped");
+assert.match(upload, /hashAudioFile/, "upload must hash the audio file before publishing");
+assert.match(upload, /registerUploadedRelease/, "upload must register the published release");
+assert.match(player, /onOpenComments/, "player must retain shared comments access");
+assert.doesNotMatch(player, /onToggleLike/, "non-persistent like controls must not be shown");
+assert.doesNotMatch(playlistView, /col-likes|isSportsAnthem|matchVibe/, "playlist UI must not show mock likes or sports labels");
+assert.ok(!exists("../src/components/SportsSection.tsx"), "standalone Music must not ship a Sports section");
+assert.ok(!exists("../src/data/sports.ts"), "standalone Music must not ship sports demo data");
+
+console.log("MUSIC-MEGA-001 live-data and parity checks passed.");
