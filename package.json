@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/verify-royal-companion.mjs",
+    "prebuild": "node scripts/verify-royal-companion.mjs && node scripts/verify-music-mega-001.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "integrate": "node scripts/unzip-integrate.cjs",
