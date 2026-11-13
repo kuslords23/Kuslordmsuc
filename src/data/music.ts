@@ -14,10 +14,6 @@ export interface Track {
   audioUrl: string
   cover: string
   genre?: string
-  isSportsAnthem?: boolean
-  matchVibe?: string
-  likes?: number
-  liked?: boolean
 }
 
 export interface Album {
