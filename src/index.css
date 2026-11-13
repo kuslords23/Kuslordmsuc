@@ -1134,3 +1134,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: rgba(212,175,55,.12);
   color: inherit;
 }
+
+.track-like-btn { display: inline-flex; align-items: center; gap: 4px; }
+.track-like-btn small { font-size: 10px; }
+.track-like-btn:disabled { opacity: .55; cursor: wait; }
+.player-action-error { margin: 0; padding: 5px 10px; color: #ff9a9a; font-size: 11px; }
