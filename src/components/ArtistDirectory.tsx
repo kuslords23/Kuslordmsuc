@@ -24,6 +24,8 @@ function safeExternalUrl(value?: string): string | null {
 
 export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followedArtists, onToggleFollow, currentUserId, onSaveProfile }: ArtistDirectoryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [followBusy, setFollowBusy] = useState(false)
+  const [followError, setFollowError] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null)
   const [savingProfile, setSavingProfile] = useState(false)
