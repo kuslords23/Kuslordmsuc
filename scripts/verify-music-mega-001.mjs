@@ -22,6 +22,10 @@ const player = read("../src/components/PlayerBar.tsx");
 const studio = read("../src/components/Studio.tsx");
 const elevenLabs = read("../api/studio/elevenlabs.ts");
 const playlistView = read("../src/components/PlaylistView.tsx");
+const royalCompanion = read("../src/components/RoyalCompanion.tsx");
+const providerSearch = read("../api/music/search.ts");
+const studioMigration = "../supabase/migrations/20261113192026_kus_music_unified_platform_foundation.sql";
+const studioUpdatedAtMigration = "../supabase/migrations/20261113192400_kus_music_studio_project_updated_at.sql";
 
 assert.equal(pkg.scripts.predev, undefined, "dev startup must not auto-extract ZIP archives");
 assert.match(pkg.scripts.dev, /vite/, "dev script must remain Vite");
@@ -96,4 +100,16 @@ assert.doesNotMatch(playlistView, /col-likes|isSportsAnthem|matchVibe/, "playlis
 assert.ok(!exists("../src/components/SportsSection.tsx"), "standalone Music must not ship a Sports section");
 assert.ok(!exists("../src/data/sports.ts"), "standalone Music must not ship sports demo data");
 
-console.log("MUSIC-MEGA-001 live-data and parity checks passed.");
+
+assert.match(app, /RoyalCompanion/, "Royal must have a persistent Music app entry point");
+assert.match(royalCompanion, /api\/royal\/companion/, "persistent Royal panel must call the shared companion gateway");
+assert.match(providerSearch, /YOUTUBE_DATA_API_KEY/, "provider search must support official YouTube catalogue discovery");
+assert.match(providerSearch, /videoEmbeddable/, "YouTube results must be restricted to embeddable videos");
+assert.match(providerSearch, /SPOTIFY_CLIENT_ID/, "provider search must preserve Spotify server-side credentials");
+assert.match(studio, /music_studio_projects/, "Studio projects must be cloud persisted");
+assert.match(studio, /studio-step/, "Studio must include the step sequencer");
+assert.match(studio, /studio-note-cell/, "Studio must include a piano-roll note grid");
+assert.ok(exists(studioMigration), "unified Music platform database migration must be committed");
+assert.ok(exists(studioUpdatedAtMigration), "Studio project updated-at trigger migration must be committed");
+
+console.log("MUSIC-MEGA-001 live-data, Royal, Studio and provider checks passed.");
