@@ -333,3 +333,8 @@ The shared Supabase migration for these tables, policies, trigger, and Realtime 
 - A database trigger maintains the canonical `feed_posts.likes` aggregate. The app only changes its displayed state after the database confirms the action.
 - The catalogue reads aggregate counts from `feed_posts` and the current user's own like rows from `music_track_likes`.
 - The old in-memory/session-only like behaviour has been replaced; playlist rows do not add a second like UI.
+
+
+## 001-K: SCN global player transport parity
+
+The single standalone global player now includes SCN's shuffle, repeat-current-track, and mute controls alongside the existing play/pause, previous/next, seek, volume, and comments controls. Shuffle changes the actual next-track selection; repeat restarts the current track; mute controls the shared audio element. No second player or duplicate playback engine was introduced.
