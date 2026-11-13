@@ -14,6 +14,7 @@ import PlaylistLibrary from './components/PlaylistLibrary'
 import { loadPlaylistsLocal, savePlaylistsLocal, type MusicPlaylist } from './lib/playlists'
 import { loadFollowedArtists, saveFollowedArtists } from './lib/artistFollows'
 import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
+import { recordVerifiedDirectStream } from './lib/streamTracking'
 import { useAuth } from './context/AuthContext'
 import './index.css'
 
@@ -184,7 +185,13 @@ export default function App() {
       audioRef.current.volume = volume
     }
     const audio = audioRef.current
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime)
+      const track = currentTrackRef.current
+      if (track?.postId && audio.currentTime >= 30) {
+        void recordVerifiedDirectStream(track.postId, audio.currentTime, audio.duration || 0)
+      }
+    }
     const handleLoadedMetadata = () => setDuration(audio.duration || 0)
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
@@ -526,6 +533,7 @@ export default function App() {
       const track = currentTrackRef.current
       const q = queueRef.current
       if (!track || q.length === 0) return
+      if (track.postId) void recordVerifiedDirectStream(track.postId, audio.currentTime, audio.duration || 0, true)
       const index = q.findIndex((t) => t.id === track.id)
       playTrack(q[(index + 1) % q.length], q)
     }
