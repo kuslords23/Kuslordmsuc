@@ -83,6 +83,11 @@ assert.match(upload, /hashAudioFile/, "upload must hash the audio file before pu
 assert.match(upload, /registerUploadedRelease/, "upload must register the published release");
 assert.match(player, /onOpenComments/, "player must retain shared comments access");
 assert.match(player, /onToggleLike/, "player must expose persistent likes");
+assert.match(player, /onToggleShuffle/, "SCN shuffle control must be ported");
+assert.match(player, /onToggleRepeat/, "SCN repeat control must be ported");
+assert.match(player, /onToggleMute/, "SCN mute control must be ported");
+assert.match(app, /shuffleRef\.current/, "shuffle must affect actual playback order");
+assert.match(app, /repeatRef\.current/, "repeat must affect actual playback behaviour");
 assert.match(trackLikes, /music_track_likes/, "track likes must persist to the shared database");
 assert.match(trackLikes, /auth\.user\.id/, "track likes must use the verified signed-in user");
 assert.match(app, /toggleMusicTrackLike/, "player like UI must call the persisted like adapter");
