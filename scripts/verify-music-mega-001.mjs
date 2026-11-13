@@ -18,6 +18,8 @@ const analytics = read("../src/components/CreatorAnalytics.tsx");
 const streamTracking = read("../src/lib/streamTracking.ts");
 const releaseRegistry = read("../src/lib/releaseRegistry.ts");
 const player = read("../src/components/PlayerBar.tsx");
+const studio = read("../src/components/Studio.tsx");
+const elevenLabs = read("../api/studio/elevenlabs.ts");
 const playlistView = read("../src/components/PlaylistView.tsx");
 
 assert.equal(pkg.scripts.predev, undefined, "dev startup must not auto-extract ZIP archives");
@@ -68,6 +70,10 @@ assert.match(app, /\/api\/music\/search/, "search UI must call the live external
 assert.match(app, /Live Spotify results/, "external catalogue results must have a UI");
 assert.match(analytics, /music_stream_events/, "creator analytics must read verified stream events");
 assert.match(analytics, /postgres_changes/, "creator analytics must refresh in realtime");
+assert.match(studio, /api\/studio\/elevenlabs/, "voice generation UI must call a real provider endpoint");
+assert.match(studio, /Authorization: `Bearer \\${accessToken}`/, "voice generation must send the authenticated session");
+assert.match(elevenLabs, /ELEVENLABS_API_KEY/, "voice endpoint must use a server-side ElevenLabs credential");
+assert.match(elevenLabs, /auth\/v1\/user/, "voice endpoint must verify the Supabase user session");
 assert.match(streamTracking, /log_music_stream_event_v2/, "playback must write SCN verified stream events");
 assert.match(app, /recordVerifiedDirectStream/, "actual playback must trigger verified stream tracking");
 assert.match(releaseRegistry, /music_release_registry/, "release registry integration must use the shared SCN table");
