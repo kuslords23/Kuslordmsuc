@@ -25,6 +25,7 @@ const playlistView = read("../src/components/PlaylistView.tsx");
 const royalCompanion = read("../src/components/RoyalCompanion.tsx");
 const providerSearch = read("../api/music/search.ts");
 const trendPanel = read("../src/components/TrendFollowPanel.tsx");
+const sidebar = read("../src/components/Sidebar.tsx");
 const studioMigration = "../supabase/migrations/20261113192026_kus_music_unified_platform_foundation.sql";
 const studioUpdatedAtMigration = "../supabase/migrations/20261113192400_kus_music_studio_project_updated_at.sql";
 
@@ -105,6 +106,11 @@ assert.ok(!exists("../src/data/sports.ts"), "standalone Music must not ship spor
 assert.match(app, /RoyalCompanion/, "Royal must have a persistent Music app entry point");
 assert.match(royalCompanion, /api\/royal\/companion/, "persistent Royal panel must call the shared companion gateway");
 assert.match(providerSearch, /kusCatalog\(q,limit\)/, "search must query the KUS catalogue before external providers");
+assert.match(app, /activeTab === .playlists./, "Playlists must have a dedicated navigation destination");
+assert.match(sidebar, /label="Explore"/, "desktop navigation must expose Explore");
+assert.match(sidebar, /label="Playlists"/, "desktop navigation must expose Playlists");
+assert.match(playlists, /onMoveTrack/, "users must be able to reorder playlist tracks");
+assert.match(playlistStore, /music_playlist_play_history/, "playlist listening history must persist");
 assert.match(trendPanel, /music_trend_follows/, "Follow Trends must persist user preferences");
 assert.match(trendPanel, /music_auto_playlists/, "Explore must read Royal-curated playlist definitions");
 assert.match(playlists, /onUpdateVisibility/, "playlist owners must be able to publish or privatize playlists");
