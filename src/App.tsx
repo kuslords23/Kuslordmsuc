@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { albums as defaultAlbums, initialTracks, type Album, type Track } from './data/music'
-import { sportsMatches } from './data/sports'
+import { type Album, type Track } from './data/music'
 import { fetchPublicArtistProfiles, fetchRemoteTracks, saveArtistProfile, supabase, type MusicArtistProfileInput, type PublicMusicArtistProfile } from './lib/supabase'
-import { loadExtractedTracks } from './lib/integrateExtracted'
 import Sidebar from './components/Sidebar'
 import AlbumCard from './components/AlbumCard'
 import PlaylistView from './components/PlaylistView'
@@ -31,12 +29,9 @@ const formatTime = (seconds: number): string => {
 export default function App() {
   const { user, signOut } = useAuth()
 
-  // Start with the built-in tracks so the screen is never empty
-  // while we wait for the cloud library to load.
-  const [tracks, setTracks] = useState<Track[]>(() => [
-    ...loadExtractedTracks(),
-    ...initialTracks,
-  ])
+  // The shared Supabase audio feed is the only catalogue source.
+  const [tracks, setTracks] = useState<Track[]>([])
+  const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [artistProfiles, setArtistProfiles] = useState<PublicMusicArtistProfile[]>([])
   const [playlists, setPlaylists] = useState<MusicPlaylist[]>(() => loadPlaylistsLocal())
   const [commentsTrack, setCommentsTrack] = useState<Track | null>(null)
@@ -64,20 +59,41 @@ export default function App() {
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
 
-  // Load cloud tracks; never let a failure blank the screen
+  // Load the live SCN-compatible audio inventory. Empty/error states stay empty.
   useEffect(() => {
     let cancelled = false
     fetchRemoteTracks()
       .then((data) => {
         if (cancelled) return
-        const remote = Array.isArray(data?.tracks) ? data.tracks : []
-        const merged = [...loadExtractedTracks(), ...remote]
-        if (merged.length > 0) setTracks(merged)
+        setTracks(Array.isArray(data?.tracks) ? data.tracks : [])
+        setLibraryStatus(data.status === 'error' || data.status === 'fallback' ? 'error' : 'ready')
       })
       .catch((err) => {
         console.error('Could not load cloud library:', err)
+        if (!cancelled) {
+          setTracks([])
+          setLibraryStatus('error')
+        }
       })
     return () => { cancelled = true }
+  }, [])
+
+  // Keep the catalogue live as SCN audio posts are published, edited, or removed.
+  useEffect(() => {
+    if (!supabase) return
+    const channel = supabase
+      .channel('kus-music-live-audio-feed')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feed_posts', filter: 'post_type=eq.audio' }, () => {
+        void fetchRemoteTracks().then((data) => {
+          setTracks(Array.isArray(data.tracks) ? data.tracks : [])
+          setLibraryStatus(data.status === 'error' || data.status === 'fallback' ? 'error' : 'ready')
+        }).catch((err) => {
+          console.error('Live music refresh failed:', err)
+          setLibraryStatus('error')
+        })
+      })
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
   }, [])
 
   useEffect(() => {
@@ -114,26 +130,25 @@ export default function App() {
     }
   }, [volume])
 
-  // Dynamic albums list (includes cloud vault for uploaded tracks)
+  // Build album groupings from actual published audio metadata.
   const albums = useMemo(() => {
-    if (tracks.length === 0) return defaultAlbums
-    const userUploadedTracks = tracks.filter((t) =>
-      t.id.startsWith('uploaded-') || t.id.startsWith('local-') || t.id.length > 20
-    )
-    if (userUploadedTracks.length > 0) {
-      const cloudAlbum: Album = {
-        id: 'cloud-vault',
-        title: 'Kus-lords Cloud Vault',
-        artist: user?.user_metadata?.username || 'Community',
-        description: 'Uploaded directly to Kus-lords Supabase Bucket storage.',
-        cover: 'linear-gradient(135deg, #ffd700, #ff8c00)',
-        category: 'royals',
-        tracks: userUploadedTracks,
-      }
-      return [cloudAlbum, ...defaultAlbums]
+    const groups = new Map<string, Track[]>()
+    for (const track of tracks) {
+      const title = track.album?.trim() || 'Singles'
+      const group = groups.get(title) || []
+      group.push(track)
+      groups.set(title, group)
     }
-    return defaultAlbums
-  }, [tracks, user])
+    return Array.from(groups.entries()).map(([title, items], index): Album => ({
+      id: `live-album-${index}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      title,
+      artist: Array.from(new Set(items.map((track) => track.artist).filter(Boolean))).join(', ') || 'Various artists',
+      description: `${items.length} published track${items.length === 1 ? '' : 's'}`,
+      cover: items[0]?.cover || '',
+      category: 'vibes',
+      tracks: items,
+    }))
+  }, [tracks])
 
   const selectedAlbum = useMemo(
     () => albums.find((album) => album.id === selectedAlbumId) ?? null,
@@ -160,10 +175,7 @@ export default function App() {
     )
   }, [search, tracks])
 
-  const studioTracks = useMemo(
-    () => (tracks.length > 0 ? tracks : initialTracks),
-    [tracks],
-  )
+  const studioTracks = tracks
 
   // Player functions
   const playTrack = useCallback((track: Track | undefined, trackList: Track[]) => {
@@ -268,32 +280,6 @@ export default function App() {
     })
 
     switch (type) {
-      case 'PLAY_ANTHEM': {
-        if (typeof payload?.matchId === 'string') {
-          const match = sportsMatches.find((m) => m.id === payload.matchId)
-          const track = match?.anthemTrackId
-            ? tracks.find((t) => t.id === match.anthemTrackId) || tracks[0]
-            : undefined
-          if (track) playTrack(track, tracks)
-        }
-        break
-      }
-      case 'LIKE_TRACK': {
-        const requestedId = typeof payload?.trackId === 'string' ? payload.trackId : currentTrack?.id || ''
-        const target = tracks.find((item) => item.id === requestedId || item.postId === requestedId)
-        if (!target) {
-          reply('MUSIC_ACTION_RESULT', { action: type, ok: false, error: 'Track not found in loaded library' })
-          break
-        }
-        const nextLiked = !target.liked
-        const nextLikes = Math.max(0, (target.likes || 0) + (nextLiked ? 1 : -1))
-        const updateTrack = (item: Track): Track => item.id === target.id ? { ...item, liked: nextLiked, likes: nextLikes } : item
-        setTracks((previous) => previous.map(updateTrack))
-        setQueue((previous) => previous.map(updateTrack))
-        setCurrentTrack((previous) => previous?.id === target.id ? updateTrack(previous) : previous)
-        reply('MUSIC_ACTION_RESULT', { action: type, ok: true, trackId: target.id, liked: nextLiked, likes: nextLikes, persistence: 'local-session' })
-        break
-      }
       case 'PLAY_TRACK': {
         const trackId = typeof payload?.trackId === 'string' ? payload.trackId : ''
         const track = tracks.find((item) => item.id === trackId || item.postId === trackId)
@@ -442,7 +428,7 @@ export default function App() {
     setIsEmbedded(embedded)
     if (embedded && parentOrigin && allowedParentOrigins.has(parentOrigin)) {
       window.parent.postMessage(
-        { type: 'MUSIC_APP_READY', payload: { version: '1.1.0', capabilities: ['SEARCH_TRACKS', 'GET_TRACKS', 'PLAY_TRACK', 'SET_QUEUE', 'ADD_TO_QUEUE', 'CLEAR_QUEUE', 'GET_STATE', 'GET_COMMENTS', 'POST_COMMENT', 'LIKE_TRACK', 'PLAY', 'PAUSE', 'NEXT_TRACK', 'PREV_TRACK', 'SEEK', 'SET_VOLUME'] } },
+        { type: 'MUSIC_APP_READY', payload: { version: '1.2.0', capabilities: ['SEARCH_TRACKS', 'GET_TRACKS', 'PLAY_TRACK', 'SET_QUEUE', 'ADD_TO_QUEUE', 'CLEAR_QUEUE', 'GET_STATE', 'GET_COMMENTS', 'POST_COMMENT', 'PLAY', 'PAUSE', 'NEXT_TRACK', 'PREV_TRACK', 'SEEK', 'SET_VOLUME'] } },
         parentOrigin,
       )
     }
@@ -504,114 +490,69 @@ export default function App() {
   const renderHome = () => (
     <div className="tab-scroll">
       <div className="mobile-hero">
-        <span className="hero-tag">👑 KUS-LORDS ROYAL SOUND</span>
-        <h1>Discover the feeling of infinite sound.</h1>
-        <p>Stream high-fidelity tracks, access your Supabase bucket vault, and curate playlists.</p>
+        <span className="hero-tag">KUS-LORDS MUSIC</span>
+        <h1>Your music, from the shared SCN catalogue.</h1>
+        <p>New releases and creator uploads appear here as they are published.</p>
         <div className="hero-actions">
-          <button className="hero-play" onClick={() => {
-            const a = albums[0]
-            if (a?.tracks.length) playTrack(a.tracks[0], a.tracks)
-          }}>▶ Listen Now</button>
-          <button className="hero-upload" onClick={() => setUploadModalOpen(true)}>☁ Upload</button>
+          <button className="hero-upload" onClick={() => setUploadModalOpen(true)}>Upload music</button>
         </div>
       </div>
       <section>
-        <div className="section-title"><h2>Featured Royal Albums</h2></div>
-        <div className="album-grid">
-          {albums.slice(0, 4).map((a) => (
-            <AlbumCard
-              key={a.id}
-              album={a}
+        <div className="section-title"><h2>Recently published</h2></div>
+        {libraryStatus === 'loading' ? <div className="empty">Loading the live music catalogue…</div>
+          : libraryStatus === 'error' ? <div className="empty">The live music catalogue could not be reached. Check the Supabase connection and access policies.</div>
+          : albums.length === 0 ? <div className="empty">No music has been published yet. Upload the first track to get started.</div>
+          : <div className="album-grid">{albums.map((a) => (
+            <AlbumCard key={a.id} album={a}
               onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
-              onSelect={() => setSelectedAlbumId(a.id)}
-            />
-          ))}
-        </div>
-      </section>
-      <section>
-        <div className="section-title"><h2>Made For You</h2></div>
-        <div className="album-grid">
-          {albums.slice(4).map((a) => (
-            <AlbumCard
-              key={a.id}
-              album={a}
-              onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
-              onSelect={() => setSelectedAlbumId(a.id)}
-            />
-          ))}
-        </div>
+              onSelect={() => setSelectedAlbumId(a.id)} />
+          ))}</div>}
       </section>
     </div>
   )
 
-  const renderBrowse = () => (
-    <div className="tab-scroll">
-      <div className="section-title"><h2>Browse & New Releases</h2></div>
-      <div className="genre-strip">
-        {['Synthwave', 'Afrobeats', 'Ambient', 'Stadium', 'Lo-Fi', 'Deep House'].map((g) => (
-          <button key={g} className="genre-chip" onClick={() => setSearch(g)}>{g}</button>
-        ))}
-      </div>
-      <section>
-        <div className="section-title"><h2>New Albums</h2></div>
-        <div className="album-grid">
-          {albums.map((a) => (
-            <AlbumCard
-              key={a.id}
-              album={a}
+    const renderBrowse = () => {
+    const genres = Array.from(new Set(tracks.map((track) => track.genre?.trim()).filter((genre): genre is string => Boolean(genre))))
+    return (
+      <div className="tab-scroll">
+        <div className="section-title"><h2>Browse music</h2></div>
+        <div className="genre-strip">
+          {genres.map((genre) => <button key={genre} className="genre-chip" onClick={() => setSearch(genre)}>{genre}</button>)}
+        </div>
+        <section>
+          <div className="section-title"><h2>Albums & releases</h2></div>
+          {albums.length ? <div className="album-grid">{albums.map((a) => (
+            <AlbumCard key={a.id} album={a}
               onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
-              onSelect={() => setSelectedAlbumId(a.id)}
-            />
-          ))}
-        </div>
-      </section>
-    </div>
-  )
-
-  const renderRadio = () => (
-    <div className="tab-scroll">
-      <div className="section-title"><h2>🎙 Radio & Live Stations</h2></div>
-      <div className="radio-stations">
-        {[
-          { name: 'Focus Flow', genre: 'Ambient / Lo-Fi', color: '#00c9ff, #7b2fff', icon: '🎯' },
-          { name: 'Motivation Mix', genre: 'High Energy', color: '#f857a6, #614ad2', icon: '🔥' },
-          { name: 'Oldies Gold', genre: 'Classic Hits', color: '#f5af19, #e65c00', icon: '🎶' },
-          { name: 'Reggae Vibe', genre: 'Island Rhythms', color: '#11998e, #38ef7d', icon: '🌴' },
-          { name: 'Metal Mayhem', genre: 'Heavy Rock', color: '#e6c656, #3b2800', icon: '⚡' },
-          { name: 'Afro Grooves', genre: 'Afrobeats', color: '#ff6b6b, #c5a059', icon: '🌍' },
-        ].map((s) => (
-          <div key={s.name} className="radio-card" onClick={() => {
-            const first = s.genre.split(' ')[0].toLowerCase()
-            const t = tracks.find((x) => x.genre?.toLowerCase().includes(first)) || tracks[0]
-            playTrack(t, tracks)
-          }}>
-            <div className="radio-art" style={{ background: `linear-gradient(135deg, ${s.color})` }}>
-              <span className="radio-icon">{s.icon}</span>
-              <span className="live-dot">●</span>
-            </div>
-            <strong>{s.name}</strong>
-            <span>{s.genre}</span>
-          </div>
-        ))}
+              onSelect={() => setSelectedAlbumId(a.id)} />
+          ))}</div> : <div className="empty">{libraryStatus === 'loading' ? 'Loading published music…' : 'No published releases are available yet.'}</div>}
+        </section>
       </div>
-      <section>
-        <div className="section-title"><h2>Stadium Anthems</h2></div>
-        <div className="track-list-compact">
-          {tracks.filter((t) => t.isSportsAnthem).map((t) => (
-            <div key={t.id} className="track-row-compact" onClick={() => playTrack(t, tracks)}>
-              <div className="mini-cover" style={{ background: t.cover }} />
-              <div className="track-meta"><strong>{t.title}</strong><span>{t.artist}</span></div>
-              <span className="stadium-badge">STADIUM</span>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  )
+    )
+  }
 
-  const renderLibrary = () => (
+    const renderRadio = () => {
+    const genres = Array.from(new Set(tracks.map((track) => track.genre?.trim()).filter((genre): genre is string => Boolean(genre))))
+    return (
+      <div className="tab-scroll">
+        <div className="section-title"><h2>Genre radio</h2></div>
+        <p className="caption">Stations are generated from genres present in the live catalogue.</p>
+        {genres.length ? <div className="radio-stations">
+          {genres.map((genre) => {
+            const stationTracks = tracks.filter((track) => track.genre?.trim() === genre)
+            return <button type="button" key={genre} className="radio-card" onClick={() => playTrack(stationTracks[0], stationTracks)}>
+              <div className="radio-art"><span className="radio-icon">♫</span></div>
+              <strong>{genre}</strong><span>{stationTracks.length} track{stationTracks.length === 1 ? '' : 's'}</span>
+            </button>
+          })}
+        </div> : <div className="empty">Genre radio will appear when published tracks include genre metadata.</div>}
+      </div>
+    )
+  }
+
+    const renderLibrary = () => (
     <div className="tab-scroll">
-      <div className="section-title"><h2>📚 Your Library</h2></div>
+      <div className="section-title"><h2>Your Library</h2></div>
       <PlaylistLibrary
         playlists={playlists}
         tracks={tracks}
@@ -619,40 +560,30 @@ export default function App() {
         onChange={setPlaylists}
         onPlay={playTrack}
       />
-      <div className="lib-segments">
-        {['Playlists', 'Artists', 'Albums', 'Songs', 'Downloaded'].map((seg) => (
-          <button key={seg} className="lib-seg-btn">{seg}</button>
-        ))}
-      </div>
       <section>
-        <div className="section-title"><h2>Recently Added</h2></div>
-        <div className="album-grid">
-          {albums.slice(0, 4).map((a) => (
-            <AlbumCard
-              key={a.id}
-              album={a}
-              onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
-              onSelect={() => setSelectedAlbumId(a.id)}
-            />
-          ))}
-        </div>
+        <div className="section-title"><h2>Published releases</h2></div>
+        {albums.length ? <div className="album-grid">{albums.map((a) => (
+          <AlbumCard key={a.id} album={a}
+            onPlay={() => { setSelectedAlbumId(a.id); if (a.tracks.length) playTrack(a.tracks[0], a.tracks) }}
+            onSelect={() => setSelectedAlbumId(a.id)} />
+        ))}</div> : <div className="empty">Your published music library is empty.</div>}
       </section>
       <section>
-        <div className="section-title"><h2>Top Tracks</h2></div>
+        <div className="section-title"><h2>Recently added tracks</h2></div>
         <div className="track-list-compact">
-          {[...tracks].sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 8).map((t) => (
+          {tracks.slice(0, 12).map((t) => (
             <div key={t.id} className="track-row-compact" onClick={() => playTrack(t, tracks)}>
               <div className="mini-cover" style={{ background: t.cover }} />
               <div className="track-meta"><strong>{t.title}</strong><span>{t.artist}</span></div>
-              <span className="like-count">❤️ {t.likes || 0}</span>
             </div>
           ))}
         </div>
+        {!tracks.length && <div className="empty">No published tracks yet.</div>}
       </section>
     </div>
   )
 
-  const toggleCurrentTrackLike = useCallback(() => {
+    const toggleCurrentTrackLike = useCallback(() => {
     if (!currentTrack) return
     const targetId = currentTrack.id
     const nextLiked = !currentTrack.liked
@@ -776,8 +707,8 @@ export default function App() {
               <div className="vinyl-shine" />
             </div>
             <div className="full-track-info">
-              <h2>{currentTrack.title || 'No Track Selected'}</h2>
-              <p>{currentTrack.artist || 'Harmony Kus-lords'}</p>
+              <h2>{currentTrack.title}</h2>
+              <p>{currentTrack.artist}</p>
               {currentTrack.isSportsAnthem && <span className="stadium-badge">⚡ STADIUM ANTHEM</span>}
             </div>
             <div className="full-progress">
