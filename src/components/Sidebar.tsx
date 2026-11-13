@@ -90,13 +90,14 @@ export default function Sidebar({
           }}
           icon="🏠"
         />
+        <NavButton label="Search" active={activeTab === 'search'} onClick={() => { onSelectAlbum(''); onNavigateTab('search') }} icon="⌕" />
+        <NavButton label="Explore" active={activeTab === 'browse'} onClick={() => { onSelectAlbum(''); onNavigateTab('browse') }} icon="🧭" />
+        <NavButton label="Playlists" active={activeTab === 'playlists'} onClick={() => { onSelectAlbum(''); onNavigateTab('playlists') }} icon="♫" />
+        <NavButton label="Library" active={activeTab === 'library'} onClick={() => { onSelectAlbum(''); onNavigateTab('library') }} icon="📚" />
         <NavButton
           label="Studio"
           active={activeTab === 'studio' && !activeAlbumId}
-          onClick={() => {
-            onSelectAlbum('')
-            onNavigateTab('studio')
-          }}
+          onClick={() => { onSelectAlbum(''); onNavigateTab('studio') }}
           icon="🎛"
         />
         <NavButton
