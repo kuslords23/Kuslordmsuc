@@ -7,7 +7,7 @@ interface ArtistDirectoryProps {
   tracks: Track[]
   onPlayTrack: (track: Track, queue: Track[]) => void
   followedArtists: Set<string>
-  onToggleFollow: (artistName: string) => void
+  onToggleFollow: (artistProfileId: string) => Promise<void>
   currentUserId?: string
   onSaveProfile: (profileId: string | null, input: MusicArtistProfileInput) => Promise<{ id: string | null; error: string | null }>
 }
@@ -58,6 +58,19 @@ export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followe
     setSocialsText(JSON.stringify(selected.socials || {}, null, 2))
     setEditorError('')
     setEditorOpen(true)
+  }
+
+  const toggleFollow = async () => {
+    if (!selected || followBusy) return
+    setFollowBusy(true)
+    setFollowError('')
+    try {
+      await onToggleFollow(selected.id)
+    } catch (cause) {
+      setFollowError(cause instanceof Error ? cause.message : 'Could not update artist follow.')
+    } finally {
+      setFollowBusy(false)
+    }
   }
 
   const submitProfile = async (event: FormEvent) => {
@@ -150,13 +163,14 @@ export default function ArtistDirectory({ profiles, tracks, onPlayTrack, followe
             <div className="artist-meta-line">
               {selected.genreFocus && <span>{selected.genreFocus}</span>}
               <span>{selected.followerCount.toLocaleString()} followers</span>
-              <button type="button" className="artist-follow-button" onClick={() => onToggleFollow(selected.name)}>
-                {followedArtists.has(selected.name) ? 'Following' : 'Follow artist'}
+              <button type="button" className="artist-follow-button" onClick={() => void toggleFollow()} disabled={followBusy}>
+                {followBusy ? 'Saving…' : followedArtists.has(selected.id) ? 'Following' : 'Follow artist'}
               </button>
             </div>
             {currentUserId === selected.userId && (
               <button type="button" className="artist-follow-button" onClick={startEdit}>Edit profile</button>
             )}
+            {followError && <p role="alert" className="music-comment-error">{followError}</p>}
             <div className="artist-socials">
               {socials.map((item) => (
                 <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer">{item.label}</a>
