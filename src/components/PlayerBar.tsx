@@ -41,13 +41,13 @@ export default function PlayerBar({
       <div className="player-left">
         <div
           className="now-playing-cover"
-          style={{ background: cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }}
+          style={cover?.startsWith('http') ? { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' } : cover ? { background: cover } : undefined}
         >
           <span>{isPlaying ? '♪' : ''}</span>
         </div>
         <div className="now-playing-meta">
-          <strong>{title || 'Select a Track'}</strong>
-          <span>{artist || 'Harmony Kus-lords'}</span>
+          <strong>{title}</strong>
+          <span>{artist}</span>
         </div>
         {onOpenComments && (
           <button className="like-btn" type="button" onClick={onOpenComments} title="Comments" aria-label="Open comments">
