@@ -1,6 +1,7 @@
 import { useState, useRef, type FormEvent } from 'react'
 import type { Track } from '../data/music'
 import { supabase } from '../lib/supabase'
+import CreatorAnalytics from './CreatorAnalytics'
 import './Studio.css'
 
 interface StudioProps {
@@ -21,7 +22,7 @@ export default function Studio({ tracks, onPlayTrack }: StudioProps) {
   const [assistantReply, setAssistantReply] = useState('')
   const [assistantLoading, setAssistantLoading] = useState(false)
 
-  const [ttsText, setTtsText] = useState('Kus-Lords royal music studio is ready to create.')
+  const [ttsText, setTtsText] = useState('')
   const [ttsVoice, setTtsVoice] = useState(voices[0].id)
   const [ttsLoading, setTtsLoading] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -103,6 +104,7 @@ export default function Studio({ tracks, onPlayTrack }: StudioProps) {
           </button>
         ))}
       </div>
+      {tracks.length === 0 && <p className="studio-empty">Published tracks will appear here when the live music catalogue has audio to work with.</p>}
 
       <div className="studio-grid">
         {/* AI Assistant */}
@@ -144,6 +146,8 @@ export default function Studio({ tracks, onPlayTrack }: StudioProps) {
           <audio ref={audioRef} style={{ display: 'none' }} />
         </div>
       </div>
+
+      <CreatorAnalytics />
     </div>
   )
 }
