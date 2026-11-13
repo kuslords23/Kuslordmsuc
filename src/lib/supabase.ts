@@ -425,8 +425,6 @@ export async function uploadTrackToBucket(params: {
           coverErr.message,
         )
         coverPath = null
-      } else {
-        coverPublicUrl = bucketPublicUrl('kus-images', coverPath)
       }
     }
 
