@@ -43,6 +43,7 @@ interface DbFeedPost {
   artist_profile_id?: string | null
   audio_content_hash?: string | null
   listen_count?: number | null
+  likes?: number | null
   media_url?: string | null
   storage_path?: string | null
   cover_storage_path?: string | null
@@ -393,7 +394,6 @@ export async function uploadTrackToBucket(params: {
   const audioPath = fileName
 
   let coverPath: string | null = null
-  let coverPublicUrl: string | null = null
 
   // 1. Upload audio to kus-music
   const { error: uploadError } = await supabase.storage
