@@ -601,7 +601,7 @@ export default function App() {
       const track = currentTrackRef.current
       const q = queueRef.current
       if (!track || q.length === 0) return
-      if (track.postId) void recordVerifiedDirectStream(track.postId, audio.currentTime, audio.duration || 0, true)
+      if (track.postId) void recordVerifiedDirectStream(track.postId, audio.duration || audio.currentTime, audio.duration || 0, true)
       const index = q.findIndex((t) => t.id === track.id)
       playTrack(q[(index + 1) % q.length], q)
     }
