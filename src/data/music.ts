@@ -5,6 +5,8 @@ export interface Track {
   userId?: string
   artistProfileId?: string
   audioContentHash?: string
+  storagePath?: string
+  coverStoragePath?: string
   title: string
   artist: string
   album: string
