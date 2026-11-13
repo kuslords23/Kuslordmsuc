@@ -1,0 +1,68 @@
+.creator-analytics {
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 16px;
+  background: var(--card);
+}
+.creator-analytics-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.creator-analytics-heading h3 { margin: 0 0 5px; font-size: 15px; }
+.creator-analytics-heading p, .creator-analytics-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.creator-analytics-heading button {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 9px;
+  padding: 8px 12px;
+  background: var(--bg2);
+  color: var(--text);
+  cursor: pointer;
+}
+.creator-analytics-heading button:disabled { opacity: .55; cursor: wait; }
+.creator-analytics-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.creator-analytics-metrics article {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 13px;
+  border-radius: 12px;
+  background: var(--bg2);
+}
+.creator-analytics-metrics span { color: var(--muted); font-size: 11px; }
+.creator-analytics-metrics strong { font-size: 22px; }
+.creator-analytics-table { display: flex; flex-direction: column; gap: 1px; }
+.creator-analytics-row {
+  display: grid;
+  grid-template-columns: minmax(0,2fr) minmax(90px,1fr) minmax(90px,1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 11px 8px;
+  background: rgba(255,255,255,.025);
+  font-size: 12px;
+}
+.creator-analytics-row > span:first-child { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.creator-analytics-row small { color: var(--muted); }
+.creator-analytics-header { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.creator-analytics-state, .creator-analytics-error { padding: 14px 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.creator-analytics-error { color: #ff9a9a; }
+.creator-analytics-note { margin-top: 12px; }
+@media (max-width: 560px) {
+  .creator-analytics { padding: 13px; }
+  .creator-analytics-metrics { grid-template-columns: 1fr; }
+  .creator-analytics-row { grid-template-columns: minmax(0,1.6fr) minmax(70px,.8fr); }
+  .creator-analytics-row > span:last-child { display: none; }
+}
