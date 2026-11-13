@@ -36,7 +36,7 @@ export default function Studio({ tracks, onPlayTrack }: StudioProps) {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
       const accessToken = sessionData.session?.access_token
       if (sessionError || !accessToken) throw new Error('Sign in to your Kus-Lords account to use Royal.')
-      const royalApi = (import.meta.env.VITE_ROYAL_API_URL || '').replace(/\\/$/, '')
+      const royalApi = (import.meta.env.VITE_ROYAL_API_URL || '').replace(/\/$/, '')
       if (!royalApi) throw new Error('Royal connection is not configured yet. Set VITE_ROYAL_API_URL to the KUS AI production URL.')
       const res = await fetch(`${royalApi}/api/royal/companion`, {
         method: 'POST',
