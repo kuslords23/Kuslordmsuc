@@ -19,8 +19,6 @@ export const supabase = isSupabaseConfigured()
     })
   : null
 
-const gradient = (colors: string) => `linear-gradient(135deg, ${colors})`
-
 export type LibraryStatus = 'remote' | 'empty' | 'fallback' | 'error'
 
 export interface RemoteLibraryResult {
@@ -98,6 +96,11 @@ function deriveTitle(post: DbFeedPost): string {
   return 'Untitled Track'
 }
 
+function deriveAlbum(post: DbFeedPost): string {
+  const match = post.content?.match(/\\(([^()]*)\\)\\s*$/)
+  return match?.[1]?.trim() || ''
+}
+
 /**
  * Maps a feed_posts row to a Track.
  * feed_posts has: id, media_url, storage_path, cover_storage_path,
@@ -119,9 +122,6 @@ function rowToTrack(d: DbFeedPost): Track | null {
   if (d.cover_storage_path) {
     cover = bucketPublicUrl('kus-images', d.cover_storage_path)
   }
-  if (!cover) {
-    cover = gradient('#fa2d6c, #fc6f60') // default gradient
-  }
 
   const title = deriveTitle(d)
 
@@ -135,7 +135,7 @@ function rowToTrack(d: DbFeedPost): Track | null {
     coverStoragePath: d.cover_storage_path || undefined,
     title,
     artist: d.sound_artist?.trim() || 'Unknown artist',
-    album: 'Singles',
+    album: deriveAlbum(d),
     duration: 0, // Duration is not part of the verified feed_posts audio contract yet.
     audioUrl,
     cover,
