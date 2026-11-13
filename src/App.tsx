@@ -66,6 +66,9 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(0.8)
+  const [shuffleEnabled, setShuffleEnabled] = useState(false)
+  const [repeatEnabled, setRepeatEnabled] = useState(false)
+  const [muted, setMuted] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [miniPlayerOpen, setMiniPlayerOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -76,9 +79,14 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackRef = useRef<Track | null>(null)
   const queueRef = useRef<Track[]>([])
+  const shuffleRef = useRef(false)
+  const repeatRef = useRef(false)
 
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
   useEffect(() => { queueRef.current = queue }, [queue])
+  useEffect(() => { shuffleRef.current = shuffleEnabled }, [shuffleEnabled])
+  useEffect(() => { repeatRef.current = repeatEnabled }, [repeatEnabled])
+  useEffect(() => { if (audioRef.current) audioRef.current.muted = muted }, [muted])
 
   // Load the live SCN-compatible audio inventory. Empty/error states stay empty.
   useEffect(() => {
@@ -372,6 +380,12 @@ export default function App() {
     const q = queueRef.current
     if (!track || q.length === 0) return
     const index = q.findIndex((t) => t.id === track.id)
+    if (shuffleRef.current && q.length > 1) {
+      const choices = q.filter((item) => item.id !== track.id)
+      const selected = choices[Math.floor(Math.random() * choices.length)]
+      if (selected) playTrack(selected, q)
+      return
+    }
     playTrack(q[(index + 1) % q.length], q)
   }, [playTrack])
 
@@ -391,6 +405,10 @@ export default function App() {
     setVolume(value)
     if (audioRef.current) audioRef.current.volume = value
   }
+
+  const toggleMute = () => setMuted((previous) => !previous)
+  const toggleShuffle = () => setShuffleEnabled((previous) => !previous)
+  const toggleRepeat = () => setRepeatEnabled((previous) => !previous)
 
   // Cross-companion control bridge. Commands are accepted only from the
   // embedding parent and from explicitly configured origins.
@@ -624,12 +642,17 @@ export default function App() {
       const q = queueRef.current
       if (!track || q.length === 0) return
       if (track.postId) void recordVerifiedDirectStream(track.postId, audio.duration || audio.currentTime, audio.duration || 0, true)
-      const index = q.findIndex((t) => t.id === track.id)
-      playTrack(q[(index + 1) % q.length], q)
+      if (repeatRef.current) {
+        audio.currentTime = 0
+        void audio.play().catch((error) => console.error('Could not repeat current track:', error))
+        setCurrentTime(0)
+        return
+      }
+      nextTrack()
     }
     audio.addEventListener('ended', handleEnded)
     return () => audio.removeEventListener('ended', handleEnded)
-  }, [playTrack])
+  }, [nextTrack])
 
   const handleSignOut = async () => {
     try {
@@ -1073,6 +1096,12 @@ export default function App() {
           likes={currentTrack.likes || 0}
           onToggleLike={user ? handleToggleTrackLike : undefined}
           likeBusy={likeBusy}
+          shuffle={shuffleEnabled}
+          repeat={repeatEnabled}
+          muted={muted}
+          onToggleShuffle={toggleShuffle}
+          onToggleRepeat={toggleRepeat}
+          onToggleMute={toggleMute}
         />
         {likeError && <p className="player-action-error" role="alert">{likeError}</p>}
       </div>}
