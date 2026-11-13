@@ -314,3 +314,13 @@ The initial compatibility slice mirrored SCN's localStorage playlist and followe
 - The app does not create synthetic playlists, sample follows, demo radio stations, or fabricated track engagement.
 
 The shared Supabase migration for these tables, policies, trigger, and Realtime publication has been applied to the active `Kus-lords-prod` project. The source verifier now fails if localStorage is reintroduced for music playlists or artist follows.
+
+
+## 001-I: Authenticated ElevenLabs voice generation
+
+- The Studio voice panel now calls a real Vercel serverless endpoint at `/api/studio/elevenlabs`.
+- The endpoint verifies the caller's Supabase access token before using provider credits.
+- ElevenLabs credentials remain server-side. The browser never receives the API key.
+- Supported voice IDs are allowlisted; text input is capped at 2,500 characters.
+- Generated MP3 output is returned to the app with an audio player and playback controls.
+- Production activation requires the `ELEVENLABS_API_KEY` environment variable on the Kus-Lords Music Vercel project. It is not currently configured, so the UI reports that the provider is disconnected rather than showing a fake successful generation.
