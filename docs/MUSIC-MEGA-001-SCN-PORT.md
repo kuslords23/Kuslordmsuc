@@ -376,3 +376,12 @@ Applied to the shared Kus-lords-prod Supabase project on 2026-11-13.
 - The music search API now checks the public KUS catalogue first and only calls external provider search when the KUS catalogue has no matching playable source records.
 - Playlist owners can now switch their cloud playlists between private and public visibility. The database includes collaboration and playlist-save tables, but invitations, acceptance, following, sharing routes and collaborative editing UI remain to be built.
 - Trend collection, signal scoring, scheduled refresh workers and playlist track generation remain inactive until their KUS Core/cron workflows are connected.
+
+
+## 001-O: Playlist controls and listening history
+
+- Split Playlists into its own main navigation destination. Library now remains a separate destination for releases and recently added music.
+- Added Search, Explore, Playlists, Library and Studio to mobile navigation; added Search, Explore, Playlists and Library to the desktop sidebar while retaining Radio and Artist Directory.
+- Playlist owners can set a playlist to private or public and reorder tracks with up/down controls.
+- Added owner-scoped playlist play-history records. Starting a track from a playlist records the playlist and native track reference; this is KUS listening history, not a claim about provider stream counts.
+- Collaborative invitation/acceptance, public playlist discovery and follow/save controls still need their UI and safe invite-accept workflow. External provider catalogue tracks are not yet addable to playlists until catalogue ingestion and provider-neutral track references are completed.
