@@ -24,6 +24,7 @@ const elevenLabs = read("../api/studio/elevenlabs.ts");
 const playlistView = read("../src/components/PlaylistView.tsx");
 const royalCompanion = read("../src/components/RoyalCompanion.tsx");
 const providerSearch = read("../api/music/search.ts");
+const trendPanel = read("../src/components/TrendFollowPanel.tsx");
 const studioMigration = "../supabase/migrations/20261113192026_kus_music_unified_platform_foundation.sql";
 const studioUpdatedAtMigration = "../supabase/migrations/20261113192400_kus_music_studio_project_updated_at.sql";
 
@@ -103,6 +104,11 @@ assert.ok(!exists("../src/data/sports.ts"), "standalone Music must not ship spor
 
 assert.match(app, /RoyalCompanion/, "Royal must have a persistent Music app entry point");
 assert.match(royalCompanion, /api\/royal\/companion/, "persistent Royal panel must call the shared companion gateway");
+assert.match(providerSearch, /kusCatalog\(q,limit\)/, "search must query the KUS catalogue before external providers");
+assert.match(trendPanel, /music_trend_follows/, "Follow Trends must persist user preferences");
+assert.match(trendPanel, /music_auto_playlists/, "Explore must read Royal-curated playlist definitions");
+assert.match(playlists, /onUpdateVisibility/, "playlist owners must be able to publish or privatize playlists");
+assert.match(playlistStore, /updateCloudPlaylistVisibility/, "playlist visibility must persist to Supabase");
 assert.match(providerSearch, /YOUTUBE_DATA_API_KEY/, "provider search must support official YouTube catalogue discovery");
 assert.match(providerSearch, /videoEmbeddable/, "YouTube results must be restricted to embeddable videos");
 assert.match(providerSearch, /SPOTIFY_CLIENT_ID/, "provider search must preserve Spotify server-side credentials");
