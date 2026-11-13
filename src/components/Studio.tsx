@@ -1,5 +1,6 @@
 import { useState, useRef, type FormEvent } from 'react'
 import type { Track } from '../data/music'
+import { supabase } from '../lib/supabase'
 import './Studio.css'
 
 interface StudioProps {
@@ -31,15 +32,22 @@ export default function Studio({ tracks, onPlayTrack }: StudioProps) {
     setAssistantLoading(true)
     setAssistantReply('')
     try {
-      const res = await fetch('/api/studio/assistant', {
+      if (!supabase) throw new Error('Sign in to your Kus-Lords account to use Royal.')
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (sessionError || !accessToken) throw new Error('Sign in to your Kus-Lords account to use Royal.')
+      const royalApi = (import.meta.env.VITE_ROYAL_API_URL || '').replace(/\\/$/, '')
+      if (!royalApi) throw new Error('Royal connection is not configured yet. Set VITE_ROYAL_API_URL to the KUS AI production URL.')
+      const res = await fetch(`${royalApi}/api/royal/companion`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: assistantMsg.trim() }),
+        headers: { 'Content-Type': 'application/json', 'x-supabase-auth': accessToken },
+        body: JSON.stringify({ companionId: 'music', conversationId: 'music-studio', prompt: assistantMsg.trim() }),
       })
       const data = await res.json()
-      setAssistantReply(data.reply || 'No reply')
+      if (!res.ok) throw new Error(data.error || 'Royal is temporarily unavailable.')
+      setAssistantReply(data.content || 'Royal returned an empty response.')
     } catch (err) {
-      setAssistantReply('Assistant unavailable. Check serverless function.')
+      setAssistantReply(err instanceof Error ? err.message : 'Royal companion unavailable.')
     } finally {
       setAssistantLoading(false)
     }
