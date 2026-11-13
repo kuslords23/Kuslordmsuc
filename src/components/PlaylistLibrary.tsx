@@ -74,6 +74,19 @@ export default function PlaylistLibrary({
     }
   }
 
+  const updateVisibility = async (visibility: 'private' | 'public') => {
+    if (!selected || busy) return
+    setBusy(true)
+    setActionError('')
+    try {
+      await onUpdateVisibility(selected.id, visibility)
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'Could not update playlist visibility.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const removePlaylist = async () => {
     if (!selected || busy) return
     setBusy(true)
@@ -93,7 +106,7 @@ export default function PlaylistLibrary({
       <div className="playlist-library">
         <button className="back-btn" onClick={() => setSelectedId(null)}>← All Playlists</button>
         <div className="section-title"><h2>{selected.name}</h2><span>{selectedTracks.length} tracks</span></div>
-        <label className="playlist-visibility-control">Visibility <select value={selected.visibility || "private"} onChange={event => { void onUpdateVisibility(selected.id, event.target.value as "private" | "public") }}><option value="private">Private</option><option value="public">Public</option></select></label>
+        <label className="playlist-visibility-control">Visibility <select value={selected.visibility || "private"} onChange={event => { void updateVisibility(event.target.value as "private" | "public") }} disabled={busy}><option value="private">Private</option><option value="public">Public</option></select></label>
         <div className="playlist-add-row">
           <select value={trackToAdd} onChange={(event) => setTrackToAdd(event.target.value)}>
             <option value="">Choose a published track…</option>
