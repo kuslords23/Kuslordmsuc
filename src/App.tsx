@@ -11,7 +11,7 @@ import Studio from './components/Studio'
 import ArtistDirectory from './components/ArtistDirectory'
 import CommentsPanel from './components/CommentsPanel'
 import PlaylistLibrary from './components/PlaylistLibrary'
-import { fetchMusicPlaylists, createCloudPlaylist, addCloudPlaylistTrack, removeCloudPlaylistTrack, deleteCloudPlaylist, type MusicPlaylist } from './lib/playlists'
+import { fetchMusicPlaylists, createCloudPlaylist, addCloudPlaylistTrack, removeCloudPlaylistTrack, deleteCloudPlaylist, updateCloudPlaylistVisibility, type MusicPlaylist } from './lib/playlists'
 import { fetchFollowedArtists, toggleCloudArtistFollow } from './lib/artistFollows'
 import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
 import { recordVerifiedDirectStream } from './lib/streamTracking'
@@ -750,6 +750,7 @@ export default function App() {
         onAddTrack={handleAddPlaylistTrack}
         onRemoveTrack={handleRemovePlaylistTrack}
         onDeletePlaylist={handleDeletePlaylist}
+        onUpdateVisibility={updateCloudPlaylistVisibility}
         onPlay={playTrack}
       />
       <section>
