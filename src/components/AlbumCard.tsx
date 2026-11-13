@@ -20,7 +20,7 @@ export default function AlbumCard({ album, onPlay, onSelect }: AlbumCardProps) {
           <span className="play-arrow">▶</span>
         </div>
         <span className="album-badge">
-          {album.category === 'sports' ? '⚡ STADIUM' : `${album.tracks.length} Songs`}
+          {`${album.tracks.length} Tracks`}
         </span>
       </div>
       <div className="album-meta">
