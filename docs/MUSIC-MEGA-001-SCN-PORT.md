@@ -355,11 +355,11 @@ Applied to the shared Kus-lords-prod Supabase project on 2026-11-13.
 
 ## 001-M: Multi-provider search groundwork
 
-- The server-side music search endpoint now queries Spotify and YouTube Music-category videos in parallel when their server credentials are configured.
-- YouTube results are restricted to embeddable, syndicated videos and use the official YouTube iframe player. Spotify results use Spotify's official embed.
-- Search credentials remain server-side: SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and YOUTUBE_DATA_API_KEY. None should be exposed through VITE_ variables.
+- The server-side music search endpoint now queries Spotify, YouTube Music-category videos, and the Apple Music catalog in parallel when their server credentials are configured.
+- YouTube results are restricted to embeddable, syndicated videos and use the official YouTube iframe player. Spotify results use Spotify's official embed. Apple Music results use a server-signed developer token and Apple's official embed host.
+- Search credentials remain server-side: SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, YOUTUBE_DATA_API_KEY, APPLE_MUSIC_TEAM_ID, APPLE_MUSIC_KEY_ID, and APPLE_MUSIC_PRIVATE_KEY. None should be exposed through VITE_ variables.
 - Search results are currently provider results for immediate discovery/preview. They are not yet ingested into the permanent KUS catalogue because provider-specific metadata retention, artwork, commercial and playback permissions must be implemented per provider contract before persistence.
-- Apple Music and SoundCloud text-search adapters, MusicKit user authorization, provider availability refresh, cross-provider recording matching, and a provider-neutral playback controller remain outstanding.
+- Apple Music catalog search is implemented, but MusicKit user authorization and subscription-aware full playback remain outstanding. SoundCloud text-search, provider availability refresh, cross-provider recording matching, and a provider-neutral playback controller remain outstanding.
 - An official embed may count activity on its source platform only according to that platform's own policies. KUS must never promise that every embedded playback is an eligible official stream.
 
 ## Verification and deployment status after 001-L / 001-M
