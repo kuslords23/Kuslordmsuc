@@ -6,12 +6,12 @@ interface PlaylistViewProps {
   isPlaying: boolean
   onPlayTrack: (track: Track, allTracks: Track[]) => void
   onTogglePlay: () => void
-  onLikeTrack?: (id: string) => void
 }
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
+  if (!Number.isFinite(seconds) || seconds <= 0) return '—'
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
@@ -21,7 +21,6 @@ export default function PlaylistView({
   isPlaying,
   onPlayTrack,
   onTogglePlay,
-  onLikeTrack,
 }: PlaylistViewProps) {
   const isAlbumPlaying = isPlaying && album.tracks.find((t) => t.id === currentTrackId) !== undefined
 
@@ -39,7 +38,7 @@ export default function PlaylistView({
         <div className="playlist-art-blur" />
         <div className="playlist-info">
           <span className="album-type">
-            👑 ROYAL {album.category.toUpperCase()} SOUNDTRACK
+            ALBUM / COLLECTION
           </span>
           <h1>{album.title}</h1>
           <p>{album.description}</p>
@@ -57,7 +56,6 @@ export default function PlaylistView({
           <span className="col-idx">#</span>
           <span className="col-title">Title</span>
           <span className="col-artist">Artist & Vibe</span>
-          <span className="col-likes">Likes</span>
           <span className="col-time">Time</span>
         </div>
         {album.tracks.map((track, index) => {
@@ -82,21 +80,10 @@ export default function PlaylistView({
                 />
                 <div className="track-title-block">
                   <strong>{track.title}</strong>
-                  {track.isSportsAnthem && <span className="sports-chip">STADIUM</span>}
                 </div>
               </span>
               <span className="col-artist">
                 {track.artist}
-                {track.matchVibe && <small> • {track.matchVibe}</small>}
-              </span>
-              <span
-                className="col-likes"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onLikeTrack?.(track.id)
-                }}
-              >
-                ❤️ {track.likes || 0}
               </span>
               <span className="col-time">{formatTime(track.duration)}</span>
             </div>
