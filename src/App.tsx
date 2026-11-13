@@ -851,7 +851,7 @@ export default function App() {
             ))}
           </div>
           <section className="external-catalog-results">
-            <div className="section-title"><h2>External catalogue</h2><span className="caption">Live Spotify and YouTube results</span></div>
+            <div className="section-title"><h2>External catalogue</h2><span className="caption">Live Spotify, YouTube and Apple Music results</span></div>
             {externalSearchLoading && <div className="empty">Searching connected music providers…</div>}
             {externalSearchHint && <div className="empty">{externalSearchHint}</div>}
             {externalSearchResults.map((item) => (
