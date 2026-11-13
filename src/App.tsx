@@ -339,8 +339,6 @@ export default function App() {
     const trackSummary = (track: Track) => ({
       id: track.id,
       postId: track.postId || track.id,
-      liked: Boolean(track.liked),
-      likes: track.likes || 0,
       title: track.title,
       artist: track.artist,
       album: track.album,
