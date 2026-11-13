@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { fetchOwnedArtistProfiles, uploadTrackToBucket, type MusicArtistProfileOption } from '../lib/supabase'
 import { Track } from '../data/music'
+import { assertReleaseAvailable, hashAudioFile, registerUploadedRelease, rollbackUnregisteredUpload } from '../lib/releaseRegistry'
 
 interface UploadModalProps {
   isOpen: boolean
@@ -70,25 +71,40 @@ export default function UploadModal({
     setErrorMsg('')
 
     try {
+      const artistName = artist.trim() || String(
+        user.user_metadata?.username || user.user_metadata?.full_name || user.email?.split('@')[0] || ''
+      ).trim()
+      if (!artistName) throw new Error('Add an artist name before publishing this release.')
+
+      // Match SCN's content-hash release registry. Check before upload, then
+      // insert the registry row under the authenticated owner after publishing.
+      const contentHash = await hashAudioFile(audioFile)
+      await assertReleaseAvailable(contentHash)
       const track = await uploadTrackToBucket({
         title: title.trim(),
-        artist: artist.trim() || user.user_metadata?.username || 'Kus-lords Artist',
-        album: album.trim() || 'Singles Cloud',
+        artist: artistName,
+        album: album.trim() || 'Singles',
         audioFile,
         coverFile,
         user,
         artistProfileId: artistProfileId || null,
+        audioContentHash: contentHash,
       })
 
-      if (track) {
-        onTrackUploaded(track)
-        onClose()
-        setTitle('')
-        setArtist('')
-        setAlbum('')
-        setAudioFile(null)
-        setCoverFile(null)
+      try {
+        await registerUploadedRelease(contentHash, track, user.id)
+      } catch (registrationError) {
+        await rollbackUnregisteredUpload(track, user.id)
+        throw registrationError
       }
+
+      onTrackUploaded(track)
+      onClose()
+      setTitle('')
+      setArtist('')
+      setAlbum('')
+      setAudioFile(null)
+      setCoverFile(null)
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to upload track.')
     } finally {
@@ -137,7 +153,7 @@ export default function UploadModal({
               <label>Artist Name</label>
               <input
                 type="text"
-                placeholder={user.user_metadata?.username || 'Artist Name'}
+                placeholder={user.user_metadata?.username || user.email?.split('@')[0] || 'Artist name'}
                 value={artist}
                 onChange={(e) => setArtist(e.target.value)}
               />
@@ -161,7 +177,7 @@ export default function UploadModal({
               <label>Album / Collection</label>
               <input
                 type="text"
-                placeholder="e.g. Golden Era"
+                placeholder="Optional collection name"
                 value={album}
                 onChange={(e) => setAlbum(e.target.value)}
               />
