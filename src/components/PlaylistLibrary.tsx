@@ -11,6 +11,7 @@ interface PlaylistLibraryProps {
   onAddTrack: (playlistId: string, track: Track) => Promise<void>
   onRemoveTrack: (playlistId: string, trackId: string) => Promise<void>
   onDeletePlaylist: (playlistId: string) => Promise<void>
+  onUpdateVisibility: (playlistId: string, visibility: 'private' | 'public') => Promise<void>
   onPlay: (track: Track, queue: Track[]) => void
 }
 
@@ -92,6 +93,7 @@ export default function PlaylistLibrary({
       <div className="playlist-library">
         <button className="back-btn" onClick={() => setSelectedId(null)}>← All Playlists</button>
         <div className="section-title"><h2>{selected.name}</h2><span>{selectedTracks.length} tracks</span></div>
+        <label className="playlist-visibility-control">Visibility <select value={selected.visibility || "private"} onChange={event => { void onUpdateVisibility(selected.id, event.target.value as "private" | "public") }}><option value="private">Private</option><option value="public">Public</option></select></label>
         <div className="playlist-add-row">
           <select value={trackToAdd} onChange={(event) => setTrackToAdd(event.target.value)}>
             <option value="">Choose a published track…</option>
@@ -139,7 +141,7 @@ export default function PlaylistLibrary({
                   ? <img className="playlist-library-art" src={playlist.coverUrl} alt="" />
                   : <span className="playlist-library-art playlist-library-art-empty">♫</span>}
                 <strong>{playlist.name}</strong>
-                <small>{count} tracks</small>
+                <small>{count} tracks · {playlist.visibility || "private"}</small>
               </button>
             )
           })}
