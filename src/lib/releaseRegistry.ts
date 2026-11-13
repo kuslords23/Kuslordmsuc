@@ -11,24 +11,14 @@ export async function hashAudioFile(file: File): Promise<string> {
 
 export async function assertReleaseAvailable(contentHash: string): Promise<void> {
   if (!supabase) throw new Error('The shared Supabase music database is not configured.')
-  const { data: registered, error: registryError } = await supabase
-    .from('music_release_registry')
-    .select('id,title')
-    .eq('content_hash', contentHash)
-    .maybeSingle()
+  const { data: registered, error: registryError } = await supabase.rpc(
+    'check_music_release_registered',
+    { p_content_hash: contentHash },
+  )
   if (registryError) {
-    throw new Error(`Release registry is unavailable. Apply SCN music migration 040 before publishing: ${registryError.message}`)
+    throw new Error(`Secure release registry check is unavailable. Verify the Kus-Lords Music schema migration: ${registryError.message}`)
   }
-  if (registered) throw new Error(`This audio file is already registered as "${registered.title || 'an existing release'}".`)
-
-  const { data: post, error: postError } = await supabase
-    .from('feed_posts')
-    .select('id')
-    .eq('post_type', 'audio')
-    .eq('audio_content_hash', contentHash)
-    .maybeSingle()
-  if (postError) throw new Error(`Could not verify duplicate audio releases: ${postError.message}`)
-  if (post) throw new Error('This audio file is already attached to a published music post.')
+  if (registered === true) throw new Error('This audio file is already registered or attached to a published music post.')
 }
 
 export async function registerUploadedRelease(
