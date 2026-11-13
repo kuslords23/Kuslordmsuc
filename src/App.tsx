@@ -104,13 +104,24 @@ export default function App() {
     saveFollowedArtists(followedArtists)
   }, [followedArtists])
 
-  // Public SCN artist profiles and storefront metadata.
+  // Public SCN artist profiles and storefront metadata, refreshed on database changes.
   useEffect(() => {
     let cancelled = false
-    fetchPublicArtistProfiles().then((profiles) => {
-      if (!cancelled) setArtistProfiles(profiles)
-    })
-    return () => { cancelled = true }
+    const refresh = () => {
+      void fetchPublicArtistProfiles().then((profiles) => {
+        if (!cancelled) setArtistProfiles(profiles)
+      })
+    }
+    refresh()
+    if (!supabase) return () => { cancelled = true }
+    const channel = supabase
+      .channel('kus-music-live-artist-profiles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_profiles' }, refresh)
+      .subscribe()
+    return () => {
+      cancelled = true
+      void supabase.removeChannel(channel)
+    }
   }, [])
 
   // Audio element setup
@@ -583,19 +594,6 @@ export default function App() {
     </div>
   )
 
-    const toggleCurrentTrackLike = useCallback(() => {
-    if (!currentTrack) return
-    const targetId = currentTrack.id
-    const nextLiked = !currentTrack.liked
-    const nextLikes = Math.max(0, (currentTrack.likes || 0) + (nextLiked ? 1 : -1))
-    const updateTrack = (track: Track): Track => track.id === targetId
-      ? { ...track, liked: nextLiked, likes: nextLikes }
-      : track
-    setTracks((previous) => previous.map(updateTrack))
-    setQueue((previous) => previous.map(updateTrack))
-    setCurrentTrack((previous) => previous?.id === targetId ? updateTrack(previous) : previous)
-  }, [currentTrack])
-
   const renderArtists = () => (
     <ArtistDirectory
       profiles={artistProfiles}
@@ -709,7 +707,6 @@ export default function App() {
             <div className="full-track-info">
               <h2>{currentTrack.title}</h2>
               <p>{currentTrack.artist}</p>
-              {currentTrack.isSportsAnthem && <span className="stadium-badge">⚡ STADIUM ANTHEM</span>}
             </div>
             <div className="full-progress">
               <input
@@ -885,7 +882,7 @@ export default function App() {
       </nav>
 
       {/* Desktop Player */}
-      <div className="desktop-player">
+      {currentTrack && <div className="desktop-player">
         <PlayerBar
           title={currentTrack?.title}
           artist={currentTrack?.artist}
@@ -900,11 +897,8 @@ export default function App() {
           onSeek={handleSeek}
           onVolume={handleVolume}
           onOpenComments={currentTrack ? () => setCommentsTrack(currentTrack) : undefined}
-          liked={currentTrack?.liked}
-          likes={currentTrack?.likes}
-          onToggleLike={currentTrack ? toggleCurrentTrackLike : undefined}
         />
-      </div>
+      </div>}
 
       {/* Modals */}
       <CommentsPanel track={commentsTrack} user={user} onClose={() => setCommentsTrack(null)} />
