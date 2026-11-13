@@ -138,6 +138,8 @@ function rowToTrack(d: DbFeedPost): Track | null {
     duration: 0, // Duration is not part of the verified feed_posts audio contract yet.
     audioUrl,
     cover,
+    likes: Number(d.likes || 0),
+    liked: false,
   }
 }
 
@@ -185,9 +187,28 @@ export async function fetchRemoteTracks(): Promise<RemoteLibraryResult> {
       return { tracks: [], status: 'empty' }
     }
 
-    const fetched: Track[] = data
+    let fetched: Track[] = data
       .map((d) => rowToTrack(d as DbFeedPost))
       .filter((t): t is Track => t !== null)
+
+    // Read only the signed-in user's own like rows. Aggregate counts come
+    // from feed_posts.likes, maintained by a database trigger.
+    const { data: auth } = await supabase.auth.getUser()
+    if (auth.user && fetched.length) {
+      const ids = fetched.map((track) => track.postId || track.id)
+      const { data: likes, error: likesError } = await supabase
+        .from('music_track_likes')
+        .select('track_post_id')
+        .eq('user_id', auth.user.id)
+        .in('track_post_id', ids)
+      if (!likesError) {
+        const likedIds = new Set((likes || []).map((row) => row.track_post_id))
+        fetched = fetched.map((track) => ({
+          ...track,
+          liked: likedIds.has(track.postId || track.id),
+        }))
+      }
+    }
 
     if (fetched.length === 0) {
       // All rows were missing usable URLs — treat as empty
