@@ -19,7 +19,7 @@ interface PlaylistLibraryProps {
 
 export default function PlaylistLibrary({
   playlists, tracks, loading = false, error = '',
-  onCreate, onAddTrack, onRemoveTrack, onDeletePlaylist, onPlay,
+  onCreate, onAddTrack, onRemoveTrack, onDeletePlaylist, onUpdateVisibility, onMoveTrack, onPlay,
 }: PlaylistLibraryProps) {
   const [name, setName] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
