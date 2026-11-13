@@ -1153,3 +1153,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .playlist-visibility-control{display:flex;align-items:center;gap:10px;margin:10px 0 14px;color:var(--muted);font-size:12px}
 .playlist-visibility-control select{background:var(--bg2);color:var(--text);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 10px}
+
+.playlist-track-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.playlist-track-actions button{width:26px;height:28px;border-radius:7px;background:#ffffff10;color:var(--text);font-size:13px}
+.playlist-track-actions button:disabled{opacity:.3}
