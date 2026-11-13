@@ -746,18 +746,6 @@ export default function App() {
     const renderLibrary = () => (
     <div className="tab-scroll">
       <div className="section-title"><h2>Your Library</h2></div>
-      <PlaylistLibrary
-        playlists={playlists}
-        tracks={tracks}
-        loading={playlistsLoading}
-        error={playlistsError}
-        onCreate={handleCreatePlaylist}
-        onAddTrack={handleAddPlaylistTrack}
-        onRemoveTrack={handleRemovePlaylistTrack}
-        onDeletePlaylist={handleDeletePlaylist}
-        onUpdateVisibility={handleUpdatePlaylistVisibility}
-        onPlay={playTrack}
-      />
       <section>
         <div className="section-title"><h2>Published releases</h2></div>
         {albums.length ? <div className="album-grid">{albums.map((a) => (
@@ -778,6 +766,24 @@ export default function App() {
         </div>
         {!tracks.length && <div className="empty">No published tracks yet.</div>}
       </section>
+    </div>
+  )
+
+  const renderPlaylists = () => (
+    <div className="tab-scroll">
+      <div className="section-title"><h2>Your Playlists</h2></div>
+            <PlaylistLibrary
+              playlists={playlists}
+              tracks={tracks}
+              loading={playlistsLoading}
+              error={playlistsError}
+              onCreate={handleCreatePlaylist}
+              onAddTrack={handleAddPlaylistTrack}
+              onRemoveTrack={handleRemovePlaylistTrack}
+              onDeletePlaylist={handleDeletePlaylist}
+              onUpdateVisibility={handleUpdatePlaylistVisibility}
+              onPlay={playTrack}
+            />
     </div>
   )
 
@@ -1011,6 +1017,7 @@ export default function App() {
               {activeTab === 'browse' && renderBrowse()}
               {activeTab === 'radio' && renderRadio()}
               {activeTab === 'library' && renderLibrary()}
+              {activeTab === 'playlists' && renderPlaylists()}
               {activeTab === 'artists' && renderArtists()}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'studio' && (
@@ -1050,36 +1057,21 @@ export default function App() {
       {/* Bottom Navigation (Mobile) */}
       <nav className="bottom-nav">
         <div className="nav-group">
-          {(['home', 'browse'] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}
-            >
-              <span className="nav-icon">{tab === 'home' ? '🏠' : '🆕'}</span>
-              <span className="nav-label">{tab === 'home' ? 'Home' : 'Browse'}</span>
+          {(['home', 'search'] as Tab[]).map((tab) => (
+            <button key={tab} className={`nav-tab ${activeTab === tab ? 'active' : ''}`} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}>
+              <span className="nav-icon">{tab === 'home' ? '🏠' : '⌕'}</span>
+              <span className="nav-label">{tab === 'home' ? 'Home' : 'Search'}</span>
             </button>
           ))}
         </div>
-
-        <button
-          className={`nav-tab studio-tab ${activeTab === 'studio' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('studio'); setSelectedAlbumId(null) }}
-          aria-label="Open Studio"
-        >
-          <span className="nav-icon">🎛</span>
-          <span className="nav-label">Studio</span>
+        <button className={`nav-tab studio-tab ${activeTab === 'studio' ? 'active' : ''}`} onClick={() => { setActiveTab('studio'); setSelectedAlbumId(null) }} aria-label="Open Studio">
+          <span className="nav-icon">🎛</span><span className="nav-label">Studio</span>
         </button>
-
         <div className="nav-group">
-          {(['radio', 'library', 'artists'] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              className={`nav-tab ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}
-            >
-              <span className="nav-icon">{tab === 'radio' ? '📻' : tab === 'library' ? '📚' : '🎤'}</span>
-              <span className="nav-label">{tab === 'radio' ? 'Radio' : tab === 'library' ? 'Library' : 'Artists'}</span>
+          {(['browse', 'playlists', 'library'] as Tab[]).map((tab) => (
+            <button key={tab} className={`nav-tab ${activeTab === tab ? 'active' : ''}`} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}>
+              <span className="nav-icon">{tab === 'browse' ? '🧭' : tab === 'playlists' ? '♫' : '📚'}</span>
+              <span className="nav-label">{tab === 'browse' ? 'Explore' : tab === 'playlists' ? 'Playlists' : 'Library'}</span>
             </button>
           ))}
         </div>
