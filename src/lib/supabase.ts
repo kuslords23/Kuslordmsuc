@@ -46,7 +46,6 @@ interface DbFeedPost {
   media_url?: string | null
   storage_path?: string | null
   cover_storage_path?: string | null
-  audio_content_hash?: string | null
   content?: string | null
   caption?: string | null
   title?: string | null
