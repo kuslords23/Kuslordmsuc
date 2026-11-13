@@ -18,6 +18,17 @@ import { useAuth } from './context/AuthContext'
 import './index.css'
 
 type Tab = 'home' | 'browse' | 'radio' | 'library' | 'search' | 'studio' | 'artists'
+type ExternalCatalogHit = {
+  id: string
+  title: string
+  artist: string
+  coverUrl: string
+  embedUrl: string
+  openUrl: string
+  platform: string
+  kind: 'track' | 'artist' | 'album'
+  duration: number
+}
 
 const formatTime = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
@@ -39,6 +50,10 @@ export default function App() {
 
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [externalSearchResults, setExternalSearchResults] = useState<ExternalCatalogHit[]>([])
+  const [externalSearchHint, setExternalSearchHint] = useState('')
+  const [externalSearchLoading, setExternalSearchLoading] = useState(false)
+  const [activeExternalHit, setActiveExternalHit] = useState<ExternalCatalogHit | null>(null)
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [queue, setQueue] = useState<Track[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
@@ -103,6 +118,44 @@ export default function App() {
   useEffect(() => {
     saveFollowedArtists(followedArtists)
   }, [followedArtists])
+
+  // Search the live Spotify catalogue through the server-side provider endpoint.
+  // Provider credentials never enter the browser bundle.
+  useEffect(() => {
+    const query = search.trim()
+    if (!query || parseMusicLink(query)) {
+      setExternalSearchResults([])
+      setExternalSearchHint('')
+      setExternalSearchLoading(false)
+      setActiveExternalHit(null)
+      return
+    }
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setExternalSearchLoading(true)
+      fetch(`/api/music/search?q=${encodeURIComponent(query)}&limit=18`)
+        .then(async (response) => {
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.hint || 'External music search failed.')
+          return data as { items?: ExternalCatalogHit[]; hint?: string }
+        })
+        .then((data) => {
+          if (cancelled) return
+          setExternalSearchResults(Array.isArray(data.items) ? data.items : [])
+          setExternalSearchHint(data.hint || '')
+        })
+        .catch((error) => {
+          if (cancelled) return
+          setExternalSearchResults([])
+          setExternalSearchHint(error instanceof Error ? error.message : 'External music search is unavailable.')
+        })
+        .finally(() => { if (!cancelled) setExternalSearchLoading(false) })
+    }, 350)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [search])
 
   // Public SCN artist profiles and storefront metadata, refreshed on database changes.
   useEffect(() => {
@@ -676,6 +729,28 @@ export default function App() {
               </div>
             ))}
           </div>
+          <section className="external-catalog-results">
+            <div className="section-title"><h2>External catalogue</h2><span className="caption">Live Spotify results</span></div>
+            {externalSearchLoading && <div className="empty">Searching Spotify…</div>}
+            {externalSearchHint && <div className="empty">{externalSearchHint}</div>}
+            {externalSearchResults.map((item) => (
+              <button type="button" className="track-row-compact external-catalog-hit" key={item.id} onClick={() => setActiveExternalHit(item)}>
+                {item.coverUrl ? <img src={item.coverUrl} alt="" className="mini-cover" /> : <span className="mini-cover" />}
+                <span className="track-meta"><strong>{item.title}</strong><span>{item.artist} · {item.kind}</span></span>
+                <span className="caption">Preview</span>
+              </button>
+            ))}
+            {activeExternalHit && (
+              <div className="external-music-embed">
+                <div className="section-title">
+                  <h2>{activeExternalHit.title}</h2>
+                  <a href={activeExternalHit.openUrl} target="_blank" rel="noopener noreferrer">Open on {activeExternalHit.platform} ↗</a>
+                </div>
+                <iframe title={`${activeExternalHit.title} official music embed`} src={activeExternalHit.embedUrl} height={activeExternalHit.kind === 'track' ? 152 : 352} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" className="external-music-iframe" />
+                <button type="button" className="clear-search" onClick={() => setActiveExternalHit(null)}>Close preview</button>
+              </div>
+            )}
+          </section>
           {filteredTracks.length === 0 && <div className="empty">No results for "{search}".</div>}
         </>
       ) : (
