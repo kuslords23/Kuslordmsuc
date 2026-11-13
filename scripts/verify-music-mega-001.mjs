@@ -41,9 +41,11 @@ assert.match(artists, /Create artist profile/, "artist profile creation UI must 
 assert.match(artists, /Artist Directory/, "artist directory surface must exist");
 assert.match(artists, /artistProfileId === selected.id/, "artist storefront must resolve its linked releases");
 assert.match(artists, /Follow artist/, "artist storefront must expose follow controls");
-assert.match(follows, /kus_followed_artists/, "follow state must use SCN-compatible local storage key");
+assert.match(follows, /artist_follows/, "artist follows must use the shared Supabase follow graph");
+assert.match(follows, /toggleCloudArtistFollow/, "artist follow actions must persist to Supabase");
 assert.match(playlists, /Your Playlists/, "playlist library UI must exist");
-assert.match(playlistStore, /kus_music_playlists/, "playlist persistence must use SCN-compatible local storage key");
+assert.match(playlistStore, /music_playlists/, "playlists must use the shared Supabase table");
+assert.match(playlistStore, /music_playlist_tracks/, "playlist membership must use persisted track records");
 assert.match(embeds, /parseMusicLink/, "official music link parser must exist");
 assert.match(embeds, /w\.soundcloud\.com\/player/, "SoundCloud embed must use its official player");
 assert.match(app, /external-music-embed/, "search UI must render official platform embeds");
@@ -58,6 +60,10 @@ assert.match(model, /export const initialTracks: Track\[\] = \[\]/, "no seeded d
 assert.match(model, /export const albums: Album\[\] = \[\]/, "no seeded demo albums may ship");
 assert.doesNotMatch(data, /fallbackTracks/, "Supabase failures must never return demo tracks");
 assert.match(app, /kus-music-live-audio-feed/, "published audio feed must subscribe to realtime changes");
+assert.match(app, /kus-music-user-library/, "playlists and follows must subscribe to realtime changes");
+assert.doesNotMatch(app, /localStorage/, "the application must not use local-only music data");
+assert.doesNotMatch(playlistStore, /localStorage/, "playlist data must not be stored only on this device");
+assert.doesNotMatch(follows, /localStorage/, "artist follows must not be stored only on this device");
 assert.match(app, /\/api\/music\/search/, "search UI must call the live external catalogue endpoint");
 assert.match(app, /Live Spotify results/, "external catalogue results must have a UI");
 assert.match(analytics, /music_stream_events/, "creator analytics must read verified stream events");
