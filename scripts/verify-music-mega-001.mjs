@@ -106,6 +106,8 @@ assert.match(royalCompanion, /api\/royal\/companion/, "persistent Royal panel mu
 assert.match(providerSearch, /YOUTUBE_DATA_API_KEY/, "provider search must support official YouTube catalogue discovery");
 assert.match(providerSearch, /videoEmbeddable/, "YouTube results must be restricted to embeddable videos");
 assert.match(providerSearch, /SPOTIFY_CLIENT_ID/, "provider search must preserve Spotify server-side credentials");
+assert.match(providerSearch, /APPLE_MUSIC_PRIVATE_KEY/, "provider search must support Apple Music developer-token authentication");
+assert.match(providerSearch, /embed.music.apple.com/, "Apple Music results must use official embeds");
 assert.match(studio, /music_studio_projects/, "Studio projects must be cloud persisted");
 assert.match(studio, /studio-step/, "Studio must include the step sequencer");
 assert.match(studio, /studio-note-cell/, "Studio must include a piano-roll note grid");
