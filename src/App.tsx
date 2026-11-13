@@ -11,8 +11,8 @@ import Studio from './components/Studio'
 import ArtistDirectory from './components/ArtistDirectory'
 import CommentsPanel from './components/CommentsPanel'
 import PlaylistLibrary from './components/PlaylistLibrary'
-import { loadPlaylistsLocal, savePlaylistsLocal, type MusicPlaylist } from './lib/playlists'
-import { loadFollowedArtists, saveFollowedArtists } from './lib/artistFollows'
+import { fetchMusicPlaylists, createCloudPlaylist, addCloudPlaylistTrack, removeCloudPlaylistTrack, deleteCloudPlaylist, type MusicPlaylist } from './lib/playlists'
+import { fetchFollowedArtists, toggleCloudArtistFollow } from './lib/artistFollows'
 import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
 import { recordVerifiedDirectStream } from './lib/streamTracking'
 import { useAuth } from './context/AuthContext'
@@ -45,9 +45,11 @@ export default function App() {
   const [tracks, setTracks] = useState<Track[]>([])
   const [libraryStatus, setLibraryStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [artistProfiles, setArtistProfiles] = useState<PublicMusicArtistProfile[]>([])
-  const [playlists, setPlaylists] = useState<MusicPlaylist[]>(() => loadPlaylistsLocal())
+  const [playlists, setPlaylists] = useState<MusicPlaylist[]>([])
+  const [playlistsLoading, setPlaylistsLoading] = useState(false)
+  const [playlistsError, setPlaylistsError] = useState('')
   const [commentsTrack, setCommentsTrack] = useState<Track | null>(null)
-  const [followedArtists, setFollowedArtists] = useState<Set<string>>(() => loadFollowedArtists())
+  const [followedArtists, setFollowedArtists] = useState<Set<string>>(new Set())
 
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -112,13 +114,50 @@ export default function App() {
     return () => { void supabase.removeChannel(channel) }
   }, [])
 
-  useEffect(() => {
-    savePlaylistsLocal(playlists)
-  }, [playlists])
+  const refreshPlaylists = useCallback(async () => {
+    if (!user) {
+      setPlaylists([])
+      setPlaylistsError('')
+      setPlaylistsLoading(false)
+      return
+    }
+    setPlaylistsLoading(true)
+    setPlaylistsError('')
+    try {
+      setPlaylists(await fetchMusicPlaylists())
+    } catch (error) {
+      setPlaylists([])
+      setPlaylistsError(error instanceof Error ? error.message : 'Cloud playlists are unavailable.')
+    } finally {
+      setPlaylistsLoading(false)
+    }
+  }, [user])
+
+  const refreshFollowedArtists = useCallback(async () => {
+    if (!user) {
+      setFollowedArtists(new Set())
+      return
+    }
+    try {
+      setFollowedArtists(await fetchFollowedArtists())
+    } catch (error) {
+      console.error('Could not load artist follows:', error)
+      setFollowedArtists(new Set())
+    }
+  }, [user])
 
   useEffect(() => {
-    saveFollowedArtists(followedArtists)
-  }, [followedArtists])
+    void refreshPlaylists()
+    void refreshFollowedArtists()
+    if (!user || !supabase) return
+    const channel = supabase
+      .channel(`kus-music-user-library-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlists', filter: `user_id=eq.${user.id}` }, () => { void refreshPlaylists() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlist_tracks' }, () => { void refreshPlaylists() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_follows', filter: `user_id=eq.${user.id}` }, () => { void refreshFollowedArtists() })
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [user, refreshPlaylists, refreshFollowedArtists])
 
   // Search the live Spotify catalogue through the server-side provider endpoint.
   // Provider credentials never enter the browser bundle.
@@ -247,6 +286,37 @@ export default function App() {
   }, [search, tracks])
 
   const studioTracks = tracks
+
+  const handleCreatePlaylist = useCallback(async (name: string) => {
+    await createCloudPlaylist(name)
+    await refreshPlaylists()
+  }, [refreshPlaylists])
+
+  const handleAddPlaylistTrack = useCallback(async (playlistId: string, track: Track) => {
+    const playlist = playlists.find((item) => item.id === playlistId)
+    await addCloudPlaylistTrack(playlistId, track, playlist?.trackIds.length || 0)
+    await refreshPlaylists()
+  }, [playlists, refreshPlaylists])
+
+  const handleRemovePlaylistTrack = useCallback(async (playlistId: string, trackId: string) => {
+    await removeCloudPlaylistTrack(playlistId, trackId)
+    await refreshPlaylists()
+  }, [refreshPlaylists])
+
+  const handleDeletePlaylist = useCallback(async (playlistId: string) => {
+    await deleteCloudPlaylist(playlistId)
+    await refreshPlaylists()
+  }, [refreshPlaylists])
+
+  const handleToggleArtistFollow = useCallback(async (artistProfileId: string) => {
+    const following = await toggleCloudArtistFollow(artistProfileId)
+    setFollowedArtists((previous) => {
+      const next = new Set(previous)
+      if (following) next.add(artistProfileId)
+      else next.delete(artistProfileId)
+      return next
+    })
+  }, [])
 
   // Player functions
   const playTrack = useCallback((track: Track | undefined, trackList: Track[]) => {
@@ -626,8 +696,12 @@ export default function App() {
       <PlaylistLibrary
         playlists={playlists}
         tracks={tracks}
-        createdBy={user?.user_metadata?.username || user?.email?.split('@')[0] || 'You'}
-        onChange={setPlaylists}
+        loading={playlistsLoading}
+        error={playlistsError}
+        onCreate={handleCreatePlaylist}
+        onAddTrack={handleAddPlaylistTrack}
+        onRemoveTrack={handleRemovePlaylistTrack}
+        onDeletePlaylist={handleDeletePlaylist}
         onPlay={playTrack}
       />
       <section>
@@ -659,12 +733,7 @@ export default function App() {
       tracks={tracks}
       onPlayTrack={playTrack}
       followedArtists={followedArtists}
-      onToggleFollow={(artistName) => setFollowedArtists((previous) => {
-        const next = new Set(previous)
-        if (next.has(artistName)) next.delete(artistName)
-        else next.add(artistName)
-        return next
-      })}
+      onToggleFollow={handleToggleArtistFollow}
       currentUserId={user?.id}
       onSaveProfile={async (profileId: string | null, input: MusicArtistProfileInput) => {
         const result = await saveArtistProfile(profileId, input)
