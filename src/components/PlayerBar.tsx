@@ -16,6 +16,12 @@ interface PlayerBarProps {
   likes?: number
   onToggleLike?: () => void
   likeBusy?: boolean
+  shuffle?: boolean
+  repeat?: boolean
+  muted?: boolean
+  onToggleShuffle?: () => void
+  onToggleRepeat?: () => void
+  onToggleMute?: () => void
 }
 
 const formatTime = (seconds: number) => {
@@ -43,6 +49,12 @@ export default function PlayerBar({
   likes = 0,
   onToggleLike,
   likeBusy = false,
+  shuffle = false,
+  repeat = false,
+  muted = false,
+  onToggleShuffle,
+  onToggleRepeat,
+  onToggleMute,
 }: PlayerBarProps) {
   return (
     <footer className="player-bar">
@@ -71,11 +83,13 @@ export default function PlayerBar({
 
       <div className="player-center">
         <div className="player-buttons">
+          {onToggleShuffle && <button className={`control player-mode-control ${shuffle ? 'active' : ''}`} onClick={onToggleShuffle} title="Shuffle" aria-pressed={shuffle}>🔀</button>}
           <button className="control" onClick={onPrev} title="Previous">⏮</button>
           <button className="play-btn" onClick={onTogglePlay} title={isPlaying ? 'Pause' : 'Play'}>
             {isPlaying ? '❚❚' : '▶'}
           </button>
           <button className="control" onClick={onNext} title="Next">⏭</button>
+          {onToggleRepeat && <button className={`control player-mode-control ${repeat ? 'active' : ''}`} onClick={onToggleRepeat} title="Repeat" aria-pressed={repeat}>🔁</button>}
         </div>
         <div className="progress-row">
           <span>{formatTime(currentTime)}</span>
@@ -92,7 +106,7 @@ export default function PlayerBar({
       </div>
 
       <div className="player-right">
-        <span className="volume-icon">🔊</span>
+        {onToggleMute && <button type="button" className={`volume-icon mute-toggle ${muted ? 'muted' : ''}`} onClick={onToggleMute} title={muted ? 'Unmute' : 'Mute'} aria-pressed={muted}>{muted ? '🔇' : '🔊'}</button>}
         <input
           type="range"
           min={0}
