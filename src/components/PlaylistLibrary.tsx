@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import type { Track } from '../data/music'
+import { recordCloudPlaylistPlay } from '../lib/playlists'
 import type { MusicPlaylist } from '../lib/playlists'
 
 interface PlaylistLibraryProps {
@@ -12,6 +13,7 @@ interface PlaylistLibraryProps {
   onRemoveTrack: (playlistId: string, trackId: string) => Promise<void>
   onDeletePlaylist: (playlistId: string) => Promise<void>
   onUpdateVisibility: (playlistId: string, visibility: 'private' | 'public') => Promise<void>
+  onMoveTrack: (playlistId: string, trackId: string, direction: -1 | 1) => Promise<void>
   onPlay: (track: Track, queue: Track[]) => void
 }
 
@@ -59,6 +61,15 @@ export default function PlaylistLibrary({
     } finally {
       setBusy(false)
     }
+  }
+
+  const move = async (trackId: string, direction: -1 | 1) => {
+    if (!selected || busy) return
+    setBusy(true)
+    setActionError('')
+    try { await onMoveTrack(selected.id, trackId, direction) }
+    catch (cause) { setActionError(cause instanceof Error ? cause.message : 'Could not reorder track.') }
+    finally { setBusy(false) }
   }
 
   const remove = async (trackId: string) => {
@@ -118,13 +129,13 @@ export default function PlaylistLibrary({
         </div>
         {selectedTracks.length ? (
           <div className="track-list-compact">
-            {selectedTracks.map((track) => (
+            {selectedTracks.map((track, index) => (
               <div key={track.id} className="track-row-compact">
-                <button className="playlist-track-play" onClick={() => onPlay(track, selectedTracks)}>
+                <button className="playlist-track-play" onClick={() => { void recordCloudPlaylistPlay(selected.id, track).catch(cause => setActionError(cause instanceof Error ? cause.message : "Could not record playlist history.")); onPlay(track, selectedTracks) }}>
                   {track.cover.startsWith('http') ? <img className="mini-cover" src={track.cover} alt="" /> : <span className="mini-cover" />}
                   <span className="track-meta"><strong>{track.title}</strong><span>{track.artist}</span></span>
                 </button>
-                <button className="playlist-remove-track" onClick={() => void remove(track.postId || track.id)} disabled={busy} aria-label={`Remove ${track.title}`}>✕</button>
+                <div className="playlist-track-actions"><button onClick={() => void move(track.postId || track.id, -1)} disabled={busy || index === 0} aria-label={"Move "+track.title+" up"}>↑</button><button onClick={() => void move(track.postId || track.id, 1)} disabled={busy || index === selectedTracks.length - 1} aria-label={"Move "+track.title+" down"}>↓</button><button className="playlist-remove-track" onClick={() => void remove(track.postId || track.id)} disabled={busy} aria-label={"Remove "+track.title}>✕</button></div>
               </div>
             ))}
           </div>
