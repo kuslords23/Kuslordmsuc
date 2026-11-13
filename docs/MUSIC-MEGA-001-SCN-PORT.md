@@ -338,3 +338,32 @@ The shared Supabase migration for these tables, policies, trigger, and Realtime 
 ## 001-K: SCN global player transport parity
 
 The single standalone global player now includes SCN's shuffle, repeat-current-track, and mute controls alongside the existing play/pause, previous/next, seek, volume, and comments controls. Shuffle changes the actual next-track selection; repeat restarts the current track; mute controls the shared audio element. No second player or duplicate playback engine was introduced.
+
+
+## 001-L: Unified platform foundation and first Studio workspace
+
+Applied to the shared Kus-lords-prod Supabase project on 2026-11-13.
+
+- Added a KUS-owned canonical catalogue identity table and provider-source references. The schema separates one KUS recording identity from provider-specific track IDs, source URLs, official embed/SDK mode, availability, attribution, and metadata-retention policy.
+- Provider catalogue rows are readable by the app, but browser clients cannot create or mutate them. Ingestion must use a trusted server-side workflow and respect each provider's metadata caching rules.
+- Added owner-scoped cloud Studio projects with RLS, project JSON, BPM and a database-maintained updated timestamp.
+- Added trend-follow preferences, service-controlled trend signals, auto-playlist definitions and ordered auto-playlist tracks.
+- Extended user playlists with private/public/unlisted visibility, artwork and collaboration flags; added collaborator and playlist-save records. Existing playlist UI still needs to expose and exercise these new controls.
+- The first mobile-first Studio workspace now has touch drum pads, a 16-step drum sequencer, a synth piano-roll grid, a basic Web Audio drum/synth sound engine, BPM control, cloud project save/reopen, autosave after the first save, and JSON project export.
+- The current Studio is a functional sketchpad, not a professional DAW. It does not yet provide multitrack audio recording, imported sample persistence, full clip editing, mixer buses, effect chains, or rendered WAV/MP3 export.
+- A persistent Royal companion panel is mounted throughout the Music app and calls the existing shared Royal companion endpoint with current section/track context. The UI does not create a second model. Natural-language music actions still require typed tools registered in the KUS AI execution dispatcher and Guardian-approved action receipts.
+
+## 001-M: Multi-provider search groundwork
+
+- The server-side music search endpoint now queries Spotify and YouTube Music-category videos in parallel when their server credentials are configured.
+- YouTube results are restricted to embeddable, syndicated videos and use the official YouTube iframe player. Spotify results use Spotify's official embed.
+- Search credentials remain server-side: SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and YOUTUBE_DATA_API_KEY. None should be exposed through VITE_ variables.
+- Search results are currently provider results for immediate discovery/preview. They are not yet ingested into the permanent KUS catalogue because provider-specific metadata retention, artwork, commercial and playback permissions must be implemented per provider contract before persistence.
+- Apple Music and SoundCloud text-search adapters, MusicKit user authorization, provider availability refresh, cross-provider recording matching, and a provider-neutral playback controller remain outstanding.
+- An official embed may count activity on its source platform only according to that platform's own policies. KUS must never promise that every embedded playback is an eligible official stream.
+
+## Verification and deployment status after 001-L / 001-M
+
+- Supabase migration kus_music_unified_platform_foundation and follow-up migration kus_music_studio_project_updated_at were applied successfully. The new tables and RLS policies were queried after application.
+- Source changes are committed to main. Vercel production deployment is currently blocked by the account's api-deployments-free-per-day limit (HTTP 402, more than 100 deployments in the rolling daily allowance). The latest attempted production builds also stopped at the Royal prebuild verifier before the app bundle; the verifier contract has since been corrected.
+- Do not treat these changes as live on the production domain until a new production build succeeds and the deployment is checked.
