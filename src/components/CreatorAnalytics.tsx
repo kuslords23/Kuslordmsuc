@@ -28,7 +28,8 @@ export default function CreatorAnalytics() {
   const [error, setError] = useState('')
 
   const refresh = useCallback(async (quiet = false) => {
-    if (!supabase) {
+    const client = supabase
+    if (!client) {
       setError('Supabase is not configured. Creator analytics require the shared music database.')
       setReleases([])
       setLoading(false)
@@ -38,9 +39,9 @@ export default function CreatorAnalytics() {
     else setLoading(true)
     setError('')
     try {
-      const { data: auth, error: authError } = await supabase.auth.getUser()
+      const { data: auth, error: authError } = await client.auth.getUser()
       if (authError || !auth.user) throw new Error('Sign in to view creator analytics.')
-      const { data: posts, error: postsError } = await supabase
+      const { data: posts, error: postsError } = await client
         .from('feed_posts')
         .select('id,sound_title,sound_artist,listen_count,created_at')
         .eq('user_id', auth.user.id)
@@ -53,7 +54,7 @@ export default function CreatorAnalytics() {
         return
       }
       const ids = rows.map((row) => row.id)
-      const { data: events, error: eventsError } = await supabase
+      const { data: events, error: eventsError } = await client
         .from('music_stream_events')
         .select('track_post_id,listened_seconds,created_at,source')
         .in('track_post_id', ids)
@@ -80,13 +81,14 @@ export default function CreatorAnalytics() {
 
   useEffect(() => {
     void refresh()
-    if (!supabase) return
-    let channel = supabase.channel('kus-music-creator-analytics')
+    const client = supabase
+    if (!client) return
+    let channel = client.channel('kus-music-creator-analytics')
     channel = channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'feed_posts' }, () => { void refresh(true) })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'music_stream_events' }, () => { void refresh(true) })
       .subscribe()
-    return () => { void supabase.removeChannel(channel) }
+    return () => { void client.removeChannel(channel) }
   }, [refresh])
 
   const totals = useMemo(() => ({
