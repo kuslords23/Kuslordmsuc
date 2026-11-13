@@ -11,7 +11,7 @@ import Studio from './components/Studio'
 import ArtistDirectory from './components/ArtistDirectory'
 import CommentsPanel from './components/CommentsPanel'
 import PlaylistLibrary from './components/PlaylistLibrary'
-import { fetchMusicPlaylists, createCloudPlaylist, addCloudPlaylistTrack, removeCloudPlaylistTrack, deleteCloudPlaylist, updateCloudPlaylistVisibility, type MusicPlaylist } from './lib/playlists'
+import { fetchMusicPlaylists, createCloudPlaylist, addCloudPlaylistTrack, removeCloudPlaylistTrack, moveCloudPlaylistTrack, deleteCloudPlaylist, updateCloudPlaylistVisibility, type MusicPlaylist } from './lib/playlists'
 import { fetchFollowedArtists, toggleCloudArtistFollow } from './lib/artistFollows'
 import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
 import { recordVerifiedDirectStream } from './lib/streamTracking'
@@ -313,6 +313,11 @@ export default function App() {
 
   const handleRemovePlaylistTrack = useCallback(async (playlistId: string, trackId: string) => {
     await removeCloudPlaylistTrack(playlistId, trackId)
+    await refreshPlaylists()
+  }, [refreshPlaylists])
+
+  const handleMovePlaylistTrack = useCallback(async (playlistId: string, trackId: string, direction: -1 | 1) => {
+    await moveCloudPlaylistTrack(playlistId, trackId, direction)
     await refreshPlaylists()
   }, [refreshPlaylists])
 
