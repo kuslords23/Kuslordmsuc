@@ -71,6 +71,8 @@ export async function uploadMusicRelease(
   if (!artistName) throw new Error('Add an artist name or create an artist profile before publishing.')
 
   const audioExt = safeExtension(audioFile.name, 'mp3')
+  if (!['mp3','m4a','wav','aac','ogg','flac'].includes(audioExt)) throw new Error('Unsupported audio format. Use MP3, M4A, WAV, AAC, OGG or FLAC.')
+  if (coverFile && !['image/jpeg','image/png','image/webp'].includes(coverFile.type)) throw new Error('Cover artwork must be a JPG, PNG or WebP image.')
   const audioPath = `${user.id}/${crypto.randomUUID()}.${audioExt}`
   let coverPath: string | null = null
   let audioUploaded = false
