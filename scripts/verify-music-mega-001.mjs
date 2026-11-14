@@ -84,8 +84,10 @@ assert.match(studio, /api\/studio\/elevenlabs/, "voice generation UI must call a
 assert.match(studio, /Authorization: `Bearer \${accessToken}`/, "voice generation must send the authenticated session");
 assert.match(elevenLabs, /ELEVENLABS_API_KEY/, "voice endpoint must use a server-side ElevenLabs credential");
 assert.match(elevenLabs, /auth\/v1\/user/, "voice endpoint must verify the Supabase user session");
-assert.match(streamTracking, /log_music_stream_event_v2/, "playback must write SCN verified stream events");
-assert.match(app, /recordVerifiedDirectStream/, "actual playback must trigger verified stream tracking");
+assert.match(streamTracking, /startVerifiedPlaybackSession/, "direct playback must start a server-timed session");
+assert.match(app, /heartbeatVerifiedPlaybackSession/, "actual playback must send server-timed heartbeats");
+assert.match(app, /completeVerifiedPlaybackSession/, "pause and completion must close the playback session");
+assert.doesNotMatch(app, /recordVerifiedDirectStream/, "player must not submit client-asserted listened seconds");
 assert.match(releaseRegistry, /music_release_registry/, "release registry integration must use the shared SCN table");
 assert.match(releaseRegistry, /owner_user_id/, "release registration must be owner-scoped");
 assert.match(upload, /hashAudioFile/, "upload must hash the audio file before publishing");
