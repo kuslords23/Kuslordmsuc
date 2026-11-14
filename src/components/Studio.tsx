@@ -126,22 +126,22 @@ export default function Studio({tracks,onPlayTrack}:{tracks:Track[];onPlayTrack:
         <button className={"studio-mute "+(item.muted?"muted":"")} onClick={()=>update(item.id,l=>({...l,muted:!l.muted}))}>{item.muted?"M":"♪"}</button></div>)}</div>
       <div className="studio-pad-row">{lanes.filter(l=>l.kind==="drum").map((item,i)=><button key={item.id} className="studio-touch-pad" onPointerDown={()=>drum(item.sound,item.volume)}><span>0{i+1}</span><strong>{item.name}</strong></button>)}</div>
     </section>
-    </section>)}
+    )}
     {studioPage === "piano" && (<section className="studio-panel studio-piano-panel"><div className="studio-section-heading"><div><h2>Piano roll</h2><p>Select a synth lane and tap cells to add or remove notes.</p></div><select value={selectedLane?.id||""} onChange={e=>setSelected(e.target.value)}>{lanes.filter(l=>l.kind==="synth").map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
       <div className="studio-piano-roll">{Array.from({length:13},(_,row)=>{const pitch=72-row;return <div className="studio-piano-row" key={pitch}><span>{label(pitch)}</span><div>{Array.from({length:16},(_,i)=><button key={i} aria-label={label(pitch)+" step "+(i+1)} className={"studio-note-cell "+(notes.some(n=>n.pitch===pitch&&n.step===i)?"note-on ":"")+(i%4===0?"beat":"")} onClick={()=>selectedLane&&update(selectedLane.id,l=>({...l,notes:l.notes.some(n=>n.pitch===pitch&&n.step===i)?l.notes.filter(n=>!(n.pitch===pitch&&n.step===i)):[...l.notes,{pitch,step:i,velocity:.8}]}))}/>)}</div></div>})}</div>
     </section>
-    </section>)}
+    )}
     {studioPage === "arrangement" && (<section className="studio-panel studio-arrangement"><div className="studio-section-heading"><div><h2>Arrangement</h2><p>Pattern overview for each lane.</p></div><button onClick={()=>setLanes(old=>[...old,lane("Synth "+(old.length-3),"lead","synth")])}>＋ Add synth lane</button></div>
       {lanes.map(l=><div className="studio-arrangement-row" key={l.id}><span>{l.name}</span><div>{Array.from({length:4},(_,i)=><div className="studio-arrangement-block" key={i}>{l.kind==="drum"?l.steps.filter(Boolean).length:l.notes.length} events</div>)}</div></div>)}
     </section>
-    </section>)}
+    )}
     {studioPage === "projects" && (<section className="studio-panel studio-projects"><div className="studio-section-heading"><div><h2>Your projects</h2><p>Cloud projects are private to your account.</p></div><button onClick={()=>void loadProjects()}>Refresh</button></div>{!userId&&<p className="studio-empty">Sign in to save and reopen projects across devices.</p>}{saved.map(p=><div className="studio-saved-project" key={p.id}><span><strong>{p.title}</strong><small>{p.tempo} BPM</small></span><button onClick={()=>void openProject(p.id)}>Open</button></div>)}{error&&<p className="studio-error" role="alert">{error}</p>}</section>
-    </section>)}
+    )}
     {studioPage === "royal" && (<section className="studio-panel"><h3>Royal Studio Companion</h3><p className="studio-panel-hint">Shared Royal intelligence with this project as context.</p><form onSubmit={askRoyal} className="studio-chat-form"><input value={royalPrompt} onChange={e=>setRoyalPrompt(e.target.value)} placeholder="Help me build an Afrobeats groove…"/><button disabled={royalBusy}>{royalBusy?"Thinking…":"Ask Royal"}</button></form>{royalReply&&<p className="studio-reply">{royalReply}</p>}</section>
-    </section>)}
+    )}
     {studioPage === "voice" && (<section className="studio-panel"><h3>ElevenLabs voice generation</h3><form onSubmit={generateVoice} className="studio-tts-form"><textarea rows={2} value={voiceText} onChange={e=>setVoiceText(e.target.value)} placeholder="Write a voiceover or intro…"/><select value={voiceId} onChange={e=>setVoiceId(e.target.value)}>{[["21m00Tcm4TlvDq8ikWAM","Rachel"],["AZnzlk1XvdvUeBnXmlld","Domi"],["EXAVITQu4vr4xnSDxMaL","Bella"],["ErXwobaYiN019PkySvjV","Antoni"],["MF3mGyEYCl7XYWbV9V6O","Elli"]].map(v=><option key={v[0]} value={v[0]}>{v[1]}</option>)}</select><button disabled={voiceBusy}>{voiceBusy?"Generating…":"Generate narration"}</button></form>{voiceError&&<p className="studio-error">{voiceError}</p>}{voiceUrl&&<audio ref={voiceRef} src={voiceUrl} controls className="studio-audio-output"/>}</section></div>
-    </section>)}
+    )}
     {studioPage === "analytics" && <CreatorAnalytics/>}
-    {studioPage === "library" && (<section className="studio-panel studio-source-library"><h3>Published music to work with</h3>{tracks.length?tracks.slice(0,8).map(t=><button key={t.id} onClick={()=>onPlayTrack(t)}>{t.title} · {t.artist}</button>):<p className="studio-empty">Published tracks will appear here when the shared catalogue has audio.</p>}</section>)}
+    {studioPage === "library" && (<section className="studio-panel studio-source-library"><h3>Published music to work with</h3>{tracks.length?tracks.slice(0,8).map(t=><button key={t.id} onClick={()=>onPlayTrack(t)}>{t.title} · {t.artist}</button>):<p className="studio-empty">Published tracks will appear here when the shared catalogue has audio.</p>})}
   </div>
 }
