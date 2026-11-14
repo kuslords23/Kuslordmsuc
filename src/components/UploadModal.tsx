@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import './UploadModal.css'
 import type { User } from '@supabase/supabase-js'
 import type { Track } from '../data/music'
 import { fetchOwnedArtistProfiles, saveArtistProfile, type MusicArtistProfileOption } from '../lib/supabase'
