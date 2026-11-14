@@ -53,8 +53,8 @@ export default function CreatorAnalytics() {
         client.from('music_paid_sound_orders').select('amount_ghs,status,created_at').eq('creator_user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
       ])
       if (royaltyResult.error && !/does not exist|schema cache/i.test(royaltyResult.error.message)) throw new Error(royaltyResult.error.message)
-      if (payoutResult.error && !/does not exist|schema cache|permission/i.test(payoutResult.error.message)) throw new Error(payoutResult.error.message)
-      if (salesResult.error && !/does not exist|schema cache|permission/i.test(salesResult.error.message)) throw new Error(salesResult.error.message)
+      if (payoutResult.error && !/does not exist|schema cache/i.test(payoutResult.error.message)) throw new Error(payoutResult.error.message)
+      if (salesResult.error && !/does not exist|schema cache/i.test(salesResult.error.message)) throw new Error(salesResult.error.message)
       setRoyalties((royaltyResult.data || []) as RoyaltyRow[])
       setPayouts((payoutResult.data || []) as PayoutRow[])
       setSales((salesResult.data || []) as SaleRow[])
