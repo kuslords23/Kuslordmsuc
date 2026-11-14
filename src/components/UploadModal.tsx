@@ -168,7 +168,7 @@ export default function UploadModal({ isOpen, onClose, user, onTrackUploaded, on
             <section className="upload-section">
               <h3>Audio & artwork</h3>
               <div className="form-group"><label htmlFor="upload-audio">Audio file *</label><input id="upload-audio" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac" required onChange={(e) => setAudioFile(e.target.files?.[0] || null)} />{audioFile && <p className="upload-muted">{audioFile.name} · {(audioFile.size / (1024 * 1024)).toFixed(1)} MB</p>}</div>
-              <div className="form-group"><label htmlFor="upload-cover">Cover artwork</label><input id="upload-cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} />{coverFile && <p className="upload-muted">{coverFile.name}</p>}</div>
+              <div className="form-group"><label htmlFor="upload-cover">Cover artwork</label><input id="upload-cover" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/heic" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} />{coverFile && <p className="upload-muted">{coverFile.name}</p>}</div>
             </section>
             <section className="upload-section">
               <h3>Royalty eligibility</h3>
