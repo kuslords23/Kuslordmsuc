@@ -143,7 +143,7 @@ export default function CreatorAnalytics() {
       <div className="creator-analytics-heading">
         <div>
           <h3>Creator performance</h3>
-          <p>Verified listening activity from the shared SCN music records</p>
+          <p>Recorded listening activity from the shared SCN music records</p>
         </div>
         <button type="button" onClick={() => void refresh(true)} disabled={loading || refreshing}>
           {refreshing ? 'Refreshing…' : 'Refresh'}
@@ -154,7 +154,7 @@ export default function CreatorAnalytics() {
         : <>
           <div className="creator-analytics-metrics">
             <article><span>Published releases</span><strong>{number(totals.releases)}</strong></article>
-            <article><span>Verified streams</span><strong>{number(totals.streams)}</strong></article>
+            <article><span>Recorded streams</span><strong>{number(totals.streams)}</strong></article>
             <article><span>Listening time</span><strong>{number(Math.round(totals.seconds / 60))} min</strong></article>
           </div>
           <div className="creator-finance-panel">
@@ -164,14 +164,14 @@ export default function CreatorAnalytics() {
           </div>
           {financeStatus && <p className="creator-analytics-state">{financeStatus}</p>}
           {releases.length ? <div className="creator-analytics-table">
-            <div className="creator-analytics-row creator-analytics-header"><span>Release</span><span>Verified streams</span><span>SCN listen count</span></div>
+            <div className="creator-analytics-row creator-analytics-header"><span>Release</span><span>Recorded streams</span><span>SCN listen count</span></div>
             {releases.map((release) => <div className="creator-analytics-row" key={release.id}>
               <span><strong>{release.sound_title?.trim() || 'Untitled release'}</strong><small>{release.sound_artist?.trim() || 'Artist not specified'}</small></span>
               <span>{number(release.verifiedStreams)}</span>
               <span>{number(Number(release.listen_count || 0))}</span>
             </div>)}
           </div> : <p className="creator-analytics-state">No published audio releases belong to this account yet. Upload a release to start collecting verified listening data.</p>}
-          <p className="creator-analytics-note">Stream totals come from database-recorded events. Financial totals come from a database-side aggregate over the append-only ledger, not a capped client-side history. Checkout and payouts remain unavailable until a real provider is connected.</p>
+          <p className="creator-analytics-note">Listening totals include shared SCN stream-event history. Only completed server-timed playback sessions can create Kus-Lords royalty entries. Financial totals come from a database-side aggregate over the append-only ledger. Checkout and payouts remain unavailable until a real provider is connected.</p>
         </>}
     </section>
   )
