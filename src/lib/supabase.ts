@@ -470,7 +470,6 @@ export async function uploadTrackToBucket(params: {
         cover_storage_path: coverPath || null,
         artist_profile_id: params.artistProfileId || null,
         audio_content_hash: params.audioContentHash || null,
-        user_id: params.user.id,
       })
       .select('*')
       .single()
