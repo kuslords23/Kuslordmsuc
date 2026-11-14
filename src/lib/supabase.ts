@@ -400,7 +400,7 @@ export async function uploadTrackToBucket(params: {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+$/, '')
   const fileName = `${Date.now()}-${safeName || 'track'}.${fileExt}`
-  const audioPath = fileName
+  const audioPath = `${params.user.id}/${fileName}`
 
   let coverPath: string | null = null
 
@@ -422,7 +422,7 @@ export async function uploadTrackToBucket(params: {
     // 2. Upload cover to kus-images (optional, non-fatal if it fails)
     if (params.coverFile) {
       const coverExt = params.coverFile.name.split('.').pop()
-      coverPath = `cover-${Date.now()}.${coverExt}`
+      coverPath = `${params.user.id}/cover-${Date.now()}-${crypto.randomUUID()}.${coverExt}`
 
       const { error: coverErr } = await supabase.storage
         .from('kus-images')
@@ -447,10 +447,15 @@ export async function uploadTrackToBucket(params: {
       .from('feed_posts')
       .insert({
         post_type: 'audio',
+        user_id: params.user.id,
+        user_name: 'Artist',
         content,
+        title: params.title.trim(),
+        album_title: params.album.trim() || 'Singles',
         sound_title: params.title.trim(),
         sound_artist: params.artist.trim(),
         media_url: audioPublicUrl,
+        media_mime: params.audioFile.type || null,
         storage_path: audioPath,
         cover_storage_path: coverPath || null,
         artist_profile_id: params.artistProfileId || null,
