@@ -1199,3 +1199,5 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .studio-workspace-card em { color: var(--gold); font-size: 10px; font-style: normal; font-weight: 700; margin-top: 2px; }
 @media(min-width:700px) { .studio-workspace-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 @media(max-width:380px) { .studio-workspace-grid { grid-template-columns: 1fr; } }
+
+/* Studio workspaces use one shared project state across focused pages. */
