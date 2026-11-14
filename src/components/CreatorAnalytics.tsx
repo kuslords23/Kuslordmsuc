@@ -20,7 +20,7 @@ type StreamRow = {
 type ReleaseMetric = ReleaseRow & { verifiedStreams: number; listenedSeconds: number }
 type RoyaltyRow = { amount_ghs: number | string; currency: string; created_at: string }
 type PayoutRow = { amount_ghs: number | string; status: string; requested_at: string }
-type SaleRow = { amount_ghs: number | string; status: string; created_at: string }
+type SaleRow = { creator_net_ghs: number | string; status: string; created_at: string }
 
 const number = (value: number) => new Intl.NumberFormat().format(value)
 
@@ -50,7 +50,7 @@ export default function CreatorAnalytics() {
       const [royaltyResult, payoutResult, salesResult] = await Promise.all([
         client.from('music_royalty_ledger').select('amount_ghs,currency,created_at').eq('creator_user_id', auth.user.id).order('created_at', { ascending: false }).limit(500),
         client.from('music_creator_payout_requests').select('amount_ghs,status,requested_at').eq('creator_user_id', auth.user.id).order('requested_at', { ascending: false }).limit(100),
-        client.from('music_paid_sound_orders').select('amount_ghs,status,created_at').eq('creator_user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
+        client.from('music_paid_sound_orders').select('creator_net_ghs,status,created_at').eq('creator_user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
       ])
       if (royaltyResult.error && !/does not exist|schema cache/i.test(royaltyResult.error.message)) throw new Error(royaltyResult.error.message)
       if (payoutResult.error && !/does not exist|schema cache/i.test(payoutResult.error.message)) throw new Error(payoutResult.error.message)
@@ -112,7 +112,7 @@ export default function CreatorAnalytics() {
     releases: releases.length,
     streams: releases.reduce((sum, row) => sum + row.verifiedStreams, 0),
     seconds: releases.reduce((sum, row) => sum + row.listenedSeconds, 0),
-    royalties: royalties.reduce((sum, row) => sum + Number(row.amount_ghs || 0), 0),
+    royalties: royalties.reduce((sum, row) => sum + Number(row.creator_net_ghs || 0), 0),
     paidSales: sales.filter((row) => row.status === 'paid').reduce((sum, row) => sum + Number(row.amount_ghs || 0), 0),
     paidSaleCount: sales.filter((row) => row.status === 'paid').length,
     payoutCount: payouts.length,
