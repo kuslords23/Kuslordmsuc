@@ -98,6 +98,7 @@ assert.match(upload, /productionCredits/, "upload must collect production credit
 assert.match(upload, /lyrics/, "upload must collect optional lyrics");
 assert.match(upload, /isPaidSound/, "upload must expose paid-sound listing preferences");
 assert.match(upload, /verified-stream royalty eligibility/, "upload must explain royalty eligibility honestly");
+assert.match(upload, /useState\(false\)/, "royalty participation must default to explicit opt-out");
 assert.match(uploadPipeline, /supabase\.storage\.from\('kus-music'\)/, "audio must upload to the shared SCN bucket");
 assert.match(uploadPipeline, /\$\{user\.id\}\/\$\{crypto\.randomUUID\(\)\}/, "storage object paths must satisfy owner-folder RLS");
 assert.match(uploadPipeline, /artist_profile_id: artistProfileId/, "published audio must retain artist profile linkage");
