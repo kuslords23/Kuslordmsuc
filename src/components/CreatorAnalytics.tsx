@@ -52,7 +52,7 @@ export default function CreatorAnalytics() {
         client.from('music_creator_payout_requests').select('amount_ghs,status,requested_at').eq('creator_user_id', auth.user.id).order('requested_at', { ascending: false }).limit(100),
         client.from('music_paid_sound_orders').select('amount_ghs,status,created_at').eq('creator_user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
       ])
-      if (royaltyResult.error && !/does not exist|schema cache|permission/i.test(royaltyResult.error.message)) throw new Error(royaltyResult.error.message)
+      if (royaltyResult.error && !/does not exist|schema cache/i.test(royaltyResult.error.message)) throw new Error(royaltyResult.error.message)
       if (payoutResult.error && !/does not exist|schema cache|permission/i.test(payoutResult.error.message)) throw new Error(payoutResult.error.message)
       if (salesResult.error && !/does not exist|schema cache|permission/i.test(salesResult.error.message)) throw new Error(salesResult.error.message)
       setRoyalties((royaltyResult.data || []) as RoyaltyRow[])
@@ -138,7 +138,7 @@ export default function CreatorAnalytics() {
             <article><span>Listening time</span><strong>{number(Math.round(totals.seconds / 60))} min</strong></article>
           </div>
           <div className="creator-finance-panel">
-            <div><span>Verified royalties</span><strong>GH₵{totals.royalties.toFixed(4)}</strong><small>Database ledger entries only. No active rate means no accrual.</small></div>
+            <div><span>Creator ledger balance</span><strong>GH₵{totals.royalties.toFixed(4)}</strong><small>Net confirmed ledger entries. This is not a withdrawable-balance promise.</small></div>
             <div><span>Paid sound sales</span><strong>{totals.paidSaleCount}</strong><small>GH₵{totals.paidSales.toFixed(2)} confirmed by provider webhooks</small></div>
             <div><span>Payout requests</span><strong>{totals.payoutCount}</strong><small>Requests are not marked paid until provider confirmation.</small></div>
           </div>
