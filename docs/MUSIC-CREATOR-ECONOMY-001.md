@@ -44,3 +44,15 @@
 ## Known operational note
 
 The shared Supabase Storage policies require the first object path segment to equal the authenticated user's UUID. The previous standalone uploader used a root-level object path, which did not satisfy those live policies. The new pipeline fixes that mismatch.
+
+
+## Live database rollout status (2026-11-14)
+
+- The additive creator-economy foundation migration has been applied to the shared Supabase project.
+- A follow-up index migration has also been applied for creator ledger foreign keys, payout destinations, paid-sound tracks, playback sessions, and the rolling 24-hour stream lookup.
+- Verified the seven new finance/playback tables, four client-facing RPCs, and the expected database triggers exist.
+- RLS is enabled on every new table. Client inserts are denied for the ledger, paid-sound orders and payout requests. Private payment destinations, webhook receipts and playback-session tokens have no client policies or grants.
+- Supabase advisor review found no new unindexed foreign keys among the new creator-economy tables after the index migration. Remaining INFO/WARN findings are existing shared-project items or expected unused indexes on the new, currently empty tables.
+- Current live counts: **0 royalty rate versions, 0 creator-ledger entries, 0 paid-sound orders, 0 payout requests**. No money has been credited, charged or paid out.
+- No royalty rate has been configured. Royalty accrual is therefore intentionally zero until the platform's rate and commercial terms are approved.
+- The paid-sound listing preferences are stored, but no checkout, license delivery, or payout endpoint is enabled until the merchant/provider account is confirmed.
