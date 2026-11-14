@@ -91,7 +91,8 @@ create table if not exists public.music_paid_sound_orders (
   license_issued_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (buyer_user_id, idempotency_key)
+  unique (buyer_user_id, idempotency_key),
+  check (buyer_user_id <> creator_user_id)
 );
 create index if not exists music_paid_sound_orders_creator_idx
   on public.music_paid_sound_orders (creator_user_id, created_at desc);
@@ -125,6 +126,291 @@ create table if not exists public.music_payment_webhook_events (
   processed_at timestamptz,
   unique (provider, provider_event_id)
 );
+
+create or replace function public.validate_music_paid_sound_order()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+declare
+  v_owner uuid;
+  v_is_paid_sound boolean;
+  v_price numeric(12,2);
+begin
+  select
+    case
+      when f.user_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_creator_id uuid;
+  v_monetization_enabled boolean;
+  v_rate public.music_royalty_rate_versions%rowtype;
+begin
+  if new.source <> 'direct' then return new; end if;
+
+  select
+    case
+      when f.user_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then f.user_id::uuid else null
+    end,
+    coalesce(f.monetization_enabled, false)
+  into v_creator_id, v_monetization_enabled
+  from public.feed_posts f
+  where f.id = new.track_post_id and f.post_type = 'audio';
+
+  if v_creator_id is null or not coalesce(v_monetization_enabled, false) then return new; end if;
+
+  select * into v_rate
+  from public.music_royalty_rate_versions r
+  where r.effective_from <= new.created_at
+    and (r.effective_until is null or r.effective_until > new.created_at)
+  order by r.effective_from desc
+  limit 1;
+  if not found then return new; end if;
+
+  insert into public.music_royalty_ledger (
+    creator_user_id, entry_type, stream_event_id, track_post_id,
+    rate_version_id, idempotency_key, amount_ghs, currency
+  ) values (
+    v_creator_id, 'stream_royalty', new.id, new.track_post_id,
+    v_rate.id, 'stream:' || new.id::text, v_rate.amount_per_verified_stream_ghs, v_rate.currency
+  ) on conflict (idempotency_key) do nothing;
+  return new;
+end;
+$$;
+
+create or replace function public.record_music_paid_sound_ledger()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if new.status = 'paid' and old.status is distinct from 'paid' then
+    insert into public.music_royalty_ledger (
+      creator_user_id, entry_type, track_post_id, source_reference_id,
+      idempotency_key, amount_ghs, currency
+    ) values (
+      new.creator_user_id, 'paid_sound_sale', new.track_post_id, new.id,
+      'paid-sound:' || new.id::text, new.amount_ghs, new.currency
+    ) on conflict (idempotency_key) do nothing;
+    new.license_issued_at := coalesce(new.license_issued_at, now());
+  elsif new.status = 'refunded' and old.status = 'paid' then
+    insert into public.music_royalty_ledger (
+      creator_user_id, entry_type, track_post_id, source_reference_id,
+      idempotency_key, amount_ghs, currency, adjustment_note
+    ) values (
+      new.creator_user_id, 'refund', new.track_post_id, new.id,
+      'paid-sound-refund:' || new.id::text, -new.amount_ghs, new.currency, 'Verified paid-sound refund'
+    ) on conflict (idempotency_key) do nothing;
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.record_music_payout_ledger()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if new.status = 'paid' and old.status is distinct from 'paid' then
+    insert into public.music_royalty_ledger (
+      creator_user_id, entry_type, source_reference_id,
+      idempotency_key, amount_ghs, currency
+    ) values (
+      new.creator_user_id, 'payout', new.id,
+      'payout:' || new.id::text, -new.amount_ghs, new.currency
+    ) on conflict (idempotency_key) do nothing;
+  elsif new.status = 'reversed' and old.status = 'paid' then
+    insert into public.music_royalty_ledger (
+      creator_user_id, entry_type, source_reference_id,
+      idempotency_key, amount_ghs, currency, adjustment_note
+    ) values (
+      new.creator_user_id, 'adjustment', new.id,
+      'payout-reversal:' || new.id::text, new.amount_ghs, new.currency, 'Confirmed payout reversal'
+    ) on conflict (idempotency_key) do nothing;
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.prevent_music_royalty_rate_mutation()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $
+begin
+  raise exception 'Royalty rate versions are immutable. Publish a new effective version instead.';
+end;
+$;
+
+create or replace function public.prevent_music_royalty_ledger_mutation()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  raise exception 'The creator ledger is append-only. Post a compensating entry instead.';
+end;
+$$;
+
+drop trigger if exists music_paid_sound_order_validate on public.music_paid_sound_orders;
+create trigger music_paid_sound_order_validate
+  before insert on public.music_paid_sound_orders
+  for each row execute function public.validate_music_paid_sound_order();
+
+drop trigger if exists music_creator_payout_request_validate on public.music_creator_payout_requests;
+create trigger music_creator_payout_request_validate
+  before insert on public.music_creator_payout_requests
+  for each row execute function public.validate_music_creator_payout_request();
+
+drop trigger if exists music_stream_royalty_after_insert on public.music_stream_events;
+create trigger music_stream_royalty_after_insert
+  after insert on public.music_stream_events
+  for each row execute function public.accrue_music_stream_royalty();
+
+drop trigger if exists music_paid_sound_ledger_after_update on public.music_paid_sound_orders;
+create trigger music_paid_sound_ledger_after_update
+  before update of status on public.music_paid_sound_orders
+  for each row execute function public.record_music_paid_sound_ledger();
+
+drop trigger if exists music_creator_payout_ledger_after_update on public.music_creator_payout_requests;
+create trigger music_creator_payout_ledger_after_update
+  after update of status on public.music_creator_payout_requests
+  for each row execute function public.record_music_payout_ledger();
+
+drop trigger if exists music_royalty_rate_versions_immutable on public.music_royalty_rate_versions;
+create trigger music_royalty_rate_versions_immutable
+  before update or delete on public.music_royalty_rate_versions
+  for each row execute function public.prevent_music_royalty_rate_mutation();
+
+drop trigger if exists music_royalty_ledger_immutable on public.music_royalty_ledger;
+create trigger music_royalty_ledger_immutable
+  before update or delete on public.music_royalty_ledger
+  for each row execute function public.prevent_music_royalty_ledger_mutation();
+
+alter table public.music_royalty_rate_versions enable row level security;
+alter table public.music_royalty_ledger enable row level security;
+alter table public.music_creator_payment_destinations enable row level security;
+alter table public.music_paid_sound_orders enable row level security;
+alter table public.music_creator_payout_requests enable row level security;
+alter table public.music_payment_webhook_events enable row level security;
+
+drop policy if exists "Authenticated users can read effective music royalty rates" on public.music_royalty_rate_versions;
+create policy "Authenticated users can read effective music royalty rates"
+  on public.music_royalty_rate_versions for select to authenticated
+  using (effective_from <= now() and (effective_until is null or effective_until > now()));
+
+drop policy if exists "Creators can read their own music royalty ledger" on public.music_royalty_ledger;
+create policy "Creators can read their own music royalty ledger"
+  on public.music_royalty_ledger for select to authenticated
+  using (creator_user_id = (select auth.uid()));
+
+drop policy if exists "Buyers and creators can read paid sound orders" on public.music_paid_sound_orders;
+create policy "Buyers and creators can read paid sound orders"
+  on public.music_paid_sound_orders for select to authenticated
+  using (buyer_user_id = (select auth.uid()) or creator_user_id = (select auth.uid()));
+
+drop policy if exists "Creators can read their own payout requests" on public.music_creator_payout_requests;
+create policy "Creators can read their own payout requests"
+  on public.music_creator_payout_requests for select to authenticated
+  using (creator_user_id = (select auth.uid()));
+
+revoke all on public.music_royalty_rate_versions from anon, authenticated;
+revoke all on public.music_royalty_ledger from anon, authenticated;
+revoke all on public.music_creator_payment_destinations from anon, authenticated;
+revoke all on public.music_paid_sound_orders from anon, authenticated;
+revoke all on public.music_creator_payout_requests from anon, authenticated;
+revoke all on public.music_payment_webhook_events from anon, authenticated;
+
+grant select on public.music_royalty_rate_versions to authenticated;
+grant select on public.music_royalty_ledger to authenticated;
+grant select on public.music_paid_sound_orders to authenticated;
+grant select on public.music_creator_payout_requests to authenticated;
+
+grant select, insert on public.music_royalty_rate_versions to service_role;
+grant select, insert, update on public.music_creator_payment_destinations to service_role;
+grant select, insert, update on public.music_paid_sound_orders to service_role;
+grant select, insert, update on public.music_creator_payout_requests to service_role;
+grant select, insert, update on public.music_payment_webhook_events to service_role;
+grant select on public.music_royalty_ledger to service_role;
+
+revoke all on function public.validate_music_paid_sound_order() from public, anon, authenticated;
+revoke all on function public.validate_music_creator_payout_request() from public, anon, authenticated;
+revoke all on function public.accrue_music_stream_royalty() from public, anon, authenticated;
+revoke all on function public.record_music_paid_sound_ledger() from public, anon, authenticated;
+revoke all on function public.record_music_payout_ledger() from public, anon, authenticated;
+revoke all on function public.prevent_music_royalty_ledger_mutation() from public, anon, authenticated;
+revoke all on function public.prevent_music_royalty_rate_mutation() from public, anon, authenticated;
+
+      then f.user_id::uuid else null
+    end,
+    coalesce(f.is_paid_sound, false),
+    f.paid_sound_price_ghs
+  into v_owner, v_is_paid_sound, v_price
+  from public.feed_posts f
+  where f.id = new.track_post_id and f.post_type = 'audio';
+
+  if v_owner is null or v_owner <> new.creator_user_id then
+    raise exception 'Paid-sound creator does not own this audio release.';
+  end if;
+  if not coalesce(v_is_paid_sound, false) or v_price is null then
+    raise exception 'This audio release is not listed for paid licensing.';
+  end if;
+  if new.amount_ghs <> v_price then
+    raise exception 'Paid-sound order amount does not match the published price.';
+  end if;
+  if new.buyer_user_id = new.creator_user_id then
+    raise exception 'Creators cannot purchase their own paid sounds.';
+  end if;
+  return new;
+end;
+$;
+
+create or replace function public.validate_music_creator_payout_request()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+declare
+  v_destination_owner uuid;
+  v_destination_status text;
+  v_available numeric(18,6);
+begin
+  select creator_user_id, status
+  into v_destination_owner, v_destination_status
+  from public.music_creator_payment_destinations
+  where id = new.destination_id;
+
+  if v_destination_owner is null or v_destination_owner <> new.creator_user_id or v_destination_status <> 'verified' then
+    raise exception 'Select a verified payout destination owned by this creator.';
+  end if;
+
+  select coalesce(sum(amount_ghs), 0)
+  into v_available
+  from public.music_royalty_ledger
+  where creator_user_id = new.creator_user_id;
+
+  select v_available - coalesce(sum(amount_ghs), 0)
+  into v_available
+  from public.music_creator_payout_requests
+  where creator_user_id = new.creator_user_id
+    and status in ('requested','reviewing','processing');
+
+  if new.amount_ghs > v_available then
+    raise exception 'Payout amount exceeds the available creator ledger balance.';
+  end if;
+  return new;
+end;
+$;
 
 create or replace function public.accrue_music_stream_royalty()
 returns trigger
