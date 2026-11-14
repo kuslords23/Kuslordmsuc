@@ -14,7 +14,7 @@ import PlaylistLibrary from './components/PlaylistLibrary'
 import { fetchMusicPlaylists, createCloudPlaylist, addCloudPlaylistTrack, removeCloudPlaylistTrack, moveCloudPlaylistTrack, deleteCloudPlaylist, updateCloudPlaylistVisibility, type MusicPlaylist } from './lib/playlists'
 import { fetchFollowedArtists, toggleCloudArtistFollow } from './lib/artistFollows'
 import { musicEmbedHeight, parseMusicLink } from './lib/musicEmbeds'
-import { recordVerifiedDirectStream } from './lib/streamTracking'
+import { startVerifiedPlaybackSession, heartbeatVerifiedPlaybackSession, completeVerifiedPlaybackSession } from './lib/streamTracking'
 import { toggleMusicTrackLike } from './lib/trackLikes'
 import { useAuth } from './context/AuthContext'
 import RoyalCompanion from './components/RoyalCompanion'
@@ -243,16 +243,22 @@ export default function App() {
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime)
       const track = currentTrackRef.current
-      if (track?.postId && audio.currentTime >= 30) {
-        void recordVerifiedDirectStream(track.postId, audio.currentTime, audio.duration || 0)
+      if (track?.postId && !audio.paused && !audio.seeking) {
+        void heartbeatVerifiedPlaybackSession(track.postId)
       }
     }
     const handleLoadedMetadata = () => setDuration(audio.duration || 0)
+    const handlePause = () => {
+      const track = currentTrackRef.current
+      if (track?.postId) void completeVerifiedPlaybackSession(track.postId)
+    }
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('pause', handlePause)
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audio.removeEventListener('pause', handlePause)
     }
   }, [volume])
 
@@ -366,6 +372,11 @@ export default function App() {
   // Player functions
   const playTrack = useCallback((track: Track | undefined, trackList: Track[]) => {
     if (!track) return
+    const previousTrack = currentTrackRef.current
+    if (previousTrack?.postId && previousTrack.postId !== track.postId) {
+      void completeVerifiedPlaybackSession(previousTrack.postId)
+    }
+    if (track.postId) void startVerifiedPlaybackSession(track.postId)
     if (audioRef.current) {
       audioRef.current.src = track.audioUrl
       audioRef.current.currentTime = 0
@@ -386,7 +397,10 @@ export default function App() {
       }
       return
     }
-    if (audio.paused) { audio.play(); setIsPlaying(true) }
+    if (audio.paused) {
+      if (currentTrack.postId) void startVerifiedPlaybackSession(currentTrack.postId)
+      audio.play(); setIsPlaying(true)
+    }
     else { audio.pause(); setIsPlaying(false) }
   }, [currentTrack, selectedAlbum, albums, playTrack])
 
@@ -656,9 +670,10 @@ export default function App() {
       const track = currentTrackRef.current
       const q = queueRef.current
       if (!track || q.length === 0) return
-      if (track.postId) void recordVerifiedDirectStream(track.postId, audio.duration || audio.currentTime, audio.duration || 0, true)
+      if (track.postId) void completeVerifiedPlaybackSession(track.postId)
       if (repeatRef.current) {
         audio.currentTime = 0
+        if (track.postId) void startVerifiedPlaybackSession(track.postId)
         void audio.play().catch((error) => console.error('Could not repeat current track:', error))
         setCurrentTime(0)
         return
