@@ -109,7 +109,9 @@ assert.match(creatorEconomySql, /music_paid_sound_order_validate/, "paid-sound c
 assert.match(creatorEconomySql, /music_creator_payout_request_validate/, "payout requests must validate destination and available balance");
 assert.match(creatorEconomySql, /music_payment_webhook_events/, "payment webhook events must be idempotently recorded");
 assert.match(analytics, /music_royalty_ledger/, "creator analytics must read the authoritative ledger");
-assert.match(analytics, /music_paid_sound_orders/, "creator analytics must read confirmed paid-sound orders");
+assert.match(analytics, /get_music_creator_financial_summary/, "creator analytics must use an exact database-side financial aggregate");
+assert.match(creatorEconomySql, /get_music_creator_financial_summary/, "creator finance summary must aggregate the full ledger in the database");
+assert.match(analytics, /creator net/, "creator sales analytics must distinguish net proceeds from gross checkout price");
 assert.ok(exists(creatorEconomyMigration), "creator economy migration must be committed");
 
 assert.match(player, /onOpenComments/, "player must retain shared comments access");
