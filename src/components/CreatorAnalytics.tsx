@@ -18,6 +18,9 @@ type StreamRow = {
 }
 
 type ReleaseMetric = ReleaseRow & { verifiedStreams: number; listenedSeconds: number }
+type RoyaltyRow = { amount_ghs: number | string; currency: string; created_at: string }
+type PayoutRow = { amount_ghs: number | string; status: string; requested_at: string }
+type SaleRow = { amount_ghs: number | string; status: string; created_at: string }
 
 const number = (value: number) => new Intl.NumberFormat().format(value)
 
@@ -26,6 +29,9 @@ export default function CreatorAnalytics() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const [royalties, setRoyalties] = useState<RoyaltyRow[]>([])
+  const [payouts, setPayouts] = useState<PayoutRow[]>([])
+  const [sales, setSales] = useState<SaleRow[]>([])
 
   const refresh = useCallback(async (quiet = false) => {
     const client = supabase
@@ -41,6 +47,17 @@ export default function CreatorAnalytics() {
     try {
       const { data: auth, error: authError } = await client.auth.getUser()
       if (authError || !auth.user) throw new Error('Sign in to view creator analytics.')
+      const [royaltyResult, payoutResult, salesResult] = await Promise.all([
+        client.from('music_royalty_ledger').select('amount_ghs,currency,created_at').eq('creator_user_id', auth.user.id).order('created_at', { ascending: false }).limit(500),
+        client.from('music_creator_payout_requests').select('amount_ghs,status,requested_at').eq('creator_user_id', auth.user.id).order('requested_at', { ascending: false }).limit(100),
+        client.from('music_paid_sound_orders').select('amount_ghs,status,created_at').eq('creator_user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
+      ])
+      if (royaltyResult.error && !/does not exist|schema cache|permission/i.test(royaltyResult.error.message)) throw new Error(royaltyResult.error.message)
+      if (payoutResult.error && !/does not exist|schema cache|permission/i.test(payoutResult.error.message)) throw new Error(payoutResult.error.message)
+      if (salesResult.error && !/does not exist|schema cache|permission/i.test(salesResult.error.message)) throw new Error(salesResult.error.message)
+      setRoyalties((royaltyResult.data || []) as RoyaltyRow[])
+      setPayouts((payoutResult.data || []) as PayoutRow[])
+      setSales((salesResult.data || []) as SaleRow[])
       const { data: posts, error: postsError } = await client
         .from('feed_posts')
         .select('id,sound_title,sound_artist,listen_count,created_at')
@@ -95,7 +112,11 @@ export default function CreatorAnalytics() {
     releases: releases.length,
     streams: releases.reduce((sum, row) => sum + row.verifiedStreams, 0),
     seconds: releases.reduce((sum, row) => sum + row.listenedSeconds, 0),
-  }), [releases])
+    royalties: royalties.reduce((sum, row) => sum + Number(row.amount_ghs || 0), 0),
+    paidSales: sales.filter((row) => row.status === 'paid').reduce((sum, row) => sum + Number(row.amount_ghs || 0), 0),
+    paidSaleCount: sales.filter((row) => row.status === 'paid').length,
+    payoutCount: payouts.length,
+  }), [releases, royalties, sales, payouts])
 
   return (
     <section className="creator-analytics">
@@ -116,6 +137,11 @@ export default function CreatorAnalytics() {
             <article><span>Verified streams</span><strong>{number(totals.streams)}</strong></article>
             <article><span>Listening time</span><strong>{number(Math.round(totals.seconds / 60))} min</strong></article>
           </div>
+          <div className="creator-finance-panel">
+            <div><span>Verified royalties</span><strong>GH₵{totals.royalties.toFixed(4)}</strong><small>Database ledger entries only. No active rate means no accrual.</small></div>
+            <div><span>Paid sound sales</span><strong>{totals.paidSaleCount}</strong><small>GH₵{totals.paidSales.toFixed(2)} confirmed by provider webhooks</small></div>
+            <div><span>Payout requests</span><strong>{totals.payoutCount}</strong><small>Requests are not marked paid until provider confirmation.</small></div>
+          </div>
           {releases.length ? <div className="creator-analytics-table">
             <div className="creator-analytics-row creator-analytics-header"><span>Release</span><span>Verified streams</span><span>SCN listen count</span></div>
             {releases.map((release) => <div className="creator-analytics-row" key={release.id}>
@@ -124,7 +150,7 @@ export default function CreatorAnalytics() {
               <span>{number(Number(release.listen_count || 0))}</span>
             </div>)}
           </div> : <p className="creator-analytics-state">No published audio releases belong to this account yet. Upload a release to start collecting verified listening data.</p>}
-          <p className="creator-analytics-note">Only database-recorded stream events are counted. This screen does not estimate earnings or invent play counts.</p>
+          <p className="creator-analytics-note">Stream totals come from database-recorded events. Royalties come only from the append-only ledger; checkout and payouts remain unavailable until a real provider is connected.</p>
         </>}
     </section>
   )
