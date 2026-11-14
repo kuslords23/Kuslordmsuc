@@ -55,6 +55,7 @@ interface DbFeedPost {
   likes?: number | null
   media_url?: string | null
   storage_path?: string | null
+  cover_url?: string | null
   cover_storage_path?: string | null
   content?: string | null
   caption?: string | null
@@ -106,6 +107,7 @@ function deriveTitle(post: DbFeedPost): string {
 }
 
 function deriveAlbum(post: DbFeedPost): string {
+  if (post.album_title?.trim()) return post.album_title.trim()
   const match = post.content?.match(/\(([^()]*)\)\s*$/)
   return match?.[1]?.trim() || ''
 }
@@ -127,8 +129,8 @@ function rowToTrack(d: DbFeedPost): Track | null {
   if (!audioUrl) return null
 
   // Cover image
-  let cover = ''
-  if (d.cover_storage_path) {
+  let cover = d.cover_url || ''
+  if (!cover && d.cover_storage_path) {
     cover = bucketPublicUrl('kus-images', d.cover_storage_path)
   }
 
@@ -148,6 +150,14 @@ function rowToTrack(d: DbFeedPost): Track | null {
     duration: 0, // Duration is not part of the verified feed_posts audio contract yet.
     audioUrl,
     cover,
+    genre: d.genre || undefined,
+    mood: d.mood || undefined,
+    productionCredits: d.production_credits || undefined,
+    lyrics: d.lyrics || undefined,
+    monetizationEnabled: Boolean(d.monetization_enabled),
+    isPaidSound: Boolean(d.is_paid_sound),
+    paidSoundPriceGhs: d.paid_sound_price_ghs == null ? undefined : Number(d.paid_sound_price_ghs),
+    paidSoundDescription: d.paid_sound_description || undefined,
     likes: Number(d.likes || 0),
     liked: false,
   }
