@@ -127,6 +127,20 @@ create table if not exists public.music_payment_webhook_events (
   unique (provider, provider_event_id)
 );
 
+create table if not exists public.music_playback_sessions (
+  id uuid primary key default gen_random_uuid(),
+  track_post_id uuid not null references public.feed_posts(id) on delete cascade,
+  viewer_user_id uuid not null references auth.users(id) on delete cascade,
+  token_hash text not null,
+  accumulated_seconds numeric(12,3) not null default 0 check (accumulated_seconds >= 0),
+  status text not null default 'active' check (status in ('active','completed','expired')),
+  started_at timestamptz not null default now(),
+  last_heartbeat_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+create index if not exists music_playback_sessions_owner_track_idx
+  on public.music_playback_sessions (viewer_user_id, track_post_id, started_at desc);
+
 create or replace function public.validate_music_paid_sound_order()
 returns trigger
 language plpgsql
@@ -203,6 +217,136 @@ begin
 end;
 $fn$;
 
+create or replace function public.start_music_playback_session(p_track_post_id uuid)
+returns table (session_id uuid, session_token text)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+declare
+  v_uid uuid := auth.uid();
+  v_session_id uuid := gen_random_uuid();
+  v_token text := encode(gen_random_bytes(32), 'hex');
+begin
+  if v_uid is null then raise exception 'Authentication required'; end if;
+  if not exists (select 1 from public.feed_posts where id = p_track_post_id and post_type = 'audio') then
+    raise exception 'Audio release not found';
+  end if;
+
+  update public.music_playback_sessions
+  set status = 'expired'
+  where viewer_user_id = v_uid and track_post_id = p_track_post_id and status = 'active';
+
+  insert into public.music_playback_sessions (
+    id, track_post_id, viewer_user_id, token_hash
+  ) values (
+    v_session_id, p_track_post_id, v_uid, encode(digest(v_token, 'sha256'), 'hex')
+  );
+  return query select v_session_id, v_token;
+end;
+$fn$;
+
+create or replace function public.heartbeat_music_playback_session(p_session_id uuid, p_session_token text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+declare
+  v_uid uuid := auth.uid();
+  v_session public.music_playback_sessions%rowtype;
+  v_now timestamptz := clock_timestamp();
+  v_delta numeric(12,3);
+begin
+  if v_uid is null then return false; end if;
+  select * into v_session
+  from public.music_playback_sessions
+  where id = p_session_id and viewer_user_id = v_uid
+  for update;
+  if not found or v_session.status <> 'active' then return false; end if;
+  if v_session.token_hash <> encode(digest(coalesce(p_session_token, ''), 'sha256'), 'hex') then return false; end if;
+
+  v_delta := extract(epoch from (v_now - v_session.last_heartbeat_at));
+  if v_delta < 2 then return false; end if;
+  if v_delta > 20 then
+    update public.music_playback_sessions set status = 'expired' where id = p_session_id;
+    return false;
+  end if;
+
+  update public.music_playback_sessions
+  set accumulated_seconds = accumulated_seconds + least(v_delta, 15),
+      last_heartbeat_at = v_now
+  where id = p_session_id;
+  return true;
+end;
+$fn$;
+
+create or replace function public.complete_music_playback_session(p_session_id uuid, p_session_token text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+declare
+  v_uid uuid := auth.uid();
+  v_session public.music_playback_sessions%rowtype;
+  v_now timestamptz := clock_timestamp();
+  v_delta numeric(12,3);
+  v_total numeric(12,3);
+  v_inserted integer := 0;
+begin
+  if v_uid is null then return false; end if;
+  select * into v_session
+  from public.music_playback_sessions
+  where id = p_session_id and viewer_user_id = v_uid
+  for update;
+  if not found or v_session.status <> 'active' then return false; end if;
+  if v_session.token_hash <> encode(digest(coalesce(p_session_token, ''), 'sha256'), 'hex') then return false; end if;
+
+  v_delta := extract(epoch from (v_now - v_session.last_heartbeat_at));
+  if v_delta > 20 then
+    update public.music_playback_sessions set status = 'expired' where id = p_session_id;
+    return false;
+  end if;
+  v_total := v_session.accumulated_seconds + case when v_delta >= 2 then least(v_delta, 15) else 0 end;
+  if v_total < 30 then
+    update public.music_playback_sessions
+    set status = 'expired', accumulated_seconds = v_total, last_heartbeat_at = v_now
+    where id = p_session_id;
+    return false;
+  end if;
+
+  update public.music_playback_sessions
+  set status = 'completed', accumulated_seconds = v_total,
+      last_heartbeat_at = v_now, completed_at = v_now
+  where id = p_session_id;
+
+  -- One qualifying event per viewer and track in any rolling 24-hour window.
+  if exists (
+    select 1 from public.music_stream_events e
+    where e.track_post_id = v_session.track_post_id
+      and e.viewer_user_id = v_uid
+      and e.created_at > v_now - interval '24 hours'
+  ) then
+    return false;
+  end if;
+
+  insert into public.music_stream_events (
+    track_post_id, viewer_user_id, session_key, source, listened_seconds
+  ) values (
+    v_session.track_post_id, v_uid, v_session.id::text, 'direct', v_total
+  ) on conflict (track_post_id, session_key, source) do nothing;
+  get diagnostics v_inserted = row_count;
+
+  if v_inserted > 0 then
+    update public.feed_posts
+    set listen_count = coalesce(listen_count, 0) + 1
+    where id = v_session.track_post_id;
+  end if;
+  return v_inserted > 0;
+end;
+$fn$;
+
 create or replace function public.accrue_music_stream_royalty()
 returns trigger
 language plpgsql
@@ -214,14 +358,22 @@ declare
   v_monetization_enabled boolean;
   v_rate public.music_royalty_rate_versions%rowtype;
 begin
-  if new.source <> 'direct' then return new; end if;
+  if new.source <> 'direct' or new.viewer_user_id is null then return new; end if;
 
   select f.user_id::uuid, coalesce(f.monetization_enabled, false)
     into v_creator_id, v_monetization_enabled
   from public.feed_posts f
   where f.id = new.track_post_id and f.post_type = 'audio';
 
-  if v_creator_id is null or not v_monetization_enabled then return new; end if;
+  if v_creator_id is null or not v_monetization_enabled or new.viewer_user_id = v_creator_id then return new; end if;
+  if not exists (
+    select 1 from public.music_playback_sessions s
+    where s.id::text = new.session_key
+      and s.track_post_id = new.track_post_id
+      and s.viewer_user_id = new.viewer_user_id
+      and s.status = 'completed'
+      and s.accumulated_seconds >= 30
+  ) then return new; end if;
 
   select * into v_rate
   from public.music_royalty_rate_versions r
@@ -385,6 +537,7 @@ alter table public.music_creator_payment_destinations enable row level security;
 alter table public.music_paid_sound_orders enable row level security;
 alter table public.music_creator_payout_requests enable row level security;
 alter table public.music_payment_webhook_events enable row level security;
+alter table public.music_playback_sessions enable row level security;
 
 drop policy if exists "Authenticated users can read effective music royalty rates" on public.music_royalty_rate_versions;
 create policy "Authenticated users can read effective music royalty rates"
@@ -427,6 +580,12 @@ grant select, insert on public.music_royalty_ledger to service_role;
 
 revoke all on function public.get_music_creator_financial_summary() from public, anon;
 grant execute on function public.get_music_creator_financial_summary() to authenticated;
+revoke all on function public.start_music_playback_session(uuid) from public, anon;
+revoke all on function public.heartbeat_music_playback_session(uuid, text) from public, anon;
+revoke all on function public.complete_music_playback_session(uuid, text) from public, anon;
+grant execute on function public.start_music_playback_session(uuid) to authenticated;
+grant execute on function public.heartbeat_music_playback_session(uuid, text) to authenticated;
+grant execute on function public.complete_music_playback_session(uuid, text) to authenticated;
 revoke all on function public.validate_music_paid_sound_order() from public, anon, authenticated;
 revoke all on function public.validate_music_creator_payout_request() from public, anon, authenticated;
 revoke all on function public.accrue_music_stream_royalty() from public, anon, authenticated;
