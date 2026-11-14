@@ -66,3 +66,26 @@
   .creator-analytics-row { grid-template-columns: minmax(0,1.6fr) minmax(70px,.8fr); }
   .creator-analytics-row > span:last-child { display: none; }
 }
+
+.creator-finance-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+.creator-finance-panel > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  background: var(--bg2);
+}
+.creator-finance-panel span { color: var(--muted); font-size: 11px; }
+.creator-finance-panel strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.creator-finance-panel small { color: var(--muted); font-size: 10px; line-height: 1.45; }
+@media (max-width: 560px) {
+  .creator-finance-panel { grid-template-columns: 1fr; }
+}
