@@ -1157,3 +1157,45 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .playlist-track-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
 .playlist-track-actions button{width:26px;height:28px;border-radius:7px;background:#ffffff10;color:var(--text);font-size:13px}
 .playlist-track-actions button:disabled{opacity:.3}
+
+
+/* ===== MOBILE NAVIGATION REFINEMENT ===== */
+.bottom-nav { justify-content: space-evenly; gap: 4px; padding: 0 10px; }
+.bottom-nav .nav-tab { flex: 1 1 0; min-width: 0; max-width: 112px; padding: 5px 3px; }
+.bottom-nav .nav-label { white-space: nowrap; font-size: 11px; line-height: 1.2; }
+.bottom-nav .nav-icon { line-height: 1; }
+.bottom-nav .studio-tab { width: auto; flex: 1 1 0; }
+.bottom-nav .studio-tab .nav-icon { margin-top: -12px; }
+.more-hub { padding-bottom: 32px; }
+.more-hub > .caption { margin: -4px 0 18px; line-height: 1.5; }
+.more-nav-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.more-nav-card { min-width: 0; display: flex; align-items: center; gap: 10px; padding: 14px 12px; text-align: left; border-radius: 14px; background: var(--card); border: 1px solid rgba(255,255,255,.07); }
+.more-nav-icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 11px; background: rgba(255,255,255,.07); font-size: 19px; }
+.more-nav-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.more-nav-copy strong { font-size: 12px; }
+.more-nav-copy small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.more-nav-arrow { margin-left: auto; color: var(--muted); font-size: 20px; }
+.more-provider-note { margin-top: 16px; padding: 15px; border-radius: 14px; background: var(--bg2); border: 1px solid rgba(255,255,255,.07); }
+.more-provider-note strong { font-size: 13px; }
+.more-provider-note p { margin: 7px 0 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.more-provider-note button { padding: 9px 12px; border-radius: 9px; background: rgba(250,45,108,.16); color: var(--text); font-size: 11px; font-weight: 700; }
+@media (max-width: 360px) { .more-nav-grid { grid-template-columns: 1fr; } .bottom-nav { padding: 0 5px; } .bottom-nav .nav-label { font-size: 10px; } }
+@media (min-width: 900px) { .more-nav-grid { max-width: 900px; } }
+
+
+/* ===== FOCUSED STUDIO WORKSPACES ===== */
+.studio-page-nav { display: flex; gap: 7px; overflow-x: auto; padding: 2px 1px 12px; margin: 2px 0 14px; scrollbar-width: thin; }
+.studio-page-nav button { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; padding: 9px 12px; border-radius: 10px; background: var(--bg2); border: 1px solid rgba(255,255,255,.08); color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.studio-page-nav button.active { color: var(--text); background: rgba(250,45,108,.16); border-color: rgba(250,45,108,.35); }
+.studio-page-nav button span { font-size: 15px; }
+.studio-overview-intro { padding: 18px; border-radius: 16px; background: linear-gradient(135deg,rgba(250,45,108,.13),rgba(212,175,55,.09)); border: 1px solid rgba(255,255,255,.08); margin-bottom: 14px; }
+.studio-overview-intro h2 { font-size: 19px; margin: 2px 0 7px; }
+.studio-overview-intro p { color: var(--muted); font-size: 12px; line-height: 1.5; max-width: 560px; }
+.studio-workspace-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.studio-workspace-card { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; min-width: 0; padding: 15px; text-align: left; border-radius: 14px; background: var(--card); border: 1px solid rgba(255,255,255,.08); }
+.studio-workspace-card>span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: rgba(255,255,255,.08); font-size: 18px; }
+.studio-workspace-card strong { font-size: 12px; }
+.studio-workspace-card small { color: var(--muted); font-size: 10px; line-height: 1.4; min-height: 28px; }
+.studio-workspace-card em { color: var(--gold); font-size: 10px; font-style: normal; font-weight: 700; margin-top: 2px; }
+@media(min-width:700px) { .studio-workspace-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media(max-width:380px) { .studio-workspace-grid { grid-template-columns: 1fr; } }
