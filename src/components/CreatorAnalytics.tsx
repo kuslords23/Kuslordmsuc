@@ -18,26 +18,35 @@ type StreamRow = {
 }
 
 type ReleaseMetric = ReleaseRow & { verifiedStreams: number; listenedSeconds: number }
-type RoyaltyRow = { amount_ghs: number | string; currency: string; created_at: string }
-type PayoutRow = { amount_ghs: number | string; status: string; requested_at: string }
-type SaleRow = { creator_net_ghs: number | string; status: string; created_at: string }
+type FinanceSummary = {
+  ledger_balance_ghs: number | string
+  paid_sales_count: number | string
+  paid_sales_net_ghs: number | string
+  payout_request_count: number | string
+}
 
 const number = (value: number) => new Intl.NumberFormat().format(value)
+const emptyFinance: FinanceSummary = {
+  ledger_balance_ghs: 0,
+  paid_sales_count: 0,
+  paid_sales_net_ghs: 0,
+  payout_request_count: 0,
+}
 
 export default function CreatorAnalytics() {
   const [releases, setReleases] = useState<ReleaseMetric[]>([])
+  const [finance, setFinance] = useState<FinanceSummary | null>(null)
+  const [financeStatus, setFinanceStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-  const [royalties, setRoyalties] = useState<RoyaltyRow[]>([])
-  const [payouts, setPayouts] = useState<PayoutRow[]>([])
-  const [sales, setSales] = useState<SaleRow[]>([])
 
   const refresh = useCallback(async (quiet = false) => {
     const client = supabase
     if (!client) {
       setError('Supabase is not configured. Creator analytics require the shared music database.')
       setReleases([])
+      setFinance(null)
       setLoading(false)
       return
     }
@@ -47,17 +56,21 @@ export default function CreatorAnalytics() {
     try {
       const { data: auth, error: authError } = await client.auth.getUser()
       if (authError || !auth.user) throw new Error('Sign in to view creator analytics.')
-      const [royaltyResult, payoutResult, salesResult] = await Promise.all([
-        client.from('music_royalty_ledger').select('amount_ghs,currency,created_at').eq('creator_user_id', auth.user.id).order('created_at', { ascending: false }).limit(500),
-        client.from('music_creator_payout_requests').select('amount_ghs,status,requested_at').eq('creator_user_id', auth.user.id).order('requested_at', { ascending: false }).limit(100),
-        client.from('music_paid_sound_orders').select('creator_net_ghs,status,created_at').eq('creator_user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
-      ])
-      if (royaltyResult.error && !/does not exist|schema cache/i.test(royaltyResult.error.message)) throw new Error(royaltyResult.error.message)
-      if (payoutResult.error && !/does not exist|schema cache/i.test(payoutResult.error.message)) throw new Error(payoutResult.error.message)
-      if (salesResult.error && !/does not exist|schema cache/i.test(salesResult.error.message)) throw new Error(salesResult.error.message)
-      setRoyalties((royaltyResult.data || []) as RoyaltyRow[])
-      setPayouts((payoutResult.data || []) as PayoutRow[])
-      setSales((salesResult.data || []) as SaleRow[])
+
+      const { data: financeData, error: financeError } = await client.rpc('get_music_creator_financial_summary')
+      if (financeError) {
+        if (/does not exist|schema cache|could not find the function/i.test(financeError.message)) {
+          setFinance(null)
+          setFinanceStatus('Creator finance schema is not applied yet. Financial totals will appear after the database migration.')
+        } else {
+          throw new Error(financeError.message)
+        }
+      } else {
+        const summary = Array.isArray(financeData) ? financeData[0] : financeData
+        setFinance((summary || emptyFinance) as FinanceSummary)
+        setFinanceStatus('')
+      }
+
       const { data: posts, error: postsError } = await client
         .from('feed_posts')
         .select('id,sound_title,sound_artist,listen_count,created_at')
@@ -70,6 +83,7 @@ export default function CreatorAnalytics() {
         setReleases([])
         return
       }
+
       const ids = rows.map((row) => row.id)
       const { data: events, error: eventsError } = await client
         .from('music_stream_events')
@@ -104,19 +118,25 @@ export default function CreatorAnalytics() {
     channel = channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'feed_posts' }, () => { void refresh(true) })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'music_stream_events' }, () => { void refresh(true) })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'music_royalty_ledger' }, () => { void refresh(true) })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'music_paid_sound_orders' }, () => { void refresh(true) })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'music_creator_payout_requests' }, () => { void refresh(true) })
       .subscribe()
     return () => { void client.removeChannel(channel) }
   }, [refresh])
 
-  const totals = useMemo(() => ({
-    releases: releases.length,
-    streams: releases.reduce((sum, row) => sum + row.verifiedStreams, 0),
-    seconds: releases.reduce((sum, row) => sum + row.listenedSeconds, 0),
-    royalties: royalties.reduce((sum, row) => sum + Number(row.creator_net_ghs || 0), 0),
-    paidSales: sales.filter((row) => row.status === 'paid').reduce((sum, row) => sum + Number(row.amount_ghs || 0), 0),
-    paidSaleCount: sales.filter((row) => row.status === 'paid').length,
-    payoutCount: payouts.length,
-  }), [releases, royalties, sales, payouts])
+  const totals = useMemo(() => {
+    const summary = finance || emptyFinance
+    return {
+      releases: releases.length,
+      streams: releases.reduce((sum, row) => sum + row.verifiedStreams, 0),
+      seconds: releases.reduce((sum, row) => sum + row.listenedSeconds, 0),
+      ledgerBalance: Number(summary.ledger_balance_ghs || 0),
+      paidSales: Number(summary.paid_sales_net_ghs || 0),
+      paidSaleCount: Number(summary.paid_sales_count || 0),
+      payoutCount: Number(summary.payout_request_count || 0),
+    }
+  }, [releases, finance])
 
   return (
     <section className="creator-analytics">
@@ -138,10 +158,11 @@ export default function CreatorAnalytics() {
             <article><span>Listening time</span><strong>{number(Math.round(totals.seconds / 60))} min</strong></article>
           </div>
           <div className="creator-finance-panel">
-            <div><span>Creator ledger balance</span><strong>GH₵{totals.royalties.toFixed(4)}</strong><small>Net confirmed ledger entries. This is not a withdrawable-balance promise.</small></div>
-            <div><span>Paid sound sales</span><strong>{totals.paidSaleCount}</strong><small>GH₵{totals.paidSales.toFixed(2)} confirmed by provider webhooks</small></div>
-            <div><span>Payout requests</span><strong>{totals.payoutCount}</strong><small>Requests are not marked paid until provider confirmation.</small></div>
+            <div><span>Creator ledger balance</span><strong>{finance ? `GH₵${totals.ledgerBalance.toFixed(4)}` : 'Not available'}</strong><small>Net confirmed ledger entries. This is not a withdrawable-balance promise.</small></div>
+            <div><span>Paid sound sales</span><strong>{finance ? number(totals.paidSaleCount) : 'Not available'}</strong><small>{finance ? `GH₵${totals.paidSales.toFixed(2)} creator net` : 'Waiting for the finance schema'}</small></div>
+            <div><span>Payout requests</span><strong>{finance ? number(totals.payoutCount) : 'Not available'}</strong><small>Requests are not marked paid until provider confirmation.</small></div>
           </div>
+          {financeStatus && <p className="creator-analytics-state">{financeStatus}</p>}
           {releases.length ? <div className="creator-analytics-table">
             <div className="creator-analytics-row creator-analytics-header"><span>Release</span><span>Verified streams</span><span>SCN listen count</span></div>
             {releases.map((release) => <div className="creator-analytics-row" key={release.id}>
@@ -150,7 +171,7 @@ export default function CreatorAnalytics() {
               <span>{number(Number(release.listen_count || 0))}</span>
             </div>)}
           </div> : <p className="creator-analytics-state">No published audio releases belong to this account yet. Upload a release to start collecting verified listening data.</p>}
-          <p className="creator-analytics-note">Stream totals come from database-recorded events. Royalties come only from the append-only ledger; checkout and payouts remain unavailable until a real provider is connected.</p>
+          <p className="creator-analytics-note">Stream totals come from database-recorded events. Financial totals come from a database-side aggregate over the append-only ledger, not a capped client-side history. Checkout and payouts remain unavailable until a real provider is connected.</p>
         </>}
     </section>
   )
