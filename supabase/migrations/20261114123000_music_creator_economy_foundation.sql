@@ -226,7 +226,7 @@ as $fn$
 declare
   v_uid uuid := auth.uid();
   v_session_id uuid := gen_random_uuid();
-  v_token text := encode(gen_random_bytes(32), 'hex');
+  v_token text := encode(extensions.gen_random_bytes(32), 'hex');
 begin
   if v_uid is null then raise exception 'Authentication required'; end if;
   if not exists (select 1 from public.feed_posts where id = p_track_post_id and post_type = 'audio') then
@@ -240,7 +240,7 @@ begin
   insert into public.music_playback_sessions (
     id, track_post_id, viewer_user_id, token_hash
   ) values (
-    v_session_id, p_track_post_id, v_uid, encode(digest(v_token, 'sha256'), 'hex')
+    v_session_id, p_track_post_id, v_uid, encode(extensions.digest(v_token, 'sha256'), 'hex')
   );
   return query select v_session_id, v_token;
 end;
@@ -264,7 +264,7 @@ begin
   where id = p_session_id and viewer_user_id = v_uid
   for update;
   if not found or v_session.status <> 'active' then return false; end if;
-  if v_session.token_hash <> encode(digest(coalesce(p_session_token, ''), 'sha256'), 'hex') then return false; end if;
+  if v_session.token_hash <> encode(extensions.digest(coalesce(p_session_token, ''), 'sha256'), 'hex') then return false; end if;
 
   v_delta := extract(epoch from (v_now - v_session.last_heartbeat_at));
   if v_delta < 2 then return false; end if;
@@ -301,7 +301,7 @@ begin
   where id = p_session_id and viewer_user_id = v_uid
   for update;
   if not found or v_session.status <> 'active' then return false; end if;
-  if v_session.token_hash <> encode(digest(coalesce(p_session_token, ''), 'sha256'), 'hex') then return false; end if;
+  if v_session.token_hash <> encode(extensions.digest(coalesce(p_session_token, ''), 'sha256'), 'hex') then return false; end if;
 
   v_delta := extract(epoch from (v_now - v_session.last_heartbeat_at));
   if v_delta > 20 then
