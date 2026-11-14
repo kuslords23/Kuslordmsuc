@@ -538,6 +538,7 @@ alter table public.music_paid_sound_orders enable row level security;
 alter table public.music_creator_payout_requests enable row level security;
 alter table public.music_payment_webhook_events enable row level security;
 alter table public.music_playback_sessions enable row level security;
+revoke all on public.music_playback_sessions from anon, authenticated;
 
 drop policy if exists "Authenticated users can read effective music royalty rates" on public.music_royalty_rate_versions;
 create policy "Authenticated users can read effective music royalty rates"
