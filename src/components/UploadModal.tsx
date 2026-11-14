@@ -29,7 +29,7 @@ export default function UploadModal({ isOpen, onClose, user, onTrackUploaded, on
   const [mood, setMood] = useState(MOODS[0])
   const [credits, setCredits] = useState('')
   const [lyrics, setLyrics] = useState('')
-  const [monetizationEnabled, setMonetizationEnabled] = useState(true)
+  const [monetizationEnabled, setMonetizationEnabled] = useState(false)
   const [isPaidSound, setIsPaidSound] = useState(false)
   const [paidSoundPrice, setPaidSoundPrice] = useState('5.00')
   const [paidSoundDescription, setPaidSoundDescription] = useState('')
@@ -61,7 +61,7 @@ export default function UploadModal({ isOpen, onClose, user, onTrackUploaded, on
   const reset = () => {
     setTitle(''); setArtist(''); setArtistProfileId(''); setNewArtistName(''); setAlbum('')
     setGenre(GENRES[0]); setMood(MOODS[0]); setCredits(''); setLyrics('')
-    setMonetizationEnabled(true); setIsPaidSound(false); setPaidSoundPrice('5.00'); setPaidSoundDescription(''); setAudioFile(null); setCoverFile(null)
+    setMonetizationEnabled(false); setIsPaidSound(false); setPaidSoundPrice('5.00'); setPaidSoundDescription(''); setAudioFile(null); setCoverFile(null)
     setStage(0); setErrorMsg(''); setNotice('')
   }
 
