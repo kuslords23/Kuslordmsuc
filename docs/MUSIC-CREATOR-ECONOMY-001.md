@@ -19,7 +19,7 @@
 - Paid-sound order validation checks the published listing, owner and exact stored price.
 - Payout request validation checks a verified creator-owned destination and available ledger balance, including pending payout reservations.
 - Ledger and rate rows cannot be edited or deleted. Corrections require compensating entries.
-- Creator analytics reads database ledger, sales and payout records. It does not estimate earnings.
+- Creator analytics reads a database-side aggregate over the complete ledger and confirmed sales/payout records. It does not sum a capped client-side page or estimate earnings.
 
 ## Not live yet
 
