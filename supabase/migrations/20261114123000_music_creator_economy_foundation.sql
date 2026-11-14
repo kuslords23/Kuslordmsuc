@@ -257,7 +257,6 @@ begin
       new.creator_user_id, 'paid_sound_sale', new.track_post_id, new.id,
       'paid-sound:' || new.id::text, new.creator_net_ghs, new.currency
     ) on conflict (idempotency_key) do nothing;
-    new.license_issued_at := coalesce(new.license_issued_at, now());
   elsif new.status = 'refunded' and old.status = 'paid' then
     insert into public.music_royalty_ledger (
       creator_user_id, entry_type, track_post_id, source_reference_id,
@@ -424,7 +423,7 @@ grant select, insert, update on public.music_creator_payment_destinations to ser
 grant select, insert, update on public.music_paid_sound_orders to service_role;
 grant select, insert, update on public.music_creator_payout_requests to service_role;
 grant select, insert, update on public.music_payment_webhook_events to service_role;
-grant select on public.music_royalty_ledger to service_role;
+grant select, insert on public.music_royalty_ledger to service_role;
 
 revoke all on function public.get_music_creator_financial_summary() from public, anon;
 grant execute on function public.get_music_creator_financial_summary() to authenticated;
