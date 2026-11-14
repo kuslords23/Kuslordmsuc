@@ -27,7 +27,7 @@
 - No MTN MoMo, Hubtel, Paystack or other merchant account has been confirmed for Kus-Lords.
 - No checkout session, signed provider webhook, disbursement adapter, KYC flow or license delivery endpoint is activated in this branch.
 - A paid-sound price is saved as a listing preference only. It does not charge anyone or grant a license.
-- Royalty eligibility can be opted into, but no earnings accrue until an authorized rate version is published.
+- Royalty eligibility is an explicit creator opt-in and is off by default. No earnings accrue until an authorized rate version is published.
 - Artist subscription-tier upload limits are not guessed. The standalone app's authoritative subscription entitlement source must be identified first.
 
 ## Production rollout order
