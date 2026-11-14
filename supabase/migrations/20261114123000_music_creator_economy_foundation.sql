@@ -299,6 +299,30 @@ begin
 end;
 $fn$;
 
+create or replace function public.get_music_creator_financial_summary()
+returns table (
+  ledger_balance_ghs numeric,
+  paid_sales_count bigint,
+  paid_sales_net_ghs numeric,
+  payout_request_count bigint
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'Authentication required'; end if;
+  return query
+    select
+      coalesce((select sum(l.amount_ghs) from public.music_royalty_ledger l where l.creator_user_id = v_uid), 0),
+      coalesce((select count(*) from public.music_paid_sound_orders o where o.creator_user_id = v_uid and o.status = 'paid'), 0),
+      coalesce((select sum(o.creator_net_ghs) from public.music_paid_sound_orders o where o.creator_user_id = v_uid and o.status = 'paid'), 0),
+      coalesce((select count(*) from public.music_creator_payout_requests p where p.creator_user_id = v_uid), 0);
+end;
+$fn$;
+
 create or replace function public.prevent_music_royalty_ledger_mutation()
 returns trigger
 language plpgsql
@@ -402,6 +426,8 @@ grant select, insert, update on public.music_creator_payout_requests to service_
 grant select, insert, update on public.music_payment_webhook_events to service_role;
 grant select on public.music_royalty_ledger to service_role;
 
+revoke all on function public.get_music_creator_financial_summary() from public, anon;
+grant execute on function public.get_music_creator_financial_summary() to authenticated;
 revoke all on function public.validate_music_paid_sound_order() from public, anon, authenticated;
 revoke all on function public.validate_music_creator_payout_request() from public, anon, authenticated;
 revoke all on function public.accrue_music_stream_royalty() from public, anon, authenticated;
