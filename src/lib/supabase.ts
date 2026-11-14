@@ -42,6 +42,15 @@ interface DbFeedPost {
   sound_artist?: string | null
   artist_profile_id?: string | null
   audio_content_hash?: string | null
+  album_title?: string | null
+  genre?: string | null
+  mood?: string | null
+  production_credits?: string | null
+  lyrics?: string | null
+  monetization_enabled?: boolean | null
+  is_paid_sound?: boolean | null
+  paid_sound_price_ghs?: number | string | null
+  paid_sound_description?: string | null
   listen_count?: number | null
   likes?: number | null
   media_url?: string | null
