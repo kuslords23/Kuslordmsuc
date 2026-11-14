@@ -29,7 +29,7 @@ create table if not exists public.music_royalty_rate_versions (
   id uuid primary key default gen_random_uuid(),
   currency text not null default 'GHS' check (currency = 'GHS'),
   amount_per_verified_stream_ghs numeric(18,6) not null check (amount_per_verified_stream_ghs > 0),
-  direct_stream_threshold_seconds integer not null default 30 check (direct_stream_threshold_seconds >= 30),
+  direct_stream_threshold_seconds integer not null default 30 check (direct_stream_threshold_seconds = 30),
   effective_from timestamptz not null,
   effective_until timestamptz,
   created_by uuid references auth.users(id) on delete set null,
@@ -79,6 +79,8 @@ create table if not exists public.music_paid_sound_orders (
   buyer_user_id uuid not null references auth.users(id) on delete restrict,
   creator_user_id uuid not null references auth.users(id) on delete restrict,
   amount_ghs numeric(12,2) not null check (amount_ghs > 0),
+  platform_fee_ghs numeric(12,2) not null default 0 check (platform_fee_ghs >= 0),
+  creator_net_ghs numeric(12,2) not null check (creator_net_ghs > 0),
   currency text not null default 'GHS' check (currency = 'GHS'),
   status text not null default 'pending' check (status in ('pending','paid','failed','refunded','disputed')),
   provider text,
@@ -89,7 +91,8 @@ create table if not exists public.music_paid_sound_orders (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (buyer_user_id, idempotency_key),
-  check (buyer_user_id <> creator_user_id)
+  check (buyer_user_id <> creator_user_id),
+  check (platform_fee_ghs + creator_net_ghs = amount_ghs)
 );
 create index if not exists music_paid_sound_orders_creator_idx
   on public.music_paid_sound_orders (creator_user_id, created_at desc);
@@ -148,6 +151,9 @@ begin
   end if;
   if new.amount_ghs <> v_price then
     raise exception 'Paid-sound order amount does not match the published price.';
+  end if;
+  if new.platform_fee_ghs + new.creator_net_ghs <> new.amount_ghs then
+    raise exception 'Paid-sound platform fee and creator net must reconcile to the gross price.';
   end if;
   if new.buyer_user_id = new.creator_user_id then
     raise exception 'Creators cannot purchase their own paid sounds.';
@@ -246,7 +252,7 @@ begin
       idempotency_key, amount_ghs, currency
     ) values (
       new.creator_user_id, 'paid_sound_sale', new.track_post_id, new.id,
-      'paid-sound:' || new.id::text, new.amount_ghs, new.currency
+      'paid-sound:' || new.id::text, new.creator_net_ghs, new.currency
     ) on conflict (idempotency_key) do nothing;
     new.license_issued_at := coalesce(new.license_issued_at, now());
   elsif new.status = 'refunded' and old.status = 'paid' then
@@ -255,7 +261,7 @@ begin
       idempotency_key, amount_ghs, currency, adjustment_note
     ) values (
       new.creator_user_id, 'refund', new.track_post_id, new.id,
-      'paid-sound-refund:' || new.id::text, -new.amount_ghs, new.currency, 'Verified paid-sound refund'
+      'paid-sound-refund:' || new.id::text, -new.creator_net_ghs, new.currency, 'Verified paid-sound refund'
     ) on conflict (idempotency_key) do nothing;
   end if;
   return new;
