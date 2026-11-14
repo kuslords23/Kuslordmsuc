@@ -24,6 +24,13 @@ function safeExtension(name: string, fallback: string): string {
   return ext && ext.length <= 8 ? ext : fallback
 }
 
+const AUDIO_MIME_BY_EXTENSION: Record<string, string> = {
+  mp3: 'audio/mpeg', m4a: 'audio/x-m4a', wav: 'audio/wav',
+  aac: 'audio/aac', ogg: 'audio/ogg', flac: 'audio/flac',
+}
+const ALLOWED_AUDIO_MIME = ['audio/mpeg','audio/mp3','audio/wav','audio/x-wav','audio/ogg','audio/webm','audio/aac','audio/mp4','audio/x-m4a','audio/m4a','audio/flac']
+const ALLOWED_IMAGE_MIME = ['image/jpeg','image/png','image/webp','image/gif','image/avif','image/heic']
+
 function publicUrl(bucket: string, path: string): string {
   if (!supabase) return ''
   const { data } = supabase.storage.from(bucket).getPublicUrl(path)
@@ -72,7 +79,17 @@ export async function uploadMusicRelease(
 
   const audioExt = safeExtension(audioFile.name, 'mp3')
   if (!['mp3','m4a','wav','aac','ogg','flac'].includes(audioExt)) throw new Error('Unsupported audio format. Use MP3, M4A, WAV, AAC, OGG or FLAC.')
-  if (coverFile && !['image/jpeg','image/png','image/webp'].includes(coverFile.type)) throw new Error('Cover artwork must be a JPG, PNG or WebP image.')
+  if (audioFile.size > 100 * 1024 * 1024) throw new Error('Audio files must be 100 MB or smaller.')
+  const audioMime = audioFile.type || AUDIO_MIME_BY_EXTENSION[audioExt]
+  if (!ALLOWED_AUDIO_MIME.includes(audioMime)) throw new Error('This audio format is not accepted by the shared music storage.')
+  let coverMime = ''
+  if (coverFile) {
+    if (coverFile.size > 50 * 1024 * 1024) throw new Error('Cover artwork must be 50 MB or smaller.')
+    const coverExt = safeExtension(coverFile.name, 'jpg')
+    const fallbackCoverMime = ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', heic: 'image/heic' } as Record<string, string>)[coverExt]
+    coverMime = coverFile.type || fallbackCoverMime || ''
+    if (!ALLOWED_IMAGE_MIME.includes(coverMime)) throw new Error('Cover artwork must be JPG, PNG, WebP, GIF, AVIF or HEIC.')
+  }
   const audioPath = `${user.id}/${crypto.randomUUID()}.${audioExt}`
   let coverPath: string | null = null
   let audioUploaded = false
@@ -80,7 +97,7 @@ export async function uploadMusicRelease(
   try {
     onStage?.('audio')
     const { error: audioError } = await supabase.storage.from('kus-music').upload(audioPath, audioFile, {
-      contentType: audioFile.type || 'application/octet-stream',
+      contentType: audioMime,
       upsert: false,
     })
     if (audioError) throw new Error(`Audio upload failed: ${audioError.message}`)
@@ -92,7 +109,7 @@ export async function uploadMusicRelease(
       const coverExt = safeExtension(coverFile.name, 'jpg')
       coverPath = `${user.id}/${crypto.randomUUID()}.${coverExt}`
       const { error: coverError } = await supabase.storage.from('kus-images').upload(coverPath, coverFile, {
-        contentType: coverFile.type || 'image/jpeg',
+        contentType: coverMime,
         upsert: false,
       })
       if (coverError) throw new Error(`Cover artwork upload failed: ${coverError.message}`)
