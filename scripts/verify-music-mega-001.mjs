@@ -105,6 +105,11 @@ assert.match(uploadPipeline, /paid_sound_price_ghs:/, "paid-sound price must per
 assert.match(creatorEconomySql, /music_royalty_ledger/, "creator economy must have a database-owned ledger");
 assert.match(creatorEconomySql, /prevent_music_royalty_ledger_mutation/, "creator ledger must be append-only");
 assert.match(creatorEconomySql, /music_stream_royalty_after_insert/, "verified streams must trigger royalty accrual");
+assert.match(creatorEconomySql, /start_music_playback_session/, "royalty streams must start a server-timed session");
+assert.match(creatorEconomySql, /heartbeat_music_playback_session/, "royalty streams must use server-timed heartbeats");
+assert.match(creatorEconomySql, /complete_music_playback_session/, "royalty streams must complete through the database session gate");
+assert.match(creatorEconomySql, /accumulated_seconds >= 30/, "royalty accrual must require at least 30 server-timed seconds");
+assert.match(streamTracking, /heartbeat_music_playback_session/, "client playback must use heartbeat RPCs rather than asserting elapsed seconds");
 assert.match(creatorEconomySql, /music_paid_sound_order_validate/, "paid-sound checkout orders must validate creator and price");
 assert.match(creatorEconomySql, /music_creator_payout_request_validate/, "payout requests must validate destination and available balance");
 assert.match(creatorEconomySql, /music_payment_webhook_events/, "payment webhook events must be idempotently recorded");
