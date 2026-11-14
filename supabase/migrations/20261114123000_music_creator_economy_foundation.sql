@@ -173,6 +173,9 @@ declare
   v_destination_status text;
   v_available numeric(18,6);
 begin
+  -- Serialize requests for this creator so concurrent withdrawals cannot overdraw.
+  perform 1 from auth.users where id = new.creator_user_id for update;
+
   select creator_user_id, status
     into v_destination_owner, v_destination_status
   from public.music_creator_payment_destinations
@@ -303,6 +306,7 @@ set search_path = public, pg_temp
 as $fn$
 begin
   raise exception 'The creator ledger is append-only. Post a compensating entry instead.';
+  return null;
 end;
 $fn$;
 
@@ -313,6 +317,7 @@ set search_path = public, pg_temp
 as $fn$
 begin
   raise exception 'Royalty rate versions are immutable. Publish a new effective version instead.';
+  return null;
 end;
 $fn$;
 
