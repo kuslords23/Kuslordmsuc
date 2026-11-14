@@ -57,7 +57,7 @@ create table if not exists public.music_royalty_ledger (
   adjustment_note text,
   created_at timestamptz not null default now(),
   check (entry_type <> 'stream_royalty' or (stream_event_id is not null and rate_version_id is not null and amount_ghs > 0)),
-  check (entry_type <> 'payout' or amount_ghs < 0),
+  check (entry_type not in ('payout','refund') or amount_ghs < 0),
   check (entry_type not in ('stream_royalty','paid_sound_sale') or amount_ghs > 0)
 );
 create index if not exists music_royalty_ledger_creator_created_idx
@@ -227,6 +227,16 @@ begin
 end;
 $$;
 
+create or replace function public.prevent_music_royalty_rate_mutation()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $
+begin
+  raise exception 'Royalty rate versions are immutable. Publish a new effective version instead.';
+end;
+$;
+
 create or replace function public.prevent_music_royalty_ledger_mutation()
 returns trigger
 language plpgsql
@@ -251,6 +261,11 @@ drop trigger if exists music_creator_payout_ledger_after_update on public.music_
 create trigger music_creator_payout_ledger_after_update
   after update of status on public.music_creator_payout_requests
   for each row execute function public.record_music_payout_ledger();
+
+drop trigger if exists music_royalty_rate_versions_immutable on public.music_royalty_rate_versions;
+create trigger music_royalty_rate_versions_immutable
+  before update or delete on public.music_royalty_rate_versions
+  for each row execute function public.prevent_music_royalty_rate_mutation();
 
 drop trigger if exists music_royalty_ledger_immutable on public.music_royalty_ledger;
 create trigger music_royalty_ledger_immutable
@@ -296,7 +311,7 @@ grant select on public.music_royalty_ledger to authenticated;
 grant select on public.music_paid_sound_orders to authenticated;
 grant select on public.music_creator_payout_requests to authenticated;
 
-grant select, insert, update on public.music_royalty_rate_versions to service_role;
+grant select, insert on public.music_royalty_rate_versions to service_role;
 grant select, insert, update on public.music_creator_payment_destinations to service_role;
 grant select, insert, update on public.music_paid_sound_orders to service_role;
 grant select, insert, update on public.music_creator_payout_requests to service_role;
@@ -307,3 +322,4 @@ revoke all on function public.accrue_music_stream_royalty() from public, anon, a
 revoke all on function public.record_music_paid_sound_ledger() from public, anon, authenticated;
 revoke all on function public.record_music_payout_ledger() from public, anon, authenticated;
 revoke all on function public.prevent_music_royalty_ledger_mutation() from public, anon, authenticated;
+revoke all on function public.prevent_music_royalty_rate_mutation() from public, anon, authenticated;
