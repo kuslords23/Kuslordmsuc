@@ -30,6 +30,9 @@ export default function UploadModal({ isOpen, onClose, user, onTrackUploaded, on
   const [credits, setCredits] = useState('')
   const [lyrics, setLyrics] = useState('')
   const [monetizationEnabled, setMonetizationEnabled] = useState(true)
+  const [isPaidSound, setIsPaidSound] = useState(false)
+  const [paidSoundPrice, setPaidSoundPrice] = useState('5.00')
+  const [paidSoundDescription, setPaidSoundDescription] = useState('')
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
@@ -58,7 +61,7 @@ export default function UploadModal({ isOpen, onClose, user, onTrackUploaded, on
   const reset = () => {
     setTitle(''); setArtist(''); setArtistProfileId(''); setNewArtistName(''); setAlbum('')
     setGenre(GENRES[0]); setMood(MOODS[0]); setCredits(''); setLyrics('')
-    setMonetizationEnabled(true); setAudioFile(null); setCoverFile(null)
+    setMonetizationEnabled(true); setIsPaidSound(false); setPaidSoundPrice('5.00'); setPaidSoundDescription(''); setAudioFile(null); setCoverFile(null)
     setStage(0); setErrorMsg(''); setNotice('')
   }
 
@@ -86,6 +89,7 @@ export default function UploadModal({ isOpen, onClose, user, onTrackUploaded, on
     if (!audioFile) { setErrorMsg('Choose an audio file before publishing.'); return }
     if (!title.trim()) { setErrorMsg('Track title is required.'); return }
     if (!artist.trim() && !artistProfileId) { setErrorMsg('Choose an artist profile or enter an artist name.'); return }
+    if (isPaidSound && (!Number.isFinite(Number(paidSoundPrice)) || Number(paidSoundPrice) <= 0)) { setErrorMsg('Enter a paid-sound price greater than zero.'); return }
 
     setLoading(true); setStage(0); setErrorMsg(''); setNotice('')
     let uploadedTrack: Track | null = null
@@ -95,7 +99,8 @@ export default function UploadModal({ isOpen, onClose, user, onTrackUploaded, on
       uploadedTrack = await uploadMusicRelease({
         title: title.trim(), artist: artist.trim(), album: album.trim() || 'Singles',
         genre, mood, productionCredits: credits, lyrics, monetizationEnabled,
-        isPaidSound: false, artistProfileId: artistProfileId || null, audioContentHash: contentHash,
+        isPaidSound, paidSoundPriceGhs: isPaidSound ? Number(paidSoundPrice) : undefined,
+        paidSoundDescription, artistProfileId: artistProfileId || null, audioContentHash: contentHash,
       }, audioFile, coverFile, (nextStage) => {
         const index = ({ preparing: 0, audio: 1, artwork: 2, publishing: 3, complete: 4 } as const)[nextStage]
         setStage(index)
@@ -168,7 +173,9 @@ export default function UploadModal({ isOpen, onClose, user, onTrackUploaded, on
             <section className="upload-section">
               <h3>Royalty eligibility</h3>
               <label className="upload-check-row"><input type="checkbox" checked={monetizationEnabled} onChange={(e) => setMonetizationEnabled(e.target.checked)} /><span><strong>Enable verified-stream royalty eligibility</strong><small>Only qualifying, server-recorded streams can accrue royalties. No rate is active until the platform publishes one.</small></span></label>
-              <div className="upload-info-note">Paid-sound checkout is not enabled yet. It will be activated only after a real payment merchant account, verified checkout, and licensing webhook are connected.</div>
+              <label className="upload-check-row"><input type="checkbox" checked={isPaidSound} onChange={(e) => setIsPaidSound(e.target.checked)} /><span><strong>List this as a paid sound</strong><small>Stores your intended license price and description. No payment or license is created until checkout is connected.</small></span></label>
+              {isPaidSound && <div className="form-group"><label htmlFor="upload-paid-price">License price (GHS)</label><input id="upload-paid-price" type="number" min="0.5" step="0.5" value={paidSoundPrice} onChange={(e) => setPaidSoundPrice(e.target.value)} /><label htmlFor="upload-paid-description">License description</label><input id="upload-paid-description" value={paidSoundDescription} onChange={(e) => setPaidSoundDescription(e.target.value)} placeholder="Usage rights and license notes…" maxLength={1000} /></div>}
+              <div className="upload-info-note">Paid-sound checkout is not enabled yet. This saves listing preferences only. A real merchant account, verified payment webhook, and license-issuance flow are required before anyone can buy or use a paid license.</div>
             </section>
             <div className="upload-footer"><button type="button" className="upload-secondary-btn" onClick={onClose} disabled={loading}>Cancel</button><button type="submit" className="submit-btn" disabled={loading}>{loading ? STAGES[stage] || 'Publishing…' : 'Publish release'}</button></div>
           </form>
