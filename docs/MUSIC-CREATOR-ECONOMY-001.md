@@ -14,8 +14,9 @@
 ### Creator ledger foundation
 - `music_royalty_rate_versions` stores immutable, effective-dated GHS rate versions. No rate is seeded.
 - `music_royalty_ledger` is append-only and idempotent. Stream credits, confirmed paid-sound sales, confirmed payouts, refunds and adjustments use unique idempotency keys.
-- Only a newly inserted verified direct stream event can create a stream royalty entry, and only if the track owner opted in and an effective rate exists.
-- The existing SCN stream RPC remains the authority for the 30-second / short-track-completion eligibility and unique session event.
+- Only a direct stream event linked to a completed server-timed playback session can create a stream royalty entry. The session uses server-clock heartbeats, requires at least 30 accumulated seconds, expires on long heartbeat gaps, excludes creator self-streams, and applies a one-per-viewer/per-track rolling 24-hour cap.
+- The older SCN stream RPC remains available for SCN listening counts, but its client-asserted duration does not qualify for Kus-Lords royalty accrual. Shorter-than-30-second tracks are not royalty-eligible in this first secure pass.
+- The standalone Kus-Lords player now uses the new server-timed session RPCs for royalty-eligible events. This is a basic anti-abuse gate, not full bot/fraud detection.
 - Paid-sound order validation checks the published listing, owner and exact stored price.
 - Payout request validation checks a verified creator-owned destination and available ledger balance, including pending payout reservations.
 - Ledger and rate rows cannot be edited or deleted. Corrections require compensating entries.
