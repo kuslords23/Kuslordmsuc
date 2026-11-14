@@ -28,6 +28,10 @@ const AUDIO_MIME_BY_EXTENSION: Record<string, string> = {
   mp3: 'audio/mpeg', m4a: 'audio/x-m4a', wav: 'audio/wav',
   aac: 'audio/aac', ogg: 'audio/ogg', flac: 'audio/flac',
 }
+const AUDIO_EXTENSION_BY_MIME: Record<string, string> = {
+  'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
+  'audio/ogg': 'ogg', 'audio/aac': 'aac', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/m4a': 'm4a', 'audio/flac': 'flac',
+}
 const ALLOWED_AUDIO_MIME = ['audio/mpeg','audio/mp3','audio/wav','audio/x-wav','audio/ogg','audio/webm','audio/aac','audio/mp4','audio/x-m4a','audio/m4a','audio/flac']
 const ALLOWED_IMAGE_MIME = ['image/jpeg','image/png','image/webp','image/gif','image/avif','image/heic']
 
@@ -77,7 +81,7 @@ export async function uploadMusicRelease(
   }
   if (!artistName) throw new Error('Add an artist name or create an artist profile before publishing.')
 
-  const audioExt = safeExtension(audioFile.name, 'mp3')
+  const audioExt = safeExtension(audioFile.name, AUDIO_EXTENSION_BY_MIME[audioFile.type] || 'mp3')
   if (!['mp3','m4a','wav','aac','ogg','flac'].includes(audioExt)) throw new Error('Unsupported audio format. Use MP3, M4A, WAV, AAC, OGG or FLAC.')
   if (audioFile.size > 100 * 1024 * 1024) throw new Error('Audio files must be 100 MB or smaller.')
   const audioMime = audioFile.type || AUDIO_MIME_BY_EXTENSION[audioExt]
@@ -85,7 +89,7 @@ export async function uploadMusicRelease(
   let coverMime = ''
   if (coverFile) {
     if (coverFile.size > 50 * 1024 * 1024) throw new Error('Cover artwork must be 50 MB or smaller.')
-    const coverExt = safeExtension(coverFile.name, 'jpg')
+    const coverExt = safeExtension(coverFile.name, ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif', 'image/heic': 'heic' } as Record<string, string>)[coverFile.type] || 'jpg')
     const fallbackCoverMime = ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', heic: 'image/heic' } as Record<string, string>)[coverExt]
     coverMime = coverFile.type || fallbackCoverMime || ''
     if (!ALLOWED_IMAGE_MIME.includes(coverMime)) throw new Error('Cover artwork must be JPG, PNG, WebP, GIF, AVIF or HEIC.')
