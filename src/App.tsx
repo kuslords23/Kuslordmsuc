@@ -21,7 +21,7 @@ import RoyalCompanion from './components/RoyalCompanion'
 import TrendFollowPanel from './components/TrendFollowPanel'
 import './index.css'
 
-type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists'
+type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'more'
 type ExternalCatalogHit = {
   id: string
   title: string
@@ -815,6 +815,33 @@ export default function App() {
     />
   )
 
+  const renderMore = () => (
+    <div className="tab-scroll more-hub">
+      <div className="section-title"><h2>Explore Kus-Lords Music</h2></div>
+      <p className="caption">Your music spaces, grouped here so the main navigation stays uncluttered.</p>
+      <div className="more-nav-grid">
+        {([
+          ['browse', '🧭', 'Explore', 'Discover releases, genres and trends.'],
+          ['radio', '📻', 'Genre Radio', 'Listen through genres in the shared catalogue.'],
+          ['playlists', '♫', 'Playlists', 'Create and manage your personal playlists.'],
+          ['library', '📚', 'Library', 'Your saved and recently added music.'],
+          ['artists', '🎤', 'Artists', 'Discover artists and manage follows.'],
+        ] as const).map(([tab, icon, title, description]) => (
+          <button type="button" className="more-nav-card" key={tab} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}>
+            <span className="more-nav-icon">{icon}</span>
+            <span className="more-nav-copy"><strong>{title}</strong><small>{description}</small></span>
+            <span className="more-nav-arrow">›</span>
+          </button>
+        ))}
+      </div>
+      <section className="more-provider-note">
+        <strong>Music sources</strong>
+        <p>Spotify catalogue search runs securely on the server. YouTube can be enabled independently. Apple Music remains optional.</p>
+        <button type="button" onClick={() => { setActiveTab('search'); setSearch('Adele'); setSelectedAlbumId(null) }}>Test music search</button>
+      </section>
+    </div>
+  )
+
   const renderSearch = () => (
     <div className="tab-scroll">
       <div className="search-input-wrap">
@@ -1028,6 +1055,7 @@ export default function App() {
               {activeTab === 'library' && renderLibrary()}
               {activeTab === 'playlists' && renderPlaylists()}
               {activeTab === 'artists' && renderArtists()}
+              {activeTab === 'more' && renderMore()}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'studio' && (
                 <Studio
@@ -1064,26 +1092,17 @@ export default function App() {
       {miniPlayerOpen && renderFullPlayer()}
 
       {/* Bottom Navigation (Mobile) */}
-      <nav className="bottom-nav">
-        <div className="nav-group">
-          {(['home', 'search'] as Tab[]).map((tab) => (
-            <button key={tab} className={`nav-tab ${activeTab === tab ? 'active' : ''}`} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}>
-              <span className="nav-icon">{tab === 'home' ? '🏠' : '⌕'}</span>
-              <span className="nav-label">{tab === 'home' ? 'Home' : 'Search'}</span>
-            </button>
-          ))}
-        </div>
-        <button className={`nav-tab studio-tab ${activeTab === 'studio' ? 'active' : ''}`} onClick={() => { setActiveTab('studio'); setSelectedAlbumId(null) }} aria-label="Open Studio">
-          <span className="nav-icon">🎛</span><span className="nav-label">Studio</span>
-        </button>
-        <div className="nav-group">
-          {(['browse', 'playlists', 'library'] as Tab[]).map((tab) => (
-            <button key={tab} className={`nav-tab ${activeTab === tab ? 'active' : ''}`} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}>
-              <span className="nav-icon">{tab === 'browse' ? '🧭' : tab === 'playlists' ? '♫' : '📚'}</span>
-              <span className="nav-label">{tab === 'browse' ? 'Explore' : tab === 'playlists' ? 'Playlists' : 'Library'}</span>
-            </button>
-          ))}
-        </div>
+      <nav className="bottom-nav" aria-label="Main navigation">
+        {([
+          ['home', '🏠', 'Home'],
+          ['search', '⌕', 'Search'],
+          ['studio', '🎛', 'Studio'],
+          ['more', '☷', 'More'],
+        ] as const).map(([tab, icon, label]) => (
+          <button type="button" key={tab} className={`nav-tab ${activeTab === tab ? 'active' : ''} ${tab === 'studio' ? 'studio-tab' : ''}`} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }} aria-label={label}>
+            <span className="nav-icon">{icon}</span><span className="nav-label">{label}</span>
+          </button>
+        ))}
       </nav>
 
       {/* Desktop Player */}
