@@ -42,10 +42,20 @@ interface DbFeedPost {
   sound_artist?: string | null
   artist_profile_id?: string | null
   audio_content_hash?: string | null
+  album_title?: string | null
+  genre?: string | null
+  mood?: string | null
+  production_credits?: string | null
+  lyrics?: string | null
+  monetization_enabled?: boolean | null
+  is_paid_sound?: boolean | null
+  paid_sound_price_ghs?: number | string | null
+  paid_sound_description?: string | null
   listen_count?: number | null
   likes?: number | null
   media_url?: string | null
   storage_path?: string | null
+  cover_url?: string | null
   cover_storage_path?: string | null
   content?: string | null
   caption?: string | null
@@ -97,6 +107,7 @@ function deriveTitle(post: DbFeedPost): string {
 }
 
 function deriveAlbum(post: DbFeedPost): string {
+  if (post.album_title?.trim()) return post.album_title.trim()
   const match = post.content?.match(/\(([^()]*)\)\s*$/)
   return match?.[1]?.trim() || ''
 }
@@ -118,8 +129,8 @@ function rowToTrack(d: DbFeedPost): Track | null {
   if (!audioUrl) return null
 
   // Cover image
-  let cover = ''
-  if (d.cover_storage_path) {
+  let cover = d.cover_url || ''
+  if (!cover && d.cover_storage_path) {
     cover = bucketPublicUrl('kus-images', d.cover_storage_path)
   }
 
@@ -139,6 +150,14 @@ function rowToTrack(d: DbFeedPost): Track | null {
     duration: 0, // Duration is not part of the verified feed_posts audio contract yet.
     audioUrl,
     cover,
+    genre: d.genre || undefined,
+    mood: d.mood || undefined,
+    productionCredits: d.production_credits || undefined,
+    lyrics: d.lyrics || undefined,
+    monetizationEnabled: Boolean(d.monetization_enabled),
+    isPaidSound: Boolean(d.is_paid_sound),
+    paidSoundPriceGhs: d.paid_sound_price_ghs == null ? undefined : Number(d.paid_sound_price_ghs),
+    paidSoundDescription: d.paid_sound_description || undefined,
     likes: Number(d.likes || 0),
     liked: false,
   }
@@ -391,7 +410,7 @@ export async function uploadTrackToBucket(params: {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+$/, '')
   const fileName = `${Date.now()}-${safeName || 'track'}.${fileExt}`
-  const audioPath = fileName
+  const audioPath = `${params.user.id}/${fileName}`
 
   let coverPath: string | null = null
 
@@ -413,7 +432,7 @@ export async function uploadTrackToBucket(params: {
     // 2. Upload cover to kus-images (optional, non-fatal if it fails)
     if (params.coverFile) {
       const coverExt = params.coverFile.name.split('.').pop()
-      coverPath = `cover-${Date.now()}.${coverExt}`
+      coverPath = `${params.user.id}/cover-${Date.now()}-${crypto.randomUUID()}.${coverExt}`
 
       const { error: coverErr } = await supabase.storage
         .from('kus-images')
@@ -438,15 +457,19 @@ export async function uploadTrackToBucket(params: {
       .from('feed_posts')
       .insert({
         post_type: 'audio',
+        user_id: params.user.id,
+        user_name: 'Artist',
         content,
+        title: params.title.trim(),
+        album_title: params.album.trim() || 'Singles',
         sound_title: params.title.trim(),
         sound_artist: params.artist.trim(),
         media_url: audioPublicUrl,
+        media_mime: params.audioFile.type || null,
         storage_path: audioPath,
         cover_storage_path: coverPath || null,
         artist_profile_id: params.artistProfileId || null,
         audio_content_hash: params.audioContentHash || null,
-        user_id: params.user.id,
       })
       .select('*')
       .single()

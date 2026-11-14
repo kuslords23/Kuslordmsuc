@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [music-mega-001-scn-port]
+    branches: [music-mega-001-scn-port, music-creator-economy-port-001]
 
 permissions:
   contents: read
@@ -18,10 +18,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install dependencies
         run: npm install
       - name: Verify music integration contracts
         run: npm run verify:music
+      - name: TypeScript validation
+        run: npm run typecheck
       - name: Build standalone app
         run: npm run build

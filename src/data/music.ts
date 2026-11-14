@@ -16,6 +16,13 @@ export interface Track {
   audioUrl: string
   cover: string
   genre?: string
+  mood?: string
+  productionCredits?: string
+  lyrics?: string
+  monetizationEnabled?: boolean
+  isPaidSound?: boolean
+  paidSoundPriceGhs?: number
+  paidSoundDescription?: string
 }
 
 export interface Album {
