@@ -233,6 +233,7 @@ begin
     raise exception 'Audio release not found';
   end if;
 
+  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || p_track_post_id::text, 0));
   update public.music_playback_sessions
   set status = 'expired'
   where viewer_user_id = v_uid and track_post_id = p_track_post_id and status = 'active';
@@ -294,8 +295,14 @@ declare
   v_delta numeric(12,3);
   v_total numeric(12,3);
   v_inserted integer := 0;
+  v_track_post_id uuid;
 begin
   if v_uid is null then return false; end if;
+  select track_post_id into v_track_post_id
+  from public.music_playback_sessions
+  where id = p_session_id and viewer_user_id = v_uid;
+  if not found then return false; end if;
+  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_track_post_id::text, 0));
   select * into v_session
   from public.music_playback_sessions
   where id = p_session_id and viewer_user_id = v_uid
