@@ -8,6 +8,7 @@ type PlaybackSession = {
 
 const activeSessions = new Map<string, PlaybackSession>()
 const pendingStarts = new Map<string, Promise<boolean>>()
+const retryAfter = new Map<string, number>()
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
@@ -21,6 +22,7 @@ function isUuid(value: string): boolean {
 export async function startVerifiedPlaybackSession(trackPostId: string | undefined): Promise<boolean> {
   if (!supabase || !trackPostId || !isUuid(trackPostId)) return false
   if (activeSessions.has(trackPostId)) return true
+  if ((retryAfter.get(trackPostId) || 0) > Date.now()) return false
   const pending = pendingStarts.get(trackPostId)
   if (pending) return pending
 
@@ -32,6 +34,7 @@ export async function startVerifiedPlaybackSession(trackPostId: string | undefin
       if (error) throw error
       const row = Array.isArray(data) ? data[0] : data
       if (!row?.session_id || !row?.session_token) return false
+      retryAfter.delete(trackPostId)
       activeSessions.set(trackPostId, {
         sessionId: String(row.session_id),
         token: String(row.session_token),
@@ -39,6 +42,7 @@ export async function startVerifiedPlaybackSession(trackPostId: string | undefin
       })
       return true
     } catch (error) {
+      retryAfter.set(trackPostId, Date.now() + 15000)
       console.error('Playback session could not be started:', error)
       return false
     } finally {
@@ -77,6 +81,7 @@ export async function heartbeatVerifiedPlaybackSession(trackPostId: string | und
     return true
   } catch (error) {
     activeSessions.delete(trackPostId)
+    retryAfter.set(trackPostId, Date.now() + 10000)
     console.error('Playback heartbeat failed:', error)
     return false
   }
