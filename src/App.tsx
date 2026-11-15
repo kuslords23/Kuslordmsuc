@@ -960,6 +960,20 @@ export default function App() {
               </div>
             )}
           </section>
+          <section className="external-recommendations">
+            <div className="section-title"><h2>Related playlists from music platforms</h2><span className="caption">Playlist matches from connected providers</span></div>
+            {externalSearchResults.filter(item => item.kind === 'playlist').map(item => (
+              <button type="button" className="track-row-compact external-catalog-hit" key={'recommendation-' + item.id} onClick={() => {
+                setActiveExternalHit(item)
+                setRecentHistory(previous => recordExternalTrack(previous, item))
+              }}>
+                {item.coverUrl ? <img src={item.coverUrl} alt="" className="mini-cover" /> : <span className="mini-cover">♫</span>}
+                <span className="track-meta"><strong>{item.title}</strong><span>{item.platform} · playlist · {item.artist}</span></span>
+                <span className="caption">Open</span>
+              </button>
+            ))}
+            {!externalSearchResults.some(item => item.kind === 'playlist') && !externalSearchLoading && <p className="empty">No matching playlists were returned by the connected platforms for this search.</p>}
+          </section>
           {filteredTracks.length === 0 && <div className="empty">No results for "{search}".</div>}
         </>
       ) : (
