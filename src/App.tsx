@@ -19,6 +19,8 @@ import { toggleMusicTrackLike } from './lib/trackLikes'
 import { useAuth } from './context/AuthContext'
 import RoyalCompanion from './components/RoyalCompanion'
 import TrendFollowPanel from './components/TrendFollowPanel'
+import RecentlyPlayed from './components/RecentlyPlayed'
+import { readMusicHistory, recordKusTrack, recordExternalTrack, type MusicHistoryEntry } from './lib/musicHistory'
 import './index.css'
 
 type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'more'
@@ -30,7 +32,7 @@ type ExternalCatalogHit = {
   embedUrl: string
   openUrl: string
   platform: string
-  kind: 'track' | 'artist' | 'album'
+  kind: 'track' | 'artist' | 'album' | 'playlist'
   duration: number
 }
 
@@ -60,6 +62,7 @@ export default function App() {
   const [externalSearchHint, setExternalSearchHint] = useState('')
   const [externalSearchLoading, setExternalSearchLoading] = useState(false)
   const [activeExternalHit, setActiveExternalHit] = useState<ExternalCatalogHit | null>(null)
+  const [recentHistory, setRecentHistory] = useState<MusicHistoryEntry[]>([])
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [likeBusy, setLikeBusy] = useState(false)
   const [likeError, setLikeError] = useState('')
@@ -85,6 +88,7 @@ export default function App() {
   const repeatRef = useRef(false)
 
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
+  useEffect(() => { setRecentHistory(readMusicHistory()) }, [])
   useEffect(() => { queueRef.current = queue }, [queue])
   useEffect(() => { shuffleRef.current = shuffleEnabled }, [shuffleEnabled])
   useEffect(() => { repeatRef.current = repeatEnabled }, [repeatEnabled])
@@ -372,6 +376,7 @@ export default function App() {
   // Player functions
   const playTrack = useCallback((track: Track | undefined, trackList: Track[]) => {
     if (!track) return
+    setRecentHistory(previous => recordKusTrack(previous, track))
     const previousTrack = currentTrackRef.current
     if (previousTrack?.postId && previousTrack.postId !== track.postId) {
       void completeVerifiedPlaybackSession(previousTrack.postId)
@@ -386,6 +391,19 @@ export default function App() {
     setQueue(trackList)
     setIsPlaying(true)
   }, [])
+
+  const playHistoryEntry = useCallback((entry: MusicHistoryEntry) => {
+    if (entry.source === 'kus' && entry.track) {
+      const restored = tracks.find(item => item.id === entry.track?.id || item.postId === entry.track?.postId) || entry.track
+      playTrack(restored, tracks.length ? tracks : [restored])
+      return
+    }
+    if (entry.external) {
+      setActiveExternalHit(entry.external as ExternalCatalogHit)
+      setSearch(entry.external.title)
+      setActiveTab('search')
+    }
+  }, [tracks, playTrack])
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current
@@ -769,6 +787,7 @@ export default function App() {
     const renderLibrary = () => (
     <div className="tab-scroll">
       <div className="section-title"><h2>Your Library</h2></div>
+      <RecentlyPlayed entries={recentHistory} onPlayKus={playHistoryEntry} onPlayExternal={playHistoryEntry} />
       <section>
         <div className="section-title"><h2>Published releases</h2></div>
         {albums.length ? <div className="album-grid">{albums.map((a) => (
@@ -920,10 +939,13 @@ export default function App() {
             {externalSearchLoading && <div className="empty">Searching connected music providers…</div>}
             {externalSearchHint && <div className="empty">{externalSearchHint}</div>}
             {externalSearchResults.map((item) => (
-              <button type="button" className="track-row-compact external-catalog-hit" key={item.id} onClick={() => setActiveExternalHit(item)}>
+              <button type="button" className="track-row-compact external-catalog-hit" key={item.id} onClick={() => {
+                setActiveExternalHit(item)
+                setRecentHistory(previous => recordExternalTrack(previous, item))
+              }}>
                 {item.coverUrl ? <img src={item.coverUrl} alt="" className="mini-cover" /> : <span className="mini-cover" />}
                 <span className="track-meta"><strong>{item.title}</strong><span>{item.artist} · {item.kind}</span></span>
-                <span className="caption">Preview</span>
+                <span className="caption">{item.platform} · {item.kind === 'playlist' ? 'Playlist' : item.kind === 'track' ? 'Play' : item.kind}</span>
               </button>
             ))}
             {activeExternalHit && (
@@ -933,7 +955,8 @@ export default function App() {
                   <a href={activeExternalHit.openUrl} target="_blank" rel="noopener noreferrer">Open on {activeExternalHit.platform} ↗</a>
                 </div>
                 <iframe title={`${activeExternalHit.title} official music embed`} src={activeExternalHit.embedUrl} height={activeExternalHit.kind === 'track' ? 152 : 352} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" className="external-music-iframe" />
-                <button type="button" className="clear-search" onClick={() => setActiveExternalHit(null)}>Close preview</button>
+                <p className="caption">Official {activeExternalHit.platform} player. Full playback is available when supported by that provider and your account or region. Use its own Play control to start listening.</p>
+                <button type="button" className="clear-search" onClick={() => setActiveExternalHit(null)}>Close player</button>
               </div>
             )}
           </section>
