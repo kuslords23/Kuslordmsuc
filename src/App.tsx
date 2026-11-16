@@ -1021,7 +1021,7 @@ export default function App() {
     return (
       <div className="full-player-overlay">
         <div className="full-player">
-          <div className="full-player-bg" style={{ background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }} />
+          <div className="full-player-bg" style={currentTrack.cover?.startsWith('http') ? { backgroundImage: 'url(' + JSON.stringify(currentTrack.cover) + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : { background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }} />
           <div className="full-player-content">
             <div className="full-player-top">
               <button className="collapse-btn" onClick={() => setMiniPlayerOpen(false)}>▼</button>
@@ -1030,7 +1030,7 @@ export default function App() {
             </div>
             <div
               className="full-artwork"
-              style={{ background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }}
+              style={currentTrack.cover?.startsWith('http') ? { backgroundImage: 'url(' + JSON.stringify(currentTrack.cover) + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : { background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }}
             >
               <div className="vinyl-shine" />
             </div>
@@ -1162,8 +1162,8 @@ export default function App() {
 
       {/* Mini Player (Mobile) */}
       {currentTrack && (
-        <div className="mini-player" onClick={() => setMiniPlayerOpen(true)}>
-          <div className="mini-cover" style={{ background: currentTrack.cover }} />
+        <div className={`mini-player ${isPlaying ? 'is-playing' : ''}`} onClick={() => setMiniPlayerOpen(true)}>
+          <div className="mini-cover" style={currentTrack.cover?.startsWith('http') ? { backgroundImage: 'url(' + JSON.stringify(currentTrack.cover) + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : { background: currentTrack.cover }} />
           <div className="mini-info">
             <strong>{currentTrack.title}</strong>
             <span>{currentTrack.artist}</span>
