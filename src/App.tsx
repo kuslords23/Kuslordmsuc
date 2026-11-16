@@ -84,6 +84,7 @@ export default function App() {
   const [miniPlayerOpen, setMiniPlayerOpen] = useState(false)
   const [playerPanel,setPlayerPanel]=useState<'queue'|'lyrics'|null>(null)
   const [sleepMinutes,setSleepMinutes]=useState(0)
+  const [queueAddId,setQueueAddId]=useState('')
   const sleepTimerRef=useRef<number|null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
@@ -1048,7 +1049,7 @@ export default function App() {
               <button onClick={()=>setPlayerPanel(panel=>panel==='queue'?null:'queue')}>Queue ({queue.length})</button>
             </div>
             {playerPanel==='lyrics'&&<section className="player-detail-panel"><h3>Lyrics</h3>{currentTrack.lyrics?<pre>{currentTrack.lyrics}</pre>:<p>Lyrics are not available for this track.</p>}</section>}
-            {playerPanel==='queue'&&<section className="player-detail-panel"><div className="section-title"><h3>Up next</h3><button onClick={()=>setQueue(currentTrack?[currentTrack]:[])}>Clear queue</button></div>{queue.map((track,index)=><div className="queue-track-row" key={track.id}><button onClick={()=>playTrack(track,queue)}><strong>{track.title}</strong><small>{track.artist}</small></button><span>{index===queue.findIndex(item=>item.id===currentTrack.id)?'Playing':''}</span><button aria-label={'Remove '+track.title} onClick={()=>setQueue(items=>items.filter(item=>item.id!==track.id))}>×</button></div>)}{!queue.length&&<p>Queue is empty.</p>}</section>}
+            {playerPanel==='queue'&&<section className="player-detail-panel"><div className="section-title"><h3>Up next</h3><button onClick={()=>setQueue(currentTrack?[currentTrack]:[])}>Clear queue</button></div><div className="queue-add-row"><select value={queueAddId} onChange={event=>setQueueAddId(event.target.value)}><option value="">Add a library track…</option>{tracks.filter(track=>!queue.some(item=>item.id===track.id)).map(track=><option key={track.id} value={track.id}>{track.title} · {track.artist}</option>)}</select><button onClick={()=>{const track=tracks.find(item=>item.id===queueAddId);if(track){setQueue(items=>[...items,track]);setQueueAddId('')}}} disabled={!queueAddId}>Add</button></div>{queue.map((track,index)=><div className="queue-track-row" key={track.id}><button onClick={()=>playTrack(track,queue)}><strong>{track.title}</strong><small>{track.artist}</small></button><span>{index===queue.findIndex(item=>item.id===currentTrack.id)?'Playing':''}</span><button disabled={index===0} aria-label={'Move '+track.title+' up'} onClick={()=>setQueue(items=>{const copy=[...items];[copy[index-1],copy[index]]=[copy[index],copy[index-1]];return copy})}>↑</button><button disabled={index===queue.length-1} aria-label={'Move '+track.title+' down'} onClick={()=>setQueue(items=>{const copy=[...items];[copy[index+1],copy[index]]=[copy[index],copy[index+1]];return copy})}>↓</button><button aria-label={'Remove '+track.title} onClick={()=>setQueue(items=>items.filter(item=>item.id!==track.id))}>×</button></div>)}{!queue.length&&<p>Queue is empty.</p>}</section>}
             <div className="audio-source"><span>Audio Output: Device Speakers</span></div>
           </div>
         </div>
