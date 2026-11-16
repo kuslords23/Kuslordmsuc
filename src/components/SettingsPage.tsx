@@ -31,7 +31,7 @@ export default function SettingsPage() {
   const update = <K extends keyof MusicSettings>(key: K, patch: Partial<MusicSettings[K]>) => {
     setSettings(current => {
       const next = { ...current, [key]: { ...current[key], ...patch } }
-      if (key === 'appearance' && patch.theme) applyMusicTheme(patch.theme as 'dark' | 'light')
+      if (key === 'appearance' && 'theme' in patch && patch.theme) applyMusicTheme(patch.theme as 'dark' | 'light')
       setNotice('Unsaved changes')
       return next
     })
