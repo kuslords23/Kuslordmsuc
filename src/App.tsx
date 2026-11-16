@@ -1147,7 +1147,7 @@ export default function App() {
               {activeTab === 'videos' && <MusicVideos onPlayVideo={(video) => { setActiveExternalHit({ ...video, kind: 'track', duration: 0 }); setRecentHistory(previous => recordExternalTrack(previous, { ...video, kind: 'track', duration: 0, platform: 'YouTube' })); }} />}
               {activeTab === 'more' && renderMore()}
               {activeTab === 'settings' && <SettingsPage />}
-              {activeTab === 'universe' && <MusicUniverse tracks={tracks} artists={artistProfiles} userId={user?.id} onPlay={playTrack} />}
+              {activeTab === 'universe' && <MusicUniverse tracks={tracks} artists={artistProfiles} userId={user?.id} recentHistory={recentHistory} onPlay={playTrack} />}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'studio' && (
                 <Studio
