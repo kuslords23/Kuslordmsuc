@@ -139,3 +139,47 @@ export async function recordCloudPlaylistPlay(playlistId: string, track: Track):
   })
   if (error) throw new Error(`Could not record playlist listening history: ${error.message}`)
 }
+
+export interface PlaylistCollaborator { userId:string; username:string; role:'editor'|'viewer'; status:'pending'|'accepted'|'declined' }
+export async function setPlaylistCollaborative(playlistId:string, enabled:boolean):Promise<void>{
+ await requireUser()
+ const {error}=await supabase!.from('music_playlists').update({is_collaborative:enabled,updated_at:new Date().toISOString()}).eq('id',playlistId)
+ if(error)throw new Error('Could not update collaboration settings: '+error.message)
+}
+export async function fetchPlaylistCollaborators(playlistId:string):Promise<PlaylistCollaborator[]>{
+ await requireUser()
+ const {data,error}=await supabase!.from('music_playlist_collaborators').select('user_id,role,status').eq('playlist_id',playlistId)
+ if(error)throw new Error('Could not load collaborators: '+error.message)
+ const ids=(data||[]).map(row=>row.user_id)
+ if(!ids.length)return []
+ const {data:profiles,error:profileError}=await supabase!.from('profiles').select('id,username').in('id',ids)
+ if(profileError)throw new Error('Could not load collaborator profiles: '+profileError.message)
+ return (data||[]).map(row=>({userId:row.user_id,username:profiles?.find(p=>p.id===row.user_id)?.username||'Kus-lord',role:row.role,status:row.status}))
+}
+export async function invitePlaylistCollaborator(playlistId:string,username:string):Promise<void>{
+ const owner=await requireUser()
+ const clean=username.trim().replace(/^@/,'').toLowerCase()
+ if(!clean)throw new Error('Enter a username.')
+ const {data:profile,error:profileError}=await supabase!.from('profiles').select('id').ilike('username',clean).maybeSingle()
+ if(profileError)throw new Error(profileError.message)
+ if(!profile)throw new Error('No account found with that username.')
+ if(profile.id===owner.id)throw new Error('You already own this playlist.')
+ const {error}=await supabase!.from('music_playlist_collaborators').insert({playlist_id:playlistId,user_id:profile.id,invited_by:owner.id,role:'editor',status:'pending'})
+ if(error)throw new Error(/duplicate|unique/i.test(error.message)?'This person has already been invited.':error.message)
+ await setPlaylistCollaborative(playlistId,true)
+}
+export async function respondToPlaylistInvite(playlistId:string,accept:boolean):Promise<void>{
+ const user=await requireUser()
+ const {error}=await supabase!.from('music_playlist_collaborators').update({status:accept?'accepted':'declined'}).eq('playlist_id',playlistId).eq('user_id',user.id).eq('status','pending')
+ if(error)throw new Error('Could not respond to invitation: '+error.message)
+}
+export async function fetchMyPlaylistInvites():Promise<Array<{playlistId:string;playlistName:string;invitedBy:string}>>{
+ const user=await requireUser()
+ const {data,error}=await supabase!.from('music_playlist_collaborators').select('playlist_id,invited_by').eq('user_id',user.id).eq('status','pending')
+ if(error)throw new Error(error.message)
+ const ids=(data||[]).map(row=>row.playlist_id)
+ if(!ids.length)return []
+ const {data:playlists,error:playlistError}=await supabase!.from('music_playlists').select('id,name').in('id',ids)
+ if(playlistError)throw new Error(playlistError.message)
+ return (data||[]).map(row=>({playlistId:row.playlist_id,playlistName:playlists?.find(p=>p.id===row.playlist_id)?.name||'Shared playlist',invitedBy:row.invited_by}))
+}
