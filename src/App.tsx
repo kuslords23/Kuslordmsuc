@@ -21,6 +21,7 @@ import RoyalCompanion from './components/RoyalCompanion'
 import TrendFollowPanel from './components/TrendFollowPanel'
 import RecentlyPlayed from './components/RecentlyPlayed'
 import MusicVideos from './components/MusicVideos'
+import ExternalPlayerDock from './components/ExternalPlayerDock'
 import { readMusicHistory, recordKusTrack, recordExternalTrack, type MusicHistoryEntry } from './lib/musicHistory'
 import './index.css'
 
@@ -950,17 +951,7 @@ export default function App() {
                 <span className="caption">{item.platform} · {item.kind === 'playlist' ? 'Playlist' : item.kind === 'track' ? 'Play' : item.kind}</span>
               </button>
             ))}
-            {activeExternalHit && (
-              <div className="external-music-embed">
-                <div className="section-title">
-                  <h2>{activeExternalHit.title}</h2>
-                  <a href={activeExternalHit.openUrl} target="_blank" rel="noopener noreferrer">Open on {activeExternalHit.platform} ↗</a>
-                </div>
-                <iframe title={`${activeExternalHit.title} official music embed`} src={activeExternalHit.embedUrl} height={activeExternalHit.kind === 'track' ? 152 : 352} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" className="external-music-iframe" />
-                <p className="caption">Official {activeExternalHit.platform} player. Full playback is available when supported by that provider and your account or region. Use its own Play control to start listening.</p>
-                <button type="button" className="clear-search" onClick={() => setActiveExternalHit(null)}>Close player</button>
-              </div>
-            )}
+
           </section>
           <section className="external-recommendations">
             <div className="section-title"><h2>Related playlists from music platforms</h2><span className="caption">Playlist matches from connected providers</span></div>
@@ -1109,7 +1100,7 @@ export default function App() {
               {activeTab === 'library' && renderLibrary()}
               {activeTab === 'playlists' && renderPlaylists()}
               {activeTab === 'artists' && renderArtists()}
-              {activeTab === 'videos' && <MusicVideos />}
+              {activeTab === 'videos' && <MusicVideos onPlayVideo={(video) => { setActiveExternalHit({ ...video, kind: 'track', duration: 0 }); setRecentHistory(previous => recordExternalTrack(previous, { ...video, kind: 'track', duration: 0, platform: 'YouTube' })); }} />}
               {activeTab === 'more' && renderMore()}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'studio' && (
@@ -1189,6 +1180,8 @@ export default function App() {
         />
         {likeError && <p className="player-action-error" role="alert">{likeError}</p>}
       </div>}
+
+      {activeExternalHit && <ExternalPlayerDock item={activeExternalHit} onClose={() => setActiveExternalHit(null)} />}
 
       <RoyalCompanion activeTab={activeTab} currentTrack={currentTrack ? { title: currentTrack.title, artist: currentTrack.artist, album: currentTrack.album } : null} />
 
