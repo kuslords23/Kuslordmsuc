@@ -2,10 +2,20 @@ import { useEffect,useState } from 'react'
 import type { Track } from '../data/music'
 import { supabase } from '../lib/supabase'
 import './MusicSocialFeed.css'
-type Share={id:string;user_id:string;track_post_id:string|null;playlist_id:string|null;body:string;created_at:string;likes:number;liked:boolean}\ntype PublicPlaylist={id:string;name:string;description:string}
+type Share={id:string;user_id:string;track_post_id:string|null;playlist_id:string|null;body:string;created_at:string;likes:number;liked:boolean}
+type PublicPlaylist={id:string;name:string;description:string}
 export default function MusicSocialFeed({tracks,userId}:{tracks:Track[];userId?:string}){
  const [shares,setShares]=useState<Share[]>([]),[playlists,setPlaylists]=useState<PublicPlaylist[]>([]),[selectedTrack,setSelectedTrack]=useState(''),[selectedPlaylist,setSelectedPlaylist]=useState(''),[body,setBody]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('')
- const load=async()=>{if(!supabase)return;const [feed,playlistResult]=await Promise.all([supabase.from('music_social_shares').select('id,user_id,track_post_id,playlist_id,body,created_at,music_social_share_likes(user_id)').eq('visibility','public').order('created_at',{ascending:false}).limit(40),supabase.from('music_playlists').select('id,name,description').eq('visibility','public').order('updated_at',{ascending:false}).limit(30)]);if(feed.error){setMessage(feed.error.message);return}setPlaylists(playlistResult.data||[]);setShares((feed.data||[]).map((row:any)=>({id:row.id,user_id:row.user_id,track_post_id:row.track_post_id,playlist_id:row.playlist_id,body:row.body,created_at:row.created_at,likes:row.music_social_share_likes?.length||0,liked:Boolean(userId&&row.music_social_share_likes?.some((l:any)=>l.user_id===userId))})))}
+ const load=async()=>{
+  if(!supabase)return
+  const [feed,playlistResult]=await Promise.all([
+   supabase.from('music_social_shares').select('id,user_id,track_post_id,playlist_id,body,created_at,music_social_share_likes(user_id)').eq('visibility','public').order('created_at',{ascending:false}).limit(40),
+   supabase.from('music_playlists').select('id,name,description').eq('visibility','public').order('updated_at',{ascending:false}).limit(30),
+  ])
+  if(feed.error){setMessage(feed.error.message);return}
+  setPlaylists(playlistResult.data||[])
+  setShares((feed.data||[]).map((row:any)=>({id:row.id,user_id:row.user_id,track_post_id:row.track_post_id,playlist_id:row.playlist_id,body:row.body,created_at:row.created_at,likes:row.music_social_share_likes?.length||0,liked:Boolean(userId&&row.music_social_share_likes?.some((l:any)=>l.user_id===userId))})))
+ }
  useEffect(()=>{void load()},[userId])
  const publish=async()=>{if(!supabase||!userId)return;const track=tracks.find(t=>t.id===selectedTrack);if(!track&&!selectedPlaylist&&!body.trim())return;setBusy(true);const {error}=await supabase.from('music_social_shares').insert({user_id:userId,track_post_id:track?.postId||track?.id||null,playlist_id:selectedPlaylist||null,body:body.trim(),visibility:'public'});if(error)setMessage(error.message);else{setBody('');setSelectedTrack('');setSelectedPlaylist('');setMessage('Shared with the music community.');await load()}setBusy(false)}
  const toggleLike=async(share:Share)=>{if(!supabase||!userId){setMessage('Sign in to like community posts.');return}const result=share.liked?await supabase.from('music_social_share_likes').delete().eq('share_id',share.id).eq('user_id',userId):await supabase.from('music_social_share_likes').insert({share_id:share.id,user_id:userId});if(result.error)setMessage(result.error.message);else setShares(current=>current.map(s=>s.id===share.id?{...s,liked:!s.liked,likes:Math.max(0,s.likes+(s.liked?-1:1))}:s))}
