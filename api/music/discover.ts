@@ -63,7 +63,7 @@ async function persistArtists(artists:DiscoveredArtist[]):Promise<boolean>{
   return response.ok
 }
 async function loadPersistedArtists():Promise<DiscoveredArtist[]>{
-  const root=(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||"").replace(/\\/$/,""),key=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SECRET_KEY
+  const root=(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||"").replace(/\/$/,""),key=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SECRET_KEY
   if(!root||!key)return[]
   const response=await fetch(root+"/rest/v1/music_discovered_artists?select=provider,provider_artist_id,name,artwork_url,embed_url,profile_url,genres,popularity&order=last_seen_at.desc&limit=36",{headers:{apikey:key,Authorization:"Bearer "+key}})
   if(!response.ok)return[]
