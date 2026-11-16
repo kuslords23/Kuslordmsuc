@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react"
-
 export type ExternalPlaybackItem = {
   id: string
   title: string
