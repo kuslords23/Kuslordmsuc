@@ -68,7 +68,7 @@ async function loadPersistedArtists():Promise<DiscoveredArtist[]>{
   const response=await fetch(root+"/rest/v1/music_discovered_artists?select=provider,provider_artist_id,name,artwork_url,embed_url,profile_url,genres,popularity&order=last_seen_at.desc&limit=36",{headers:{apikey:key,Authorization:"Bearer "+key}})
   if(!response.ok)return[]
   const rows=await response.json() as any[]
-  return rows.map(row=>({id:row.provider+":"+row.provider_artist_id,name:row.name,artwork:row.artwork_url||"",embedUrl:row.embed_url||"",openUrl:row.profile_url||"",provider:row.provider,providerId:row.provider_artist_id,genres:Array.isArray(row.genres)?row.genres:[],popularity:row.popularity??undefined}))
+  return rows.map(row=>({id:row.provider+":"+row.provider_artist_id,name:row.name,artwork:row.artwork_url||"",embedUrl:row.embed_url||"",openUrl:row.profile_url||"",provider:row.provider==="apple_music"?"Apple Music":row.provider,providerId:row.provider_artist_id,genres:Array.isArray(row.genres)?row.genres:[],popularity:row.popularity??undefined}))
 }
 export default async function handler(req:Req,res:Res){
   res.setHeader("Cache-Control","public, s-maxage=21600, stale-while-revalidate=86400")
