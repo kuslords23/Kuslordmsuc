@@ -24,6 +24,7 @@ import MusicVideos from './components/MusicVideos'
 import ExternalPlayerDock from './components/ExternalPlayerDock'
 import SettingsPage from './components/SettingsPage'
 import MusicUniverse from './components/MusicUniverse'
+import HomeDiscovery from './components/HomeDiscovery'
 import { applyMusicTheme, readLocalMusicSettings } from './lib/userSettings'
 import { readMusicHistory, recordKusTrack, recordExternalTrack, type MusicHistoryEntry } from './lib/musicHistory'
 import './index.css'
@@ -768,6 +769,15 @@ export default function App() {
           <button className="hero-upload" onClick={() => setUploadModalOpen(true)}>Upload music</button>
         </div>
       </div>
+      <HomeDiscovery
+        tracks={tracks}
+        history={recentHistory}
+        onPlayTrack={(track, queue) => playTrack(track, queue)}
+        onOpenExternal={(item) => {
+          setActiveExternalHit(item)
+          setRecentHistory(previous => recordExternalTrack(previous, { ...item, duration: item.duration || 0 }))
+        }}
+      />
       <section>
         <div className="section-title"><h2>Recently published</h2></div>
         {libraryStatus === 'loading' ? <div className="empty">Loading the live music catalogue…</div>
