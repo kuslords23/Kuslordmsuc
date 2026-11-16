@@ -20,10 +20,11 @@ import { useAuth } from './context/AuthContext'
 import RoyalCompanion from './components/RoyalCompanion'
 import TrendFollowPanel from './components/TrendFollowPanel'
 import RecentlyPlayed from './components/RecentlyPlayed'
+import MusicVideos from './components/MusicVideos'
 import { readMusicHistory, recordKusTrack, recordExternalTrack, type MusicHistoryEntry } from './lib/musicHistory'
 import './index.css'
 
-type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'more'
+type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'videos' | 'more'
 type ExternalCatalogHit = {
   id: string
   title: string
@@ -860,6 +861,7 @@ export default function App() {
           ['playlists', '♫', 'Playlists', 'Create and manage your personal playlists.'],
           ['library', '📚', 'Library', 'Your saved and recently added music.'],
           ['artists', '🎤', 'Artists', 'Discover artists and manage follows.'],
+          ['videos', '🎬', 'Music Videos', 'Discover and watch official music videos.'],
         ] as const).map(([tab, icon, title, description]) => (
           <button type="button" className="more-nav-card" key={tab} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}>
             <span className="more-nav-icon">{icon}</span>
@@ -1107,6 +1109,7 @@ export default function App() {
               {activeTab === 'library' && renderLibrary()}
               {activeTab === 'playlists' && renderPlaylists()}
               {activeTab === 'artists' && renderArtists()}
+              {activeTab === 'videos' && <MusicVideos />}
               {activeTab === 'more' && renderMore()}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'studio' && (
