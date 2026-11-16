@@ -178,3 +178,9 @@ export async function fetchMyPlaylistInvites():Promise<Array<{playlistId:string;
  if(playlistError)throw new Error(playlistError.message)
  return (data||[]).map(row=>({playlistId:row.playlist_id,playlistName:playlists?.find(p=>p.id===row.playlist_id)?.name||'Shared playlist',invitedBy:row.invited_by}))
 }
+
+export async function removePlaylistCollaborator(playlistId:string,userId:string):Promise<void>{
+ await requireUser()
+ const {error}=await supabase!.from('music_playlist_collaborators').delete().eq('playlist_id',playlistId).eq('user_id',userId)
+ if(error)throw new Error('Could not remove collaborator: '+error.message)
+}
