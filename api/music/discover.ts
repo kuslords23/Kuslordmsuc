@@ -76,7 +76,11 @@ export default async function handler(req:Req,res:Res){
   if(req.method!=="GET")return res.status(405).json({ok:false,error:"Method not allowed"})
   const terms=["Ghanaian Afrobeats new music","African Afrobeats Amapiano new music","international new music hits"]
   const results=await Promise.all(terms.map(async term=>{
-    const [spotify,apple,videos]=await Promise.all([spotifySearch(term),appleSearch(term),youtubeSearch(term+" official music video")])
+    const [spotify,apple,videos]=await Promise.all([
+      spotifySearch(term).catch(()=>({tracks:[],artists:[]})),
+      appleSearch(term).catch(()=>({tracks:[],artists:[]})),
+      youtubeSearch(term+" official music video").catch(()=>[])
+    ])
     return{tracks:[...spotify.tracks,...apple.tracks],artists:[...spotify.artists,...apple.artists],videos}
   }))
   const unique=(items:any[])=>Array.from(new Map(items.map(item=>[item.id,item])).values())
