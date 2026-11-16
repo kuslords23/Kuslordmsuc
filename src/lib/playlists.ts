@@ -140,6 +140,10 @@ export async function setPlaylistCollaborative(playlistId:string, enabled:boolea
  await requireUser()
  const {error}=await supabase!.from('music_playlists').update({is_collaborative:enabled,updated_at:new Date().toISOString()}).eq('id',playlistId)
  if(error)throw new Error('Could not update collaboration settings: '+error.message)
+ if(!enabled){
+  const {error:inviteError}=await supabase!.from('music_playlist_collaborators').delete().eq('playlist_id',playlistId)
+  if(inviteError)throw new Error('Collaboration was disabled, but old invitations could not be cleared: '+inviteError.message)
+ }
 }
 export async function fetchPlaylistCollaborators(playlistId:string):Promise<PlaylistCollaborator[]>{
  await requireUser()
