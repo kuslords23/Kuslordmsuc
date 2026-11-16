@@ -1276,3 +1276,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .playlist-collaborator-list small,.playlist-invitations small{display:block;color:var(--muted,#aaa);font-size:11px}
 .playlist-invitations>div span{flex:1}
 @media(max-width:650px){.full-player-extras{gap:6px}.full-player-extras button,.full-player-extras select{padding:8px 10px}.player-detail-panel{max-height:28vh}.playlist-collaboration .playlist-add-row{flex-direction:column}.playlist-invitations>div{flex-wrap:wrap}}
+
+.queue-add-row{display:flex;gap:8px;margin:8px 0 14px}
+.queue-add-row select{flex:1;min-width:0;background:var(--bg,#15161a);color:var(--text,#fff);border:1px solid var(--border,#ffffff25);border-radius:10px;padding:9px}
+.queue-add-row button{border:0;border-radius:18px;background:#c5a15c;color:#171717;padding:8px 14px}
+.queue-track-row>button:not(:first-child){border:1px solid var(--border,#ffffff20);border-radius:9px;padding:5px 9px}
+.queue-track-row>button:disabled{opacity:.3}
+.msf-compose>div select{flex:1;min-width:0}
