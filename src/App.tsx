@@ -23,11 +23,12 @@ import RecentlyPlayed from './components/RecentlyPlayed'
 import MusicVideos from './components/MusicVideos'
 import ExternalPlayerDock from './components/ExternalPlayerDock'
 import SettingsPage from './components/SettingsPage'
+import MusicUniverse from './components/MusicUniverse'
 import { applyMusicTheme, readLocalMusicSettings } from './lib/userSettings'
 import { readMusicHistory, recordKusTrack, recordExternalTrack, type MusicHistoryEntry } from './lib/musicHistory'
 import './index.css'
 
-type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'videos' | 'more' | 'settings'
+type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'videos' | 'more' | 'settings' | 'universe'
 type ExternalCatalogHit = {
   id: string
   title: string
@@ -866,6 +867,7 @@ export default function App() {
           ['library', '📚', 'Library', 'Your saved and recently added music.'],
           ['artists', '🎤', 'Artists', 'Discover artists and manage follows.'],
           ['videos', '🎬', 'Music Videos', 'Discover and watch official music videos.'],
+          ['universe', '✦', 'Music Universe', 'Discover, charts, radio, podcasts and artist community.'],
           ['settings', '⚙', 'Settings', 'Appearance, playback, privacy and Royal preferences.'],
         ] as const).map(([tab, icon, title, description]) => (
           <button type="button" className="more-nav-card" key={tab} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}>
@@ -1107,6 +1109,7 @@ export default function App() {
               {activeTab === 'videos' && <MusicVideos onPlayVideo={(video) => { setActiveExternalHit({ ...video, kind: 'track', duration: 0 }); setRecentHistory(previous => recordExternalTrack(previous, { ...video, kind: 'track', duration: 0, platform: 'YouTube' })); }} />}
               {activeTab === 'more' && renderMore()}
               {activeTab === 'settings' && <SettingsPage />}
+              {activeTab === 'universe' && <MusicUniverse tracks={tracks} artists={artistProfiles} userId={user?.id} onPlay={playTrack} />}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'studio' && (
                 <Studio
