@@ -1,0 +1,31 @@
+import { useEffect, useMemo, useState } from "react"
+import type { Track } from "../data/music"
+import type { MusicHistoryEntry } from "../lib/musicHistory"
+import type { ExternalPlaybackItem } from "./ExternalPlayerDock"
+import "./HomeDiscovery.css"
+
+type DiscoveredTrack = { id:string;title:string;artist:string;artwork:string;embedUrl:string;openUrl:string;provider:string;providerId:string;kind:"track"|"video";publishedAt?:string }
+type DiscoveredArtist = { id:string;name:string;artwork:string;embedUrl:string;openUrl:string;provider:string;providerId:string;genres:string[];popularity?:number }
+type Feed = {tracks:DiscoveredTrack[];videos:DiscoveredTrack[];artists:DiscoveredArtist[];generatedAt:string;profilesPersisted?:boolean}
+type Props = { tracks:Track[]; history:MusicHistoryEntry[]; onOpenExternal:(item:ExternalPlaybackItem)=>void }
+
+function cardItem(item:DiscoveredTrack):ExternalPlaybackItem{return{id:item.id,title:item.title,artist:item.artist,coverUrl:item.artwork,embedUrl:item.embedUrl,openUrl:item.openUrl,platform:item.provider,kind:"track"}}
+export default function HomeDiscovery({tracks,history,onOpenExternal}:Props){
+ const [feed,setFeed]=useState<Feed|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState("")
+ useEffect(()=>{let active=true;fetch("/api/music/discover").then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||"Discovery is unavailable");return d as Feed}).then(d=>{if(active)setFeed(d)}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Discovery is unavailable")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[])
+ const preference=useMemo(()=>{const recent=history.slice(0,12).flatMap(entry=>entry.source==="kus"&&entry.track?[entry.track.artist,entry.track.genre||""]:entry.external?[entry.external.artist,entry.external.title]:[]).join(" ").toLowerCase();return recent},[history])
+ const recommended=useMemo(()=>{if(!feed)return[];const scored=feed.tracks.map(item=>{const hay=(item.title+" "+item.artist).toLowerCase();let score=0;if(preference){for(const token of preference.split(/\s+/).filter(word=>word.length>3))if(hay.includes(token))score+=2}if(/ghana|afro|afrobeats|amapiano/i.test(item.artist+" "+item.title))score+=1;return{item,score}});return scored.sort((a,b)=>b.score-a.score).map(x=>x.item)},[feed,preference])
+ const localPicks=useMemo(()=>{const recentGenre=history.find(entry=>entry.source==="kus"&&entry.track?.genre)?.track?.genre;return recentGenre?tracks.filter(track=>track.genre?.toLowerCase()===recentGenre.toLowerCase()).slice(0,8):[...tracks].sort((a,b)=>Number(b.likes||0)-Number(a.likes||0)).slice(0,8)},[tracks,history])
+ const open=(item:DiscoveredTrack)=>onOpenExternal(cardItem(item))
+ return <div className="home-discovery">
+  <section className="hd-section"><div className="hd-heading"><div><span>YOUR DAILY SOUNDTRACK</span><h2>Picked for you</h2><p>Fresh discoveries from Ghana, across Africa and around the world.</p></div><small>{loading?"Updating…":feed? "Updated "+new Date(feed.generatedAt).toLocaleDateString():""}</small></div>
+   {error&&<p className="hd-note">{error}. Your KUS catalogue recommendations are still available below.</p>}
+   {loading&&!feed&&<div className="hd-loading">Finding fresh music for you…</div>}
+   <div className="hd-grid">{recommended.slice(0,8).map(item=><button className="hd-card" key={item.id} onClick={()=>open(item)}><span className="hd-art">{item.artwork?<img src={item.artwork} alt=""/>:<b>♫</b>}<i>▶</i></span><strong>{item.title}</strong><small>{item.artist}</small><em>{item.provider}</em></button>)}</div>
+   {!recommended.length&&!loading&&<p className="hd-note">External discovery is not configured yet. Add the provider API keys in Vercel to activate it.</p>}
+  </section>
+  {localPicks.length>0&&<section className="hd-section"><div className="hd-heading"><div><span>FROM YOUR KUS-LORDS LISTENING</span><h2>{history.length?"Your familiar sounds":"Popular in Kus-Lords"}</h2></div></div><div className="hd-grid">{localPicks.map(track=><button className="hd-card" key={track.id} onClick={()=>{const item:ExternalPlaybackItem={id:track.id,title:track.title,artist:track.artist,coverUrl:track.cover,embedUrl:track.audioUrl,openUrl:track.audioUrl,platform:"KUS Music",kind:"track"};onOpenExternal(item)}}><span className="hd-art">{track.cover?<img src={track.cover} alt=""/>:<b>♫</b>}<i>▶</i></span><strong>{track.title}</strong><small>{track.artist}</small><em>KUS catalogue</em></button>)}</div></section>}
+  {feed?.videos.length? <section className="hd-section"><div className="hd-heading"><div><span>OFFICIAL EMBEDDED VIDEOS</span><h2>Watch something new</h2></div></div><div className="hd-video-grid">{feed.videos.slice(0,6).map(video=><button key={video.id} className="hd-video" onClick={()=>open(video)}><span>{video.artwork?<img src={video.artwork} alt=""/>:null}<i>▶</i></span><strong>{video.title}</strong><small>{video.artist} · {video.provider}</small></button>)}</div></section>:null}
+  {feed?.artists.length?<section className="hd-section"><div className="hd-heading"><div><span>MEET THE PEOPLE BEHIND THE MUSIC</span><h2>Artist profiles</h2><p>Profiles are assembled from provider metadata. They are not KUS-verified artist accounts.</p></div></div><div className="hd-artist-grid">{feed.artists.slice(0,12).map(artist=><a key={artist.id} className="hd-artist" href={artist.openUrl} target="_blank" rel="noopener noreferrer">{artist.artwork?<img src={artist.artwork} alt=""/>:<span>🎤</span>}<strong>{artist.name}</strong><small>{artist.genres.slice(0,2).join(" · ")||artist.provider}</small><em>View artist ↗</em></a>)}</div></section>:null}
+ </div>
+}
