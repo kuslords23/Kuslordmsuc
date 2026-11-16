@@ -62,6 +62,14 @@ async function persistArtists(artists:DiscoveredArtist[]):Promise<boolean>{
   const response=await fetch(root+"/rest/v1/music_discovered_artists?on_conflict=provider,provider_artist_id",{method:"POST",headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(rows)})
   return response.ok
 }
+async function loadPersistedArtists():Promise<DiscoveredArtist[]>{
+  const root=(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||"").replace(/\\/$/,""),key=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SECRET_KEY
+  if(!root||!key)return[]
+  const response=await fetch(root+"/rest/v1/music_discovered_artists?select=provider,provider_artist_id,name,artwork_url,embed_url,profile_url,genres,popularity&order=last_seen_at.desc&limit=36",{headers:{apikey:key,Authorization:"Bearer "+key}})
+  if(!response.ok)return[]
+  const rows=await response.json() as any[]
+  return rows.map(row=>({id:row.provider+":"+row.provider_artist_id,name:row.name,artwork:row.artwork_url||"",embedUrl:row.embed_url||"",openUrl:row.profile_url||"",provider:row.provider,providerId:row.provider_artist_id,genres:Array.isArray(row.genres)?row.genres:[],popularity:row.popularity??undefined}))
+}
 export default async function handler(req:Req,res:Res){
   res.setHeader("Cache-Control","public, s-maxage=21600, stale-while-revalidate=86400")
   res.setHeader("Vary","Accept-Encoding")
@@ -74,5 +82,7 @@ export default async function handler(req:Req,res:Res){
   const unique=(items:any[])=>Array.from(new Map(items.map(item=>[item.id,item])).values())
   const tracks=unique(results.flatMap(r=>r.tracks)).slice(0,24),videos=unique(results.flatMap(r=>r.videos)).slice(0,18),artists=unique(results.flatMap(r=>r.artists)).slice(0,24)
   const profilesPersisted=await persistArtists(artists).catch(()=>false)
-  return res.status(200).json({ok:true,tracks,videos,artists,profilesPersisted,generatedAt:new Date().toISOString(),regions:["Ghana","Africa","International"]})
+  const storedArtists=profilesPersisted?await loadPersistedArtists().catch(()=>[]):[]
+  const artistProfiles=storedArtists.length?storedArtists:artists
+  return res.status(200).json({ok:true,tracks,videos,artists:artistProfiles,profilesPersisted,generatedAt:new Date().toISOString(),regions:["Ghana","Africa","International"]})
 }
