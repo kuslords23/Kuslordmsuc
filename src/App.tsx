@@ -838,6 +838,7 @@ export default function App() {
               onUpdateVisibility={handleUpdatePlaylistVisibility}
               onMoveTrack={handleMovePlaylistTrack}
               onPlay={playTrack}
+              onRefresh={refreshPlaylists}
             />
     </div>
   )
