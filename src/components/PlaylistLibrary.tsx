@@ -1,7 +1,7 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { Track } from '../data/music'
 import { recordCloudPlaylistPlay } from '../lib/playlists'
-import type { MusicPlaylist } from '../lib/playlists'
+import { fetchPlaylistCollaborators, fetchMyPlaylistInvites, invitePlaylistCollaborator, respondToPlaylistInvite, setPlaylistCollaborative, type MusicPlaylist, type PlaylistCollaborator } from '../lib/playlists'
 
 interface PlaylistLibraryProps {
   playlists: MusicPlaylist[]
@@ -26,7 +26,12 @@ export default function PlaylistLibrary({
   const [trackToAdd, setTrackToAdd] = useState('')
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [inviteUsername,setInviteUsername]=useState('')
+  const [collaborators,setCollaborators]=useState<PlaylistCollaborator[]>([])
+  const [invites,setInvites]=useState<Array<{playlistId:string;playlistName:string;invitedBy:string}>>([])
   const selected = playlists.find((playlist) => playlist.id === selectedId) || null
+  useEffect(()=>{ void fetchMyPlaylistInvites().then(setInvites).catch(()=>setInvites([])) },[playlists])
+  useEffect(()=>{ if(selected) void fetchPlaylistCollaborators(selected.id).then(setCollaborators).catch(cause=>setActionError(cause instanceof Error?cause.message:'Could not load collaborators.')); else setCollaborators([]) },[selected?.id])
   const selectedTracks = useMemo(
     () => selected ? selected.trackIds.map((id) => tracks.find((track) => (track.postId || track.id) === id)).filter((track): track is Track => Boolean(track)) : [],
     [selected, tracks],
@@ -118,6 +123,11 @@ export default function PlaylistLibrary({
         <button className="back-btn" onClick={() => setSelectedId(null)}>← All Playlists</button>
         <div className="section-title"><h2>{selected.name}</h2><span>{selectedTracks.length} tracks</span></div>
         <label className="playlist-visibility-control">Visibility <select value={selected.visibility || "private"} onChange={event => { void updateVisibility(event.target.value as "private" | "public") }} disabled={busy}><option value="private">Private</option><option value="public">Public</option></select></label>
+        <section className="playlist-collaboration">
+          <h3>Collaborative playlist</h3>
+          <label><input type="checkbox" checked={selected.isCollaborative} disabled={busy} onChange={async event=>{setBusy(true);setActionError('');try{await setPlaylistCollaborative(selected.id,event.target.checked)}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not update collaboration.')}finally{setBusy(false)}}}/> Allow invited editors to add and arrange tracks</label>
+          {selected.isCollaborative&&<><div className="playlist-add-row"><input value={inviteUsername} onChange={event=>setInviteUsername(event.target.value)} placeholder="Invite by Kus-Lords username"/><button disabled={busy||!inviteUsername.trim()} onClick={async()=>{setBusy(true);setActionError('');try{await invitePlaylistCollaborator(selected.id,inviteUsername);setInviteUsername('');setCollaborators(await fetchPlaylistCollaborators(selected.id))}catch(cause){setActionError(cause instanceof Error?cause.message:'Invitation failed.')}finally{setBusy(false)}}}>Invite</button></div><div className="playlist-collaborator-list">{collaborators.map(person=><div key={person.userId}><strong>@{person.username}</strong><small>{person.role} · {person.status}</small></div>)}{!collaborators.length&&<small>No collaborators invited yet.</small>}</div></>}
+        </section>
         <div className="playlist-add-row">
           <select value={trackToAdd} onChange={(event) => setTrackToAdd(event.target.value)}>
             <option value="">Choose a published track…</option>
@@ -153,6 +163,7 @@ export default function PlaylistLibrary({
         <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Give your playlist a name" maxLength={64} />
         <button type="submit" disabled={!name.trim() || playlists.length >= 30 || busy}>Create</button>
       </form>
+      {invites.length>0&&<section className="playlist-invitations"><h3>Playlist invitations</h3>{invites.map(invite=><div key={invite.playlistId}><span><strong>{invite.playlistName}</strong><small>Invited to collaborate</small></span><button onClick={async()=>{try{await respondToPlaylistInvite(invite.playlistId,true);setInvites(await fetchMyPlaylistInvites())}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not accept invitation.')}}}>Accept</button><button onClick={async()=>{try{await respondToPlaylistInvite(invite.playlistId,false);setInvites(await fetchMyPlaylistInvites())}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not decline invitation.')}}}>Decline</button></div>)}</section>}
       {actionError && <p className="alert error" role="alert">{actionError}</p>}
       {error && <p className="alert error" role="alert">{error}</p>}
       {loading ? <p className="empty">Loading cloud playlists…</p> : playlists.length ? (
