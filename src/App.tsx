@@ -774,7 +774,7 @@ export default function App() {
         history={recentHistory}
         onPlayTrack={(track, queue) => playTrack(track, queue)}
         onOpenExternal={(item) => {
-          setActiveExternalHit(item)
+          setActiveExternalHit({ ...item, duration: item.duration || 0 })
           setRecentHistory(previous => recordExternalTrack(previous, { ...item, duration: item.duration || 0 }))
         }}
       />
