@@ -22,10 +22,12 @@ import TrendFollowPanel from './components/TrendFollowPanel'
 import RecentlyPlayed from './components/RecentlyPlayed'
 import MusicVideos from './components/MusicVideos'
 import ExternalPlayerDock from './components/ExternalPlayerDock'
+import SettingsPage from './components/SettingsPage'
+import { applyMusicTheme, readLocalMusicSettings } from './lib/userSettings'
 import { readMusicHistory, recordKusTrack, recordExternalTrack, type MusicHistoryEntry } from './lib/musicHistory'
 import './index.css'
 
-type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'videos' | 'more'
+type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'videos' | 'more' | 'settings'
 type ExternalCatalogHit = {
   id: string
   title: string
@@ -47,6 +49,7 @@ const formatTime = (seconds: number): string => {
 
 export default function App() {
   const { user, signOut } = useAuth()
+  useEffect(() => { applyMusicTheme(readLocalMusicSettings().appearance.theme) }, [])
 
   // The shared Supabase audio feed is the only catalogue source.
   const [tracks, setTracks] = useState<Track[]>([])
@@ -863,6 +866,7 @@ export default function App() {
           ['library', '📚', 'Library', 'Your saved and recently added music.'],
           ['artists', '🎤', 'Artists', 'Discover artists and manage follows.'],
           ['videos', '🎬', 'Music Videos', 'Discover and watch official music videos.'],
+          ['settings', '⚙', 'Settings', 'Appearance, playback, privacy and Royal preferences.'],
         ] as const).map(([tab, icon, title, description]) => (
           <button type="button" className="more-nav-card" key={tab} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}>
             <span className="more-nav-icon">{icon}</span>
@@ -1102,6 +1106,7 @@ export default function App() {
               {activeTab === 'artists' && renderArtists()}
               {activeTab === 'videos' && <MusicVideos onPlayVideo={(video) => { setActiveExternalHit({ ...video, kind: 'track', duration: 0 }); setRecentHistory(previous => recordExternalTrack(previous, { ...video, kind: 'track', duration: 0, platform: 'YouTube' })); }} />}
               {activeTab === 'more' && renderMore()}
+              {activeTab === 'settings' && <SettingsPage />}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'studio' && (
                 <Studio
