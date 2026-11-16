@@ -1283,3 +1283,56 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .queue-track-row>button:not(:first-child){border:1px solid var(--border,#ffffff20);border-radius:9px;padding:5px 9px}
 .queue-track-row>button:disabled{opacity:.3}
 .msf-compose>div select{flex:1;min-width:0}
+
+
+/* KUS Music visual system: deep charcoal, frosted surfaces and spring-like motion. */
+:root {
+  --kus-glass: rgba(255,255,255,.055);
+  --kus-glass-strong: rgba(255,255,255,.085);
+  --kus-glass-border: rgba(255,255,255,.11);
+  --kus-glow: 0 18px 55px rgba(0,0,0,.28);
+  --kus-spring: cubic-bezier(.2,.85,.25,1.18);
+}
+button, a, input, select { -webkit-tap-highlight-color: transparent; }
+button, .album-card, .radio-card, .playlist-library-card, .more-nav-card, .track-row-compact {
+  transition: transform .28s var(--kus-spring), background-color .24s ease, border-color .24s ease, box-shadow .28s ease, color .2s ease;
+}
+button:active, .album-card:active, .radio-card:active, .playlist-library-card:active, .more-nav-card:active { transform: scale(.975); }
+.mobile-content { isolation:isolate; }
+.mobile-content > * { animation: kusScreenEnter .42s var(--kus-spring) both; }
+@keyframes kusScreenEnter { from { opacity:0; transform:translateY(10px) scale(.992); filter:blur(5px); } to { opacity:1; transform:translateY(0) scale(1); filter:blur(0); } }
+.mobile-hero {
+  background: radial-gradient(ellipse at 82% 0%,rgba(250,45,108,.34),transparent 48%), radial-gradient(ellipse at 8% 100%,rgba(52,115,255,.2),transparent 45%), linear-gradient(135deg,rgba(28,29,39,.96),rgba(14,15,22,.94));
+  border:1px solid var(--kus-glass-border); box-shadow:var(--kus-glow); backdrop-filter:blur(24px);
+}
+.album-card, .radio-card, .playlist-library-card, .more-nav-card, .track-row-compact, .playlist-collaboration, .playlist-invitations {
+  background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.025));
+  border:1px solid var(--kus-glass-border); box-shadow:0 8px 28px rgba(0,0,0,.16); backdrop-filter:blur(18px);
+}
+.album-card:hover, .radio-card:hover, .playlist-library-card:hover, .more-nav-card:hover { transform:translateY(-3px) scale(1.012); border-color:rgba(250,45,108,.35); box-shadow:0 14px 36px rgba(0,0,0,.3),0 0 28px rgba(250,45,108,.08); }
+.genre-chip, .lib-seg-btn { background:var(--kus-glass); border-color:var(--kus-glass-border); backdrop-filter:blur(16px); }
+.genre-chip:active, .lib-seg-btn:active { background:linear-gradient(110deg,#fa2d6c,#fc6f60); }
+.mini-player {
+  background:rgba(19,20,28,.82); border:1px solid rgba(255,255,255,.14); border-bottom:0;
+  border-radius:18px 18px 0 0; margin:0 8px; left:0; right:0; width:calc(100% - 16px);
+  box-shadow:0 -10px 40px rgba(0,0,0,.3); backdrop-filter:blur(28px) saturate(1.4);
+}
+.mini-player .mini-cover { box-shadow:0 4px 18px rgba(0,0,0,.3); }
+.mini-ctrl { background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.08); }
+.mini-ctrl:active { transform:scale(.88); background:rgba(250,45,108,.25); }
+.bottom-nav { background:rgba(9,10,16,.82); border-top:1px solid rgba(255,255,255,.1); backdrop-filter:blur(30px) saturate(1.5); }
+.nav-tab.active .nav-icon { filter:drop-shadow(0 0 10px rgba(250,45,108,.6)); }
+.full-player-overlay { background:rgba(3,4,9,.72); backdrop-filter:blur(28px) saturate(1.4); animation:kusFadeIn .28s ease both; }
+.full-player { animation:kusPlayerExpand .55s var(--kus-spring) both; }
+.full-player-bg { filter:blur(55px) saturate(1.5); opacity:.55; transform:scale(1.2); }
+.full-artwork { border-radius:26px; box-shadow:0 28px 70px rgba(0,0,0,.48),0 0 50px rgba(250,45,108,.12); }
+.full-player-content { position:relative; }
+.full-controls .ctrl-lg { box-shadow:0 8px 30px rgba(250,45,108,.32); transition:transform .25s var(--kus-spring); }
+.full-controls .ctrl-lg:active { transform:scale(.9); }
+@keyframes kusFadeIn { from{opacity:0}to{opacity:1} }
+@keyframes kusPlayerExpand { from{opacity:0;transform:translateY(36px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)} }
+:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } }
+:root[data-theme="light"] .mini-player { background:rgba(250,250,253,.88); border-color:rgba(20,20,30,.12); }
+:root[data-theme="light"] .bottom-nav { background:rgba(250,250,253,.88); border-color:rgba(20,20,30,.1); }
+:root[data-theme="light"] .album-card, :root[data-theme="light"] .radio-card, :root[data-theme="light"] .playlist-library-card, :root[data-theme="light"] .more-nav-card, :root[data-theme="light"] .track-row-compact { background:linear-gradient(145deg,rgba(255,255,255,.92),rgba(245,246,250,.82)); border-color:rgba(20,20,30,.09); box-shadow:0 8px 26px rgba(30,35,50,.07); }
