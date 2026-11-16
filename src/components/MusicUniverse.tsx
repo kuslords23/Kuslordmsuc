@@ -70,7 +70,13 @@ export default function MusicUniverse({ tracks, artists, userId, onPlay }: Props
     if (!supabase) return
     const { data, error } = await supabase.from('music_podcast_episodes').select('id,show_id,title,description,audio_url,cover_url,duration_seconds,published_at').eq('show_id', showId).eq('is_published', true).order('published_at', { ascending: false })
     if (error) setMessage('Episodes could not be loaded: ' + error.message)
-    else setEpisodes(data || [])
+    else {
+      setEpisodes(data || [])
+      if(userId && data?.length){
+        const progress=await supabase.from('music_podcast_progress').select('episode_id,position_seconds').eq('user_id',userId).in('episode_id',data.map(episode=>episode.id))
+        if(!progress.error)setEpisodeProgress(current=>({...current,...Object.fromEntries((progress.data||[]).map(row=>[row.episode_id,Number(row.position_seconds)||0]))}))
+      }
+    }
   }
 
   const toggleFollow = async (artistId: string) => {
