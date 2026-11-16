@@ -98,6 +98,30 @@ export default function App() {
   const repeatRef = useRef(false)
 
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !currentTrack) return
+    const session = navigator.mediaSession
+    if ('MediaMetadata' in window) {
+      session.metadata = new MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: currentTrack.album || 'Kus-Lords Music',
+        artwork: currentTrack.cover?.startsWith('http') ? [{ src: currentTrack.cover, sizes: '512x512' }] : [],
+      })
+    }
+    const handlers: Array<[MediaSessionAction, MediaSessionActionHandler]> = [
+      ['play', () => { void audioRef.current?.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false)) }],
+      ['pause', () => { audioRef.current?.pause(); setIsPlaying(false) }],
+      ['nexttrack', () => nextTrack()],
+      ['previoustrack', () => prevTrack()],
+      ['seekto', details => { if (typeof details.seekTime === 'number') handleSeek(details.seekTime) }],
+    ]
+    handlers.forEach(([action,handler]) => { try { session.setActionHandler(action,handler) } catch { /* Unsupported action on this device. */ } })
+    if (duration > 0 && Number.isFinite(currentTime)) {
+      try { session.setPositionState({ duration, playbackRate: audioRef.current?.playbackRate || 1, position: Math.min(currentTime,duration) }) } catch { /* Position state is optional. */ }
+    }
+    return () => handlers.forEach(([action]) => { try { session.setActionHandler(action,null) } catch { /* Ignore unsupported actions. */ } })
+  }, [currentTrack, currentTime, duration, nextTrack, prevTrack])
   useEffect(() => { setRecentHistory(readMusicHistory()) }, [])
   useEffect(() => { queueRef.current = queue }, [queue])
   useEffect(() => { shuffleRef.current = shuffleEnabled }, [shuffleEnabled])
