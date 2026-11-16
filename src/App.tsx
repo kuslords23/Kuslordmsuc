@@ -82,6 +82,9 @@ export default function App() {
   const [muted, setMuted] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [miniPlayerOpen, setMiniPlayerOpen] = useState(false)
+  const [playerPanel,setPlayerPanel]=useState<'queue'|'lyrics'|null>(null)
+  const [sleepMinutes,setSleepMinutes]=useState(0)
+  const sleepTimerRef=useRef<number|null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
@@ -98,6 +101,7 @@ export default function App() {
   useEffect(() => { queueRef.current = queue }, [queue])
   useEffect(() => { shuffleRef.current = shuffleEnabled }, [shuffleEnabled])
   useEffect(() => { repeatRef.current = repeatEnabled }, [repeatEnabled])
+  useEffect(()=>()=>{if(sleepTimerRef.current!==null)window.clearTimeout(sleepTimerRef.current)},[])
   useEffect(() => { if (audioRef.current) audioRef.current.muted = muted }, [muted])
 
   // Load the live SCN-compatible audio inventory. Empty/error states stay empty.
@@ -993,7 +997,7 @@ export default function App() {
             <div className="full-player-top">
               <button className="collapse-btn" onClick={() => setMiniPlayerOpen(false)}>▼</button>
               <span className="now-playing-label">NOW PLAYING</span>
-              <button className="queue-btn" onClick={() => setMiniPlayerOpen(false)}>☰</button>
+              <button className="queue-btn" onClick={() => setPlayerPanel(panel=>panel==='queue'?null:'queue')} aria-label="Toggle queue">☰</button>
             </div>
             <div
               className="full-artwork"
@@ -1038,9 +1042,14 @@ export default function App() {
                 className="vol-range"
               />
             </div>
-            <div className="audio-source">
-              <span>Audio Output: Device Speakers</span>
+            <div className="full-player-extras">
+              <button onClick={()=>setPlayerPanel(panel=>panel==='lyrics'?null:'lyrics')}>Lyrics</button>
+              <label>Sleep timer <select value={sleepMinutes} onChange={event=>{const minutes=Number(event.target.value);setSleepMinutes(minutes);if(sleepTimerRef.current!==null)window.clearTimeout(sleepTimerRef.current);sleepTimerRef.current=minutes?window.setTimeout(()=>{audioRef.current?.pause();setIsPlaying(false);setSleepMinutes(0);sleepTimerRef.current=null},minutes*60*1000):null}}><option value={0}>Off</option><option value={5}>5 min</option><option value={15}>15 min</option><option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>60 min</option></select></label>
+              <button onClick={()=>setPlayerPanel(panel=>panel==='queue'?null:'queue')}>Queue ({queue.length})</button>
             </div>
+            {playerPanel==='lyrics'&&<section className="player-detail-panel"><h3>Lyrics</h3>{currentTrack.lyrics?<pre>{currentTrack.lyrics}</pre>:<p>Lyrics are not available for this track.</p>}</section>}
+            {playerPanel==='queue'&&<section className="player-detail-panel"><div className="section-title"><h3>Up next</h3><button onClick={()=>setQueue(currentTrack?[currentTrack]:[])}>Clear queue</button></div>{queue.map((track,index)=><div className="queue-track-row" key={track.id}><button onClick={()=>playTrack(track,queue)}><strong>{track.title}</strong><small>{track.artist}</small></button><span>{index===queue.findIndex(item=>item.id===currentTrack.id)?'Playing':''}</span><button aria-label={'Remove '+track.title} onClick={()=>setQueue(items=>items.filter(item=>item.id!==track.id))}>×</button></div>)}{!queue.length&&<p>Queue is empty.</p>}</section>}
+            <div className="audio-source"><span>Audio Output: Device Speakers</span></div>
           </div>
         </div>
       </div>
