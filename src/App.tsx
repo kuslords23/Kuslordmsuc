@@ -473,7 +473,7 @@ export default function App() {
       ['pause', () => { audioRef.current?.pause(); setIsPlaying(false) }],
       ['nexttrack', () => nextTrack()],
       ['previoustrack', () => prevTrack()],
-      ['seekto', details => { if (typeof details.seekTime === 'number') handleSeek(details.seekTime) }],
+      ['seekto', details => { if (typeof details.seekTime === 'number' && audioRef.current) { audioRef.current.currentTime = details.seekTime; setCurrentTime(details.seekTime) } }],
     ]
     handlers.forEach(([action,handler]) => { try { session.setActionHandler(action,handler) } catch { /* Unsupported action on this device. */ } })
     if (duration > 0 && Number.isFinite(currentTime)) {
