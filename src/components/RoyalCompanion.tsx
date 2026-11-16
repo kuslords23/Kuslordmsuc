@@ -253,7 +253,3 @@ export default function RoyalCompanion({ activeTab, currentTrack }: Props) {
     </>
   )
 }
-
-function streamedFallback(): boolean {
-  return true
-}
