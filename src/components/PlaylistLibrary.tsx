@@ -15,6 +15,7 @@ interface PlaylistLibraryProps {
   onUpdateVisibility: (playlistId: string, visibility: 'private' | 'public') => Promise<void>
   onMoveTrack: (playlistId: string, trackId: string, direction: -1 | 1) => Promise<void>
   onPlay: (track: Track, queue: Track[]) => void
+  onRefresh?: () => Promise<void>
 }
 
 export default function PlaylistLibrary({
@@ -164,7 +165,7 @@ export default function PlaylistLibrary({
         <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Give your playlist a name" maxLength={64} />
         <button type="submit" disabled={!name.trim() || playlists.length >= 30 || busy}>Create</button>
       </form>
-      {invites.length>0&&<section className="playlist-invitations"><h3>Playlist invitations</h3>{invites.map(invite=><div key={invite.playlistId}><span><strong>{invite.playlistName}</strong><small>Invited to collaborate</small></span><button onClick={async()=>{try{await respondToPlaylistInvite(invite.playlistId,true);setInvites(await fetchMyPlaylistInvites())}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not accept invitation.')}}}>Accept</button><button onClick={async()=>{try{await respondToPlaylistInvite(invite.playlistId,false);setInvites(await fetchMyPlaylistInvites())}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not decline invitation.')}}}>Decline</button></div>)}</section>}
+      {invites.length>0&&<section className="playlist-invitations"><h3>Playlist invitations</h3>{invites.map(invite=><div key={invite.playlistId}><span><strong>{invite.playlistName}</strong><small>Invited to collaborate</small></span><button onClick={async()=>{try{await respondToPlaylistInvite(invite.playlistId,true);await onRefresh?.();setInvites(await fetchMyPlaylistInvites())}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not accept invitation.')}}}>Accept</button><button onClick={async()=>{try{await respondToPlaylistInvite(invite.playlistId,false);setInvites(await fetchMyPlaylistInvites())}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not decline invitation.')}}}>Decline</button></div>)}</section>}
       {actionError && <p className="alert error" role="alert">{actionError}</p>}
       {error && <p className="alert error" role="alert">{error}</p>}
       {loading ? <p className="empty">Loading cloud playlists…</p> : playlists.length ? (
