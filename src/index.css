@@ -1255,3 +1255,24 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 :root[data-theme="light"] input,
 :root[data-theme="light"] textarea,
 :root[data-theme="light"] select { color:var(--text); }
+
+/* Music platform completion: player detail panels and playlist collaboration */
+.full-player-extras{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0}
+.full-player-extras button,.full-player-extras select{border:1px solid var(--border,#ffffff28);border-radius:20px;padding:9px 13px;background:var(--card,#202126);color:var(--text,#fff)}
+.full-player-extras label{display:flex;align-items:center;gap:7px;color:var(--muted,#aaa);font-size:12px}
+.player-detail-panel{width:min(100%,620px);max-height:32vh;overflow:auto;margin:12px auto;padding:16px;border:1px solid var(--border,#ffffff22);border-radius:16px;background:var(--card,#202126);text-align:left}
+.player-detail-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.65;color:var(--text,#fff)}
+.queue-track-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border,#ffffff18)}
+.queue-track-row>button:first-child{display:grid;flex:1;min-width:0;text-align:left;background:none;border:0;color:inherit}
+.queue-track-row small{color:var(--muted,#aaa)}
+.queue-track-row>button:last-child{background:none;border:0;color:var(--muted,#aaa);font-size:18px}
+.playlist-collaboration,.playlist-invitations{margin:18px 0;padding:16px;border:1px solid var(--border,#ffffff22);border-radius:14px;background:var(--card,#202126)}
+.playlist-collaboration h3,.playlist-invitations h3{margin-top:0}
+.playlist-collaboration>label{display:flex;align-items:center;gap:9px;font-size:13px}
+.playlist-collaboration input[type=checkbox]{width:auto}
+.playlist-collaboration .playlist-add-row input{min-width:0;flex:1}
+.playlist-collaborator-list{display:grid;gap:8px;margin-top:12px}
+.playlist-collaborator-list>div,.playlist-invitations>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0}
+.playlist-collaborator-list small,.playlist-invitations small{display:block;color:var(--muted,#aaa);font-size:11px}
+.playlist-invitations>div span{flex:1}
+@media(max-width:650px){.full-player-extras{gap:6px}.full-player-extras button,.full-player-extras select{padding:8px 10px}.player-detail-panel{max-height:28vh}.playlist-collaboration .playlist-add-row{flex-direction:column}.playlist-invitations>div{flex-wrap:wrap}}
