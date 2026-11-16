@@ -28,13 +28,14 @@ export default function RoyalCompanion({ activeTab, currentTrack }: Props) {
   const [error, setError] = useState("")
   const [meta, setMeta] = useState<RoyalMeta>({})
   const [showContext, setShowContext] = useState(false)
+  const [studioContext, setStudioContext] = useState("")
   const turnsEndRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const turnsRef = useRef(turns)
   const mountedRef = useRef(true)
 
   useEffect(() => { turnsRef.current = turns }, [turns])
-  useEffect(() => { const openRoyal = () => setOpen(true); window.addEventListener("kus-open-royal", openRoyal); return () => window.removeEventListener("kus-open-royal", openRoyal) }, [])
+  useEffect(() => { const openRoyal = (event: Event) => { setOpen(true); const detail = (event as CustomEvent<{projectTitle?:string;tempo?:number;trackCount?:number}>).detail; if (detail) setStudioContext("Studio project: " + (detail.projectTitle || "Untitled") + ", " + detail.tempo + " BPM, " + detail.trackCount + " lanes."); }; window.addEventListener("kus-open-royal", openRoyal); return () => window.removeEventListener("kus-open-royal", openRoyal) }, [])
   useEffect(() => () => {
     mountedRef.current = false
     abortRef.current?.abort()
@@ -83,6 +84,7 @@ export default function RoyalCompanion({ activeTab, currentTrack }: Props) {
             "The user is inside Kus-Lords Music.",
             "Current app section: " + activeTab + ".",
             "Currently selected track: " + (currentTrack ? currentTrack.title + " by " + currentTrack.artist + (currentTrack.album ? " from " + currentTrack.album : "") : "none") + ".",
+            studioContext,
             "Help with music discovery, listening, playlists, music production, arrangement, mixing, and the Music Studio. Use only capabilities actually available through the shared KUS runtime.",
             "User message: " + text,
           ].join("\n"),
@@ -170,7 +172,7 @@ export default function RoyalCompanion({ activeTab, currentTrack }: Props) {
         setStreamingAnswer("")
       }
     }
-  }, [prompt, busy, activeTab, currentTrack])
+  }, [prompt, busy, activeTab, currentTrack, studioContext])
 
   const clearConversation = () => {
     if (busy) return
@@ -204,6 +206,7 @@ export default function RoyalCompanion({ activeTab, currentTrack }: Props) {
               <strong>Music context</strong>
               <span>Section: {activeTab}</span>
               <span>Track: {currentTrack ? currentTrack.title + " · " + currentTrack.artist : "Nothing selected"}</span>
+              {studioContext && <span>{studioContext}</span>}
               <small>Royal receives this music context with your prompt. Your private music data remains subject to KUS Core identity and access controls.</small>
             </aside>
           )}
