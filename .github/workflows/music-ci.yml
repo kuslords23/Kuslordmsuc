@@ -2,7 +2,9 @@ name: Kus-Lords Music CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/music-platform-mega-batch]
+  pull_request:
+    branches: [main, feat/royal-music-experience, feat/music-videos]
 
 concurrency:
   group: kus-music-ci-${{ github.ref }}
