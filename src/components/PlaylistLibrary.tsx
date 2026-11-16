@@ -122,12 +122,13 @@ export default function PlaylistLibrary({
       <div className="playlist-library">
         <button className="back-btn" onClick={() => setSelectedId(null)}>← All Playlists</button>
         <div className="section-title"><h2>{selected.name}</h2><span>{selectedTracks.length} tracks</span></div>
-        <label className="playlist-visibility-control">Visibility <select value={selected.visibility || "private"} onChange={event => { void updateVisibility(event.target.value as "private" | "public") }} disabled={busy}><option value="private">Private</option><option value="public">Public</option></select></label>
-        <section className="playlist-collaboration">
+        {selected.isUserPlaylist&&<label className="playlist-visibility-control">Visibility <select value={selected.visibility || "private"} onChange={event => { void updateVisibility(event.target.value as "private" | "public") }} disabled={busy}><option value="private">Private</option><option value="public">Public</option></select></label>}
+        {selected.isUserPlaylist&&<section className="playlist-collaboration">
           <h3>Collaborative playlist</h3>
           <label><input type="checkbox" checked={selected.isCollaborative} disabled={busy} onChange={async event=>{setBusy(true);setActionError('');try{await setPlaylistCollaborative(selected.id,event.target.checked)}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not update collaboration.')}finally{setBusy(false)}}}/> Allow invited editors to add and arrange tracks</label>
           {selected.isCollaborative&&<><div className="playlist-add-row"><input value={inviteUsername} onChange={event=>setInviteUsername(event.target.value)} placeholder="Invite by Kus-Lords username"/><button disabled={busy||!inviteUsername.trim()} onClick={async()=>{setBusy(true);setActionError('');try{await invitePlaylistCollaborator(selected.id,inviteUsername);setInviteUsername('');setCollaborators(await fetchPlaylistCollaborators(selected.id))}catch(cause){setActionError(cause instanceof Error?cause.message:'Invitation failed.')}finally{setBusy(false)}}}>Invite</button></div><div className="playlist-collaborator-list">{collaborators.map(person=><div key={person.userId}><strong>@{person.username}</strong><small>{person.role} · {person.status}</small></div>)}{!collaborators.length&&<small>No collaborators invited yet.</small>}</div></>}
-        </section>
+        </section>}
+        {!selected.isUserPlaylist&&<p className="caption">Shared playlist · invited editor access</p>}
         <div className="playlist-add-row">
           <select value={trackToAdd} onChange={(event) => setTrackToAdd(event.target.value)}>
             <option value="">Choose a published track…</option>
@@ -151,7 +152,7 @@ export default function PlaylistLibrary({
           </div>
         ) : <p className="empty">This cloud playlist is empty. Add a published track from the library.</p>}
         {actionError && <p className="alert error" role="alert">{actionError}</p>}
-        <button className="playlist-delete" onClick={() => void removePlaylist()} disabled={busy}>Delete playlist</button>
+        {selected.isUserPlaylist&&<button className="playlist-delete" onClick={() => void removePlaylist()} disabled={busy}>Delete playlist</button>}
       </div>
     )
   }
