@@ -14,7 +14,7 @@ function oauthHeader(method:"GET"|"POST",url:string,params:Record<string,string>
  return "OAuth "+Object.keys(oauth).sort().map(k=>encodeURIComponent(k)+'="'+encodeURIComponent(oauth[k])+'"').join(", ")
 }
 async function request(path:string,method:"GET"|"POST"="GET",params:Record<string,string>={}):Promise<any>{
- const url=API+path,header=oauthHeader(method,url,method==="GET"?params:{})
+ const url=API+path,header=oauthHeader(method,url,params)
  if(!header)throw new Error("Audiomack API credentials are not configured.")
  const target=method==="GET"?url+"?"+new URLSearchParams(params).toString():url
  const response=await fetch(target,{method,headers:{Authorization:header,Accept:"application/json","Content-Type":"application/x-www-form-urlencoded"},body:method==="POST"?new URLSearchParams(params).toString():undefined})
