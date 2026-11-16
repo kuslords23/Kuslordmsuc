@@ -83,10 +83,8 @@ export async function addCloudPlaylistTrack(playlistId: string, track: Track, po
     position: Math.max(0, position),
   })
   if (error && !/duplicate|unique/i.test(error.message)) throw new Error(`Could not add track: ${error.message}`)
-  const { error: updateError } = await supabase!.from('music_playlists')
-    .update({ cover_url: track.cover || null, updated_at: new Date().toISOString() })
-    .eq('id', playlistId)
-  if (updateError) throw new Error(`Track was added, but playlist metadata could not refresh: ${updateError.message}`)
+  // Track rows are the source of truth for shared playlists. Do not attempt
+  // owner-only playlist metadata writes when an invited editor adds a track.
 }
 
 export async function removeCloudPlaylistTrack(playlistId: string, trackId: string): Promise<void> {
