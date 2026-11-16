@@ -15,7 +15,9 @@ type SearchResponse = {
   hint?: string
 }
 
-type Props = { onPlayVideo: (video: MusicVideo) => void }\n\nexport default function MusicVideos({ onPlayVideo }: Props) {
+type Props = { onPlayVideo: (video: MusicVideo) => void }
+
+export default function MusicVideos({ onPlayVideo }: Props) {
   const [query, setQuery] = useState('official music video')
   const [videos, setVideos] = useState<MusicVideo[]>([])
   const [selected, setSelected] = useState<MusicVideo | null>(null)
