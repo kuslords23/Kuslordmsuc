@@ -1168,6 +1168,7 @@ export default function App() {
             <strong>{currentTrack.title}</strong>
             <span>{currentTrack.artist}</span>
           </div>
+          <span className="mini-progress" style={{ width: `${duration > 0 ? Math.min(100, currentTime / duration * 100) : 0}%` }} />
           <button className="mini-ctrl" onClick={(e) => { e.stopPropagation(); togglePlay() }}>
             {isPlaying ? '❚❚' : '▶'}
           </button>
