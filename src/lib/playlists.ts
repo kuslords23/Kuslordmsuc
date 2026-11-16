@@ -25,21 +25,24 @@ async function requireUser() {
 
 export async function fetchMusicPlaylists(): Promise<MusicPlaylist[]> {
   const user = await requireUser()
-  const { data, error } = await supabase!
-    .from('music_playlists')
-    .select('id,name,description,cover_url,visibility,is_collaborative,created_at,updated_at')
-    .eq('user_id', user.id)
-    .order('updated_at', { ascending: false })
-    .limit(30)
-  if (error) throw new Error(`Could not load cloud playlists: ${error.message}`)
-  const rows = data || []
+  const [ownedResult, collaborationResult] = await Promise.all([
+    supabase!.from('music_playlists').select('id,user_id,name,description,cover_url,visibility,is_collaborative,created_at,updated_at').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(30),
+    supabase!.from('music_playlist_collaborators').select('playlist_id').eq('user_id', user.id).eq('status', 'accepted'),
+  ])
+  if (ownedResult.error) throw new Error(`Could not load cloud playlists: ${ownedResult.error.message}`)
+  if (collaborationResult.error) throw new Error(`Could not load shared playlists: ${collaborationResult.error.message}`)
+  const sharedIds = (collaborationResult.data || []).map(row => row.playlist_id)
+  const ownRows = ownedResult.data || []
+  const sharedResult = sharedIds.length
+    ? await supabase!.from('music_playlists').select('id,user_id,name,description,cover_url,visibility,is_collaborative,created_at,updated_at').in('id', sharedIds)
+    : { data: [], error: null }
+  if (sharedResult.error) throw new Error(`Could not load shared playlists: ${sharedResult.error.message}`)
+  const rows = [...ownRows, ...(sharedResult.data || []).filter(row => !ownRows.some(own => own.id === row.id))]
   if (!rows.length) return []
-  const ids = rows.map((row) => row.id)
+  const ids = rows.map(row => row.id)
   const { data: items, error: itemsError } = await supabase!
-    .from('music_playlist_tracks')
-    .select('playlist_id,track_post_id,position')
-    .in('playlist_id', ids)
-    .order('position', { ascending: true })
+    .from('music_playlist_tracks').select('playlist_id,track_post_id,position')
+    .in('playlist_id', ids).order('position', { ascending: true })
   if (itemsError) throw new Error(`Could not load playlist tracks: ${itemsError.message}`)
   const trackIds = new Map<string, string[]>()
   for (const item of items || []) {
@@ -47,21 +50,15 @@ export async function fetchMusicPlaylists(): Promise<MusicPlaylist[]> {
     current.push(item.track_post_id)
     trackIds.set(item.playlist_id, current)
   }
-  const createdBy = String(user.user_metadata?.username || user.user_metadata?.full_name || user.email?.split('@')[0] || 'You')
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    description: row.description || '',
-    coverUrl: row.cover_url || '',
-    visibility: row.visibility || 'private',
-    isCollaborative: Boolean(row.is_collaborative),
+  return rows.map(row => ({
+    id: row.id, name: row.name, description: row.description || '', coverUrl: row.cover_url || '',
+    visibility: row.visibility || 'private', isCollaborative: Boolean(row.is_collaborative),
     trackIds: trackIds.get(row.id) || [],
-    createdBy,
-    isUserPlaylist: true,
+    createdBy: row.user_id === user.id ? 'You' : 'Collaborator',
+    isUserPlaylist: row.user_id === user.id,
     updatedAt: row.updated_at || row.created_at,
   }))
 }
-
 export async function createCloudPlaylist(name: string): Promise<void> {
   const user = await requireUser()
   const cleanName = name.trim().slice(0, 64)
