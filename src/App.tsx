@@ -1197,13 +1197,20 @@ export default function App() {
       {/* Bottom Navigation (Mobile) */}
       <nav className="bottom-nav" aria-label="Main navigation">
         {([
-          ['home', '🏠', 'Home'],
-          ['search', '⌕', 'Search'],
-          ['studio', '🎛', 'Studio'],
-          ['more', '☷', 'More'],
+          ['home', 'home', 'Home'],
+          ['search', 'search', 'Search'],
+          ['studio', 'studio', 'Studio'],
+          ['more', 'more', 'More'],
         ] as const).map(([tab, icon, label]) => (
           <button type="button" key={tab} className={`nav-tab ${activeTab === tab ? 'active' : ''} ${tab === 'studio' ? 'studio-tab' : ''}`} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }} aria-label={label}>
-            <span className="nav-icon">{icon}</span><span className="nav-label">{label}</span>
+            <span className="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation">
+                {icon === 'home' && <><path d="M3.8 10.7 12 4l8.2 6.7" /><path d="M6.4 9.2v10h11.2v-10M9.7 19.2v-6h4.6v6" /></>}
+                {icon === 'search' && <><circle cx="10.7" cy="10.7" r="6.1" /><path d="m15.2 15.2 4.7 4.7" /></>}
+                {icon === 'studio' && <><path d="M4 5.5h16v10H4zM8 19h8M12 15.5V19" /><path d="M7.2 10.5h1.4m2.7-2v4m2.7-3h1.4m1.3 2h.1" /></>}
+                {icon === 'more' && <><circle cx="5" cy="6" r=".8" /><circle cx="5" cy="12" r=".8" /><circle cx="5" cy="18" r=".8" /><path d="M9 6h10M9 12h10M9 18h10" /></>}
+              </svg>
+            </span><span className="nav-label">{label}</span>
           </button>
         ))}
       </nav>
