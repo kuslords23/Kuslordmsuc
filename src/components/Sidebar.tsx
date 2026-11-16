@@ -119,6 +119,7 @@ export default function Sidebar({
           }}
           icon="🎤"
         />
+        <NavButton label="Settings" active={activeTab === 'settings'} onClick={() => { onSelectAlbum(''); onNavigateTab('settings') }} icon="⚙" />
         <NavButton
           label="Upload to Bucket"
           onClick={onOpenUpload}
