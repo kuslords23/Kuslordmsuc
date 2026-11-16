@@ -184,6 +184,7 @@ export default function App() {
       .channel(`kus-music-user-library-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlists', filter: `user_id=eq.${user.id}` }, () => { void refreshPlaylists() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlist_tracks' }, () => { void refreshPlaylists() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlist_collaborators', filter: `user_id=eq.${user.id}` }, () => { void refreshPlaylists() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_follows', filter: `user_id=eq.${user.id}` }, () => { void refreshFollowedArtists() })
       .subscribe()
     return () => { void client.removeChannel(channel) }
