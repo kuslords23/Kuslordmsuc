@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { Track } from '../data/music'
 import { recordCloudPlaylistPlay } from '../lib/playlists'
-import { fetchPlaylistCollaborators, fetchMyPlaylistInvites, invitePlaylistCollaborator, respondToPlaylistInvite, setPlaylistCollaborative, type MusicPlaylist, type PlaylistCollaborator } from '../lib/playlists'
+import { fetchPlaylistCollaborators, fetchMyPlaylistInvites, invitePlaylistCollaborator, respondToPlaylistInvite, removePlaylistCollaborator, setPlaylistCollaborative, type MusicPlaylist, type PlaylistCollaborator } from '../lib/playlists'
 
 interface PlaylistLibraryProps {
   playlists: MusicPlaylist[]
@@ -127,7 +127,7 @@ export default function PlaylistLibrary({
         {selected.isUserPlaylist&&<section className="playlist-collaboration">
           <h3>Collaborative playlist</h3>
           <label><input type="checkbox" checked={selected.isCollaborative} disabled={busy} onChange={async event=>{setBusy(true);setActionError('');try{await setPlaylistCollaborative(selected.id,event.target.checked)}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not update collaboration.')}finally{setBusy(false)}}}/> Allow invited editors to add and arrange tracks</label>
-          {selected.isCollaborative&&<><div className="playlist-add-row"><input value={inviteUsername} onChange={event=>setInviteUsername(event.target.value)} placeholder="Invite by Kus-Lords username"/><button disabled={busy||!inviteUsername.trim()} onClick={async()=>{setBusy(true);setActionError('');try{await invitePlaylistCollaborator(selected.id,inviteUsername);setInviteUsername('');setCollaborators(await fetchPlaylistCollaborators(selected.id))}catch(cause){setActionError(cause instanceof Error?cause.message:'Invitation failed.')}finally{setBusy(false)}}}>Invite</button></div><div className="playlist-collaborator-list">{collaborators.map(person=><div key={person.userId}><strong>@{person.username}</strong><small>{person.role} · {person.status}</small></div>)}{!collaborators.length&&<small>No collaborators invited yet.</small>}</div></>}
+          {selected.isCollaborative&&<><div className="playlist-add-row"><input value={inviteUsername} onChange={event=>setInviteUsername(event.target.value)} placeholder="Invite by Kus-Lords username"/><button disabled={busy||!inviteUsername.trim()} onClick={async()=>{setBusy(true);setActionError('');try{await invitePlaylistCollaborator(selected.id,inviteUsername);setInviteUsername('');setCollaborators(await fetchPlaylistCollaborators(selected.id))}catch(cause){setActionError(cause instanceof Error?cause.message:'Invitation failed.')}finally{setBusy(false)}}}>Invite</button></div><div className="playlist-collaborator-list">{collaborators.map(person=><div key={person.userId}><span><strong>@{person.username}</strong><small>{person.role} · {person.status}</small></span><button disabled={busy} onClick={async()=>{setBusy(true);try{await removePlaylistCollaborator(selected.id,person.userId);setCollaborators(await fetchPlaylistCollaborators(selected.id))}catch(cause){setActionError(cause instanceof Error?cause.message:'Could not remove collaborator.')}finally{setBusy(false)}}}>Remove</button></div>)}{!collaborators.length&&<small>No collaborators invited yet.</small>}</div></>}
         </section>}
         {!selected.isUserPlaylist&&<p className="caption">Shared playlist · invited editor access</p>}
         <div className="playlist-add-row">
