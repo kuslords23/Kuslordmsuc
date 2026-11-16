@@ -92,6 +92,7 @@ export default function Sidebar({
         />
         <NavButton label="Search" active={activeTab === 'search'} onClick={() => { onSelectAlbum(''); onNavigateTab('search') }} icon="⌕" />
         <NavButton label="Explore" active={activeTab === 'browse'} onClick={() => { onSelectAlbum(''); onNavigateTab('browse') }} icon="🧭" />
+        <NavButton label="Music Universe" active={activeTab === 'universe'} onClick={() => { onSelectAlbum(''); onNavigateTab('universe') }} icon="✦" />
         <NavButton label="Music Videos" active={activeTab === 'videos'} onClick={() => { onSelectAlbum(''); onNavigateTab('videos') }} icon="🎬" />
         <NavButton label="Playlists" active={activeTab === 'playlists'} onClick={() => { onSelectAlbum(''); onNavigateTab('playlists') }} icon="♫" />
         <NavButton label="Library" active={activeTab === 'library'} onClick={() => { onSelectAlbum(''); onNavigateTab('library') }} icon="📚" />
@@ -119,6 +120,7 @@ export default function Sidebar({
           }}
           icon="🎤"
         />
+        <NavButton label="Settings" active={activeTab === 'settings'} onClick={() => { onSelectAlbum(''); onNavigateTab('settings') }} icon="⚙" />
         <NavButton
           label="Upload to Bucket"
           onClick={onOpenUpload}

@@ -21,10 +21,14 @@ import RoyalCompanion from './components/RoyalCompanion'
 import TrendFollowPanel from './components/TrendFollowPanel'
 import RecentlyPlayed from './components/RecentlyPlayed'
 import MusicVideos from './components/MusicVideos'
+import ExternalPlayerDock from './components/ExternalPlayerDock'
+import SettingsPage from './components/SettingsPage'
+import MusicUniverse from './components/MusicUniverse'
+import { applyMusicTheme, readLocalMusicSettings } from './lib/userSettings'
 import { readMusicHistory, recordKusTrack, recordExternalTrack, type MusicHistoryEntry } from './lib/musicHistory'
 import './index.css'
 
-type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'videos' | 'more'
+type Tab = 'home' | 'browse' | 'radio' | 'library' | 'playlists' | 'search' | 'studio' | 'artists' | 'videos' | 'more' | 'settings' | 'universe'
 type ExternalCatalogHit = {
   id: string
   title: string
@@ -46,6 +50,7 @@ const formatTime = (seconds: number): string => {
 
 export default function App() {
   const { user, signOut } = useAuth()
+  useEffect(() => { applyMusicTheme(readLocalMusicSettings().appearance.theme) }, [])
 
   // The shared Supabase audio feed is the only catalogue source.
   const [tracks, setTracks] = useState<Track[]>([])
@@ -77,6 +82,10 @@ export default function App() {
   const [muted, setMuted] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [miniPlayerOpen, setMiniPlayerOpen] = useState(false)
+  const [playerPanel,setPlayerPanel]=useState<'queue'|'lyrics'|null>(null)
+  const [sleepMinutes,setSleepMinutes]=useState(0)
+  const [queueAddId,setQueueAddId]=useState('')
+  const sleepTimerRef=useRef<number|null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
@@ -89,10 +98,12 @@ export default function App() {
   const repeatRef = useRef(false)
 
   useEffect(() => { currentTrackRef.current = currentTrack }, [currentTrack])
+
   useEffect(() => { setRecentHistory(readMusicHistory()) }, [])
   useEffect(() => { queueRef.current = queue }, [queue])
   useEffect(() => { shuffleRef.current = shuffleEnabled }, [shuffleEnabled])
   useEffect(() => { repeatRef.current = repeatEnabled }, [repeatEnabled])
+  useEffect(()=>()=>{if(sleepTimerRef.current!==null)window.clearTimeout(sleepTimerRef.current)},[])
   useEffect(() => { if (audioRef.current) audioRef.current.muted = muted }, [muted])
 
   // Load the live SCN-compatible audio inventory. Empty/error states stay empty.
@@ -174,6 +185,7 @@ export default function App() {
       .channel(`kus-music-user-library-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlists', filter: `user_id=eq.${user.id}` }, () => { void refreshPlaylists() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlist_tracks' }, () => { void refreshPlaylists() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'music_playlist_collaborators', filter: `user_id=eq.${user.id}` }, () => { void refreshPlaylists() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_follows', filter: `user_id=eq.${user.id}` }, () => { void refreshFollowedArtists() })
       .subscribe()
     return () => { void client.removeChannel(channel) }
@@ -444,6 +456,31 @@ export default function App() {
     const index = q.findIndex((t) => t.id === track.id)
     playTrack(q[(index - 1 + q.length) % q.length], q)
   }, [playTrack])
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !currentTrack) return
+    const session = navigator.mediaSession
+    if ('MediaMetadata' in window) {
+      session.metadata = new MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: currentTrack.album || 'Kus-Lords Music',
+        artwork: currentTrack.cover?.startsWith('http') ? [{ src: currentTrack.cover, sizes: '512x512' }] : [],
+      })
+    }
+    const handlers: Array<[MediaSessionAction, MediaSessionActionHandler]> = [
+      ['play', () => { void audioRef.current?.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false)) }],
+      ['pause', () => { audioRef.current?.pause(); setIsPlaying(false) }],
+      ['nexttrack', () => nextTrack()],
+      ['previoustrack', () => prevTrack()],
+      ['seekto', details => { if (typeof details.seekTime === 'number' && audioRef.current) { audioRef.current.currentTime = details.seekTime; setCurrentTime(details.seekTime) } }],
+    ]
+    handlers.forEach(([action,handler]) => { try { session.setActionHandler(action,handler) } catch { /* Unsupported action on this device. */ } })
+    if (duration > 0 && Number.isFinite(currentTime)) {
+      try { session.setPositionState({ duration, playbackRate: audioRef.current?.playbackRate || 1, position: Math.min(currentTime,duration) }) } catch { /* Position state is optional. */ }
+    }
+    return () => handlers.forEach(([action]) => { try { session.setActionHandler(action,null) } catch { /* Ignore unsupported actions. */ } })
+  }, [currentTrack, currentTime, duration, nextTrack, prevTrack])
 
   const handleSeek = (time: number) => {
     if (audioRef.current) { audioRef.current.currentTime = time; setCurrentTime(time) }
@@ -827,6 +864,7 @@ export default function App() {
               onUpdateVisibility={handleUpdatePlaylistVisibility}
               onMoveTrack={handleMovePlaylistTrack}
               onPlay={playTrack}
+              onRefresh={refreshPlaylists}
             />
     </div>
   )
@@ -862,6 +900,8 @@ export default function App() {
           ['library', '📚', 'Library', 'Your saved and recently added music.'],
           ['artists', '🎤', 'Artists', 'Discover artists and manage follows.'],
           ['videos', '🎬', 'Music Videos', 'Discover and watch official music videos.'],
+          ['universe', '✦', 'Music Universe', 'Discover, charts, radio, podcasts and artist community.'],
+          ['settings', '⚙', 'Settings', 'Appearance, playback, privacy and Royal preferences.'],
         ] as const).map(([tab, icon, title, description]) => (
           <button type="button" className="more-nav-card" key={tab} onClick={() => { setActiveTab(tab); setSelectedAlbumId(null) }}>
             <span className="more-nav-icon">{icon}</span>
@@ -950,17 +990,7 @@ export default function App() {
                 <span className="caption">{item.platform} · {item.kind === 'playlist' ? 'Playlist' : item.kind === 'track' ? 'Play' : item.kind}</span>
               </button>
             ))}
-            {activeExternalHit && (
-              <div className="external-music-embed">
-                <div className="section-title">
-                  <h2>{activeExternalHit.title}</h2>
-                  <a href={activeExternalHit.openUrl} target="_blank" rel="noopener noreferrer">Open on {activeExternalHit.platform} ↗</a>
-                </div>
-                <iframe title={`${activeExternalHit.title} official music embed`} src={activeExternalHit.embedUrl} height={activeExternalHit.kind === 'track' ? 152 : 352} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" className="external-music-iframe" />
-                <p className="caption">Official {activeExternalHit.platform} player. Full playback is available when supported by that provider and your account or region. Use its own Play control to start listening.</p>
-                <button type="button" className="clear-search" onClick={() => setActiveExternalHit(null)}>Close player</button>
-              </div>
-            )}
+
           </section>
           <section className="external-recommendations">
             <div className="section-title"><h2>Related playlists from music platforms</h2><span className="caption">Playlist matches from connected providers</span></div>
@@ -991,16 +1021,16 @@ export default function App() {
     return (
       <div className="full-player-overlay">
         <div className="full-player">
-          <div className="full-player-bg" style={{ background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }} />
+          <div className="full-player-bg" style={currentTrack.cover?.startsWith('http') ? { backgroundImage: 'url(' + JSON.stringify(currentTrack.cover) + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : { background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }} />
           <div className="full-player-content">
             <div className="full-player-top">
               <button className="collapse-btn" onClick={() => setMiniPlayerOpen(false)}>▼</button>
               <span className="now-playing-label">NOW PLAYING</span>
-              <button className="queue-btn" onClick={() => setMiniPlayerOpen(false)}>☰</button>
+              <button className="queue-btn" onClick={() => setPlayerPanel(panel=>panel==='queue'?null:'queue')} aria-label="Toggle queue">☰</button>
             </div>
             <div
               className="full-artwork"
-              style={{ background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }}
+              style={currentTrack.cover?.startsWith('http') ? { backgroundImage: 'url(' + JSON.stringify(currentTrack.cover) + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : { background: currentTrack.cover || 'linear-gradient(135deg, #fa2d6c, #fc6f60)' }}
             >
               <div className="vinyl-shine" />
             </div>
@@ -1041,9 +1071,14 @@ export default function App() {
                 className="vol-range"
               />
             </div>
-            <div className="audio-source">
-              <span>Audio Output: Device Speakers</span>
+            <div className="full-player-extras">
+              <button onClick={()=>setPlayerPanel(panel=>panel==='lyrics'?null:'lyrics')}>Lyrics</button>
+              <label>Sleep timer <select value={sleepMinutes} onChange={event=>{const minutes=Number(event.target.value);setSleepMinutes(minutes);if(sleepTimerRef.current!==null)window.clearTimeout(sleepTimerRef.current);sleepTimerRef.current=minutes?window.setTimeout(()=>{audioRef.current?.pause();setIsPlaying(false);setSleepMinutes(0);sleepTimerRef.current=null},minutes*60*1000):null}}><option value={0}>Off</option><option value={5}>5 min</option><option value={15}>15 min</option><option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>60 min</option></select></label>
+              <button onClick={()=>setPlayerPanel(panel=>panel==='queue'?null:'queue')}>Queue ({queue.length})</button>
             </div>
+            {playerPanel==='lyrics'&&<section className="player-detail-panel"><h3>Lyrics</h3>{currentTrack.lyrics?<pre>{currentTrack.lyrics}</pre>:<p>Lyrics are not available for this track.</p>}</section>}
+            {playerPanel==='queue'&&<section className="player-detail-panel"><div className="section-title"><h3>Up next</h3><button onClick={()=>setQueue(currentTrack?[currentTrack]:[])}>Clear queue</button></div><div className="queue-add-row"><select value={queueAddId} onChange={event=>setQueueAddId(event.target.value)}><option value="">Add a library track…</option>{tracks.filter(track=>!queue.some(item=>item.id===track.id)).map(track=><option key={track.id} value={track.id}>{track.title} · {track.artist}</option>)}</select><button onClick={()=>{const track=tracks.find(item=>item.id===queueAddId);if(track){setQueue(items=>[...items,track]);setQueueAddId('')}}} disabled={!queueAddId}>Add</button></div>{queue.map((track,index)=><div className="queue-track-row" key={track.id}><button onClick={()=>playTrack(track,queue)}><strong>{track.title}</strong><small>{track.artist}</small></button><span>{index===queue.findIndex(item=>item.id===currentTrack.id)?'Playing':''}</span><button disabled={index===0} aria-label={'Move '+track.title+' up'} onClick={()=>setQueue(items=>{const copy=[...items];[copy[index-1],copy[index]]=[copy[index],copy[index-1]];return copy})}>↑</button><button disabled={index===queue.length-1} aria-label={'Move '+track.title+' down'} onClick={()=>setQueue(items=>{const copy=[...items];[copy[index+1],copy[index]]=[copy[index],copy[index+1]];return copy})}>↓</button><button aria-label={'Remove '+track.title} onClick={()=>setQueue(items=>items.filter(item=>item.id!==track.id))}>×</button></div>)}{!queue.length&&<p>Queue is empty.</p>}</section>}
+            <div className="audio-source"><span>Audio Output: Device Speakers</span></div>
           </div>
         </div>
       </div>
@@ -1109,8 +1144,10 @@ export default function App() {
               {activeTab === 'library' && renderLibrary()}
               {activeTab === 'playlists' && renderPlaylists()}
               {activeTab === 'artists' && renderArtists()}
-              {activeTab === 'videos' && <MusicVideos />}
+              {activeTab === 'videos' && <MusicVideos onPlayVideo={(video) => { setActiveExternalHit({ ...video, kind: 'track', duration: 0 }); setRecentHistory(previous => recordExternalTrack(previous, { ...video, kind: 'track', duration: 0, platform: 'YouTube' })); }} />}
               {activeTab === 'more' && renderMore()}
+              {activeTab === 'settings' && <SettingsPage />}
+              {activeTab === 'universe' && <MusicUniverse tracks={tracks} artists={artistProfiles} userId={user?.id} recentHistory={recentHistory} onPlay={playTrack} />}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'studio' && (
                 <Studio
@@ -1125,12 +1162,13 @@ export default function App() {
 
       {/* Mini Player (Mobile) */}
       {currentTrack && (
-        <div className="mini-player" onClick={() => setMiniPlayerOpen(true)}>
-          <div className="mini-cover" style={{ background: currentTrack.cover }} />
+        <div className={`mini-player ${isPlaying ? 'is-playing' : ''}`} onClick={() => setMiniPlayerOpen(true)}>
+          <div className="mini-cover" style={currentTrack.cover?.startsWith('http') ? { backgroundImage: 'url(' + JSON.stringify(currentTrack.cover) + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : { background: currentTrack.cover }} />
           <div className="mini-info">
             <strong>{currentTrack.title}</strong>
             <span>{currentTrack.artist}</span>
           </div>
+          <span className="mini-progress" style={{ width: `${duration > 0 ? Math.min(100, currentTime / duration * 100) : 0}%` }} />
           <button className="mini-ctrl" onClick={(e) => { e.stopPropagation(); togglePlay() }}>
             {isPlaying ? '❚❚' : '▶'}
           </button>
@@ -1189,6 +1227,8 @@ export default function App() {
         />
         {likeError && <p className="player-action-error" role="alert">{likeError}</p>}
       </div>}
+
+      {activeExternalHit && <ExternalPlayerDock item={activeExternalHit} onClose={() => setActiveExternalHit(null)} />}
 
       <RoyalCompanion activeTab={activeTab} currentTrack={currentTrack ? { title: currentTrack.title, artist: currentTrack.artist, album: currentTrack.album } : null} />
 

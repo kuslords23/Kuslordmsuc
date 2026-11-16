@@ -15,7 +15,9 @@ type SearchResponse = {
   hint?: string
 }
 
-export default function MusicVideos() {
+type Props = { onPlayVideo: (video: MusicVideo) => void }
+
+export default function MusicVideos({ onPlayVideo }: Props) {
   const [query, setQuery] = useState('official music video')
   const [videos, setVideos] = useState<MusicVideo[]>([])
   const [selected, setSelected] = useState<MusicVideo | null>(null)
@@ -83,29 +85,11 @@ export default function MusicVideos() {
         </label>
       </section>
 
-      {selected && (
-        <section className="video-feature">
-          <div className="video-player-frame">
-            <iframe
-              key={selected.id}
-              src={selected.embedUrl}
-              title={selected.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              loading="lazy"
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-          </div>
-          <div className="video-feature-meta">
-            <div><h2>{selected.title}</h2><p>{selected.artist}</p></div>
-            <a href={selected.openUrl} target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a>
-          </div>
-        </section>
-      )}
+
 
       <div className="section-title">
         <h2>{selected ? 'More music videos' : 'Discover videos'}</h2>
-        <span className="caption">Official YouTube results</span>
+        <span className="caption">Official YouTube results · opens in the shared player</span>
       </div>
       {loading && <div className="empty">Finding music videos…</div>}
       {error && !loading && <div className="empty">{error}</div>}
@@ -116,7 +100,7 @@ export default function MusicVideos() {
               type="button"
               className={`music-video-card ${selected?.id === video.id ? 'selected' : ''}`}
               key={video.id}
-              onClick={() => { setSelected(video); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+              onClick={() => { setSelected(video); onPlayVideo(video); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
             >
               <span className="music-video-thumb">
                 {video.coverUrl ? <img src={video.coverUrl} alt="" loading="lazy" /> : <span className="video-thumb-fallback">♪</span>}

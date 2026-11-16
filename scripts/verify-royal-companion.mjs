@@ -1,12 +1,14 @@
 import fs from "node:fs";
 
+const royal = fs.readFileSync("src/components/RoyalCompanion.tsx", "utf8");
 const studio = fs.readFileSync("src/components/Studio.tsx", "utf8");
 const env = fs.readFileSync(".env.example", "utf8");
 const checks = [
-  ["Music Studio calls the shared Royal companion gateway", studio.includes("/api/royal/companion")],
-  ["Music identifies itself with the server-owned music profile", studio.includes("companionId: 'music'")],
-  ["Music sends the current Supabase access token", studio.includes("x-supabase-auth") && studio.includes("supabase.auth.getSession()")],
-  ["Music API base URL is configurable", studio.includes("VITE_ROYAL_API_URL") && env.includes("VITE_ROYAL_API_URL=")],
+  ["Music Royal companion calls the shared Royal gateway", royal.includes("/api/royal/companion")],
+  ["Music uses the server-owned music companion profile", royal.includes('companionId: "music"')],
+  ["Music sends the current Supabase access token", royal.includes("x-supabase-auth") && royal.includes("supabase.auth.getSession()")],
+  ["Music Royal API base URL is configurable", royal.includes("VITE_ROYAL_API_URL") && env.includes("VITE_ROYAL_API_URL=")],
+  ["Music Studio opens the shared Royal companion interface", studio.includes("kus-open-royal") && studio.includes("Open Royal companion")],
   ["Music no longer calls its former standalone assistant endpoint", !studio.includes("/api/studio/assistant")],
 ];
 let failed = 0;
