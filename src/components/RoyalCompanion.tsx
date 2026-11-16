@@ -34,6 +34,7 @@ export default function RoyalCompanion({ activeTab, currentTrack }: Props) {
   const mountedRef = useRef(true)
 
   useEffect(() => { turnsRef.current = turns }, [turns])
+  useEffect(() => { const openRoyal = () => setOpen(true); window.addEventListener("kus-open-royal", openRoyal); return () => window.removeEventListener("kus-open-royal", openRoyal) }, [])
   useEffect(() => () => {
     mountedRef.current = false
     abortRef.current?.abort()
@@ -157,9 +158,7 @@ export default function RoyalCompanion({ activeTab, currentTrack }: Props) {
       }
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") {
-        if (streamedFallback()) {
-          // The visible partial response remains provisional and is not treated as a completed action.
-        }
+        // A stopped partial answer is discarded; it is never presented as a completed result.
       } else {
         const message = cause instanceof Error ? cause.message : "Royal is temporarily unavailable."
         if (mountedRef.current) setError(message)
