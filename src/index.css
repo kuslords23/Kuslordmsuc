@@ -1368,7 +1368,7 @@ body {
   isolation:isolate;
 }
 body::before {
-  content:""; position:fixed; inset:-12%; z-index:-1; pointer-events:none;
+  content:""; position:fixed; inset:-12%; z-index:0; pointer-events:none;
   background:
     radial-gradient(ellipse at 12% 14%,rgba(151,105,239,.34),transparent 34%),
     radial-gradient(ellipse at 86% 18%,rgba(62,196,222,.24),transparent 32%),
@@ -1500,4 +1500,11 @@ button:active { transition-duration:.08s; }
   .bottom-nav,.mini-player,.sidebar,.player-bar,.album-card,.radio-card,.settings-panel,.settings-nav {
     backdrop-filter:none !important; -webkit-backdrop-filter:none !important; background:var(--bg2) !important;
   }
+}
+
+.app-mobile { position:relative; z-index:1; }
+.bottom-nav { bottom:calc(10px + env(safe-area-inset-bottom)) !important; }
+@media(max-width:899px) {
+  .mini-player { bottom:calc(var(--nav-height) + 12px + env(safe-area-inset-bottom)) !important; }
+  .main-mobile { padding-bottom:calc(var(--mini-height) + var(--nav-height) + env(safe-area-inset-bottom) + 12px); }
 }
